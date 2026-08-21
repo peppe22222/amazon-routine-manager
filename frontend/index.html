@@ -823,11 +823,14 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
   </div>
 
   <!-- TOAST NOTIFICATION -->
-  <div id="toast" class="fixed top-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold transform transition-all duration-300 opacity-0 pointer-events-none translate-y-[-20px] border border-emerald-400">
+  <div id="toast" onclick="hideToast()" style="display: none;" class="fixed top-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold border border-emerald-400 cursor-pointer select-none">
     <i class="fa-solid fa-circle-check text-base"></i>
     <span id="toast-msg">Operazione completata!</span>
+    <button type="button" onclick="event.stopPropagation(); hideToast();" class="ml-2 w-5 h-5 rounded-full bg-black/20 hover:bg-black/40 flex items-center justify-center text-white text-[10px] transition-colors">
+      <i class="fa-solid fa-xmark"></i>
+    </button>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=2.1"></script>
 </body>
 </html>

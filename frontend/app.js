@@ -1173,6 +1173,17 @@ function copyToClipboard(text, msg) {
 
 let toastTimer = null;
 
+function hideToast() {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.style.opacity = '0';
+  t.style.transform = 'translateY(-20px)';
+  t.style.pointerEvents = 'none';
+  setTimeout(() => {
+    t.style.display = 'none';
+  }, 350);
+}
+
 function showToast(msg, isError = false) {
   const t = document.getElementById('toast');
   const m = document.getElementById('toast-msg');
@@ -1195,11 +1206,16 @@ function showToast(msg, isError = false) {
     ? 'bg-red-600 border-red-400' 
     : 'bg-emerald-600 border-emerald-400';
 
-  t.className = `fixed top-5 right-5 z-50 ${bgBorder} text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold transform transition-all duration-300 opacity-100 translate-y-0 border pointer-events-auto`;
+  t.className = `fixed top-5 right-5 z-50 ${bgBorder} text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold border cursor-pointer`;
+  t.style.display = 'flex';
+  t.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+  t.style.opacity = '1';
+  t.style.transform = 'translateY(0)';
+  t.style.pointerEvents = 'auto';
 
   toastTimer = setTimeout(() => {
-    t.className = `fixed top-5 right-5 z-50 ${bgBorder} text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold transform transition-all duration-500 opacity-0 -translate-y-4 border pointer-events-none`;
-  }, 2200);
+    hideToast();
+  }, 2000);
 }
 
 function formatDate(isoStr) {

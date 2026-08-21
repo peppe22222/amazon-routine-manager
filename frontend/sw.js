@@ -1,22 +1,27 @@
-const CACHE_NAME = 'amz-routine-v1';
-const ASSETS_TO_CACHE = [
-  '/',
-  '/index.html',
-  '/app.js',
-  '/manifest.json'
-];
+const CACHE_NAME = 'amz-routine-v2';
 
 self.addEventListener('install', (e) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (e) => {
   e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
+    caches.keys().then((keys) => {
+      return Promise.all(
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            return caches.delete(key);
+          }
+        })
+      );
+    }).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (e) => {
-  // Network first, fallback to cache
+  // Always fetch live from network, cache as offline fallback only
   e.respondWith(
     fetch(e.request).catch(() => caches.match(e.request))
   );
 });
+
