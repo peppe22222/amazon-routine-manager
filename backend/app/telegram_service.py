@@ -100,27 +100,40 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 15) -> 
                         seller_contact = f"@{cand}"
                         break
 
-            # 4. Estrazione Condizioni Spesa & Rimborso
-            price_info = "100% rimborso"
+            # 4. Estrazione Intelligente di Tutti i Prodotti e delle Condizioni
+            item_lines = []
+            condition_lines = []
+            
             for line in lines:
-                if any(w in line.lower() for w in ["paga", "costo", "euro", "€", "tasse", "rimborso", "spesa"]):
-                    price_info = line
-                    break
+                clean_l = re.sub(r'https?://\S+', '', line)
+                clean_l = re.sub(r'@[a-zA-Z0-9_]+', '', clean_l).strip()
+                if not clean_l:
+                    continue
+                l_lower = clean_l.lower()
+                is_condition = any(w in l_lower for w in ['paga', 'costo', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback', 'recensione', 'contattare', 'disponibilit', 'pm per link'])
+                if is_condition:
+                    condition_lines.append(clean_l)
+                else:
+                    if len(clean_l) >= 2:
+                        item_lines.append(clean_l)
+
+            # Titolo: unione di tutti i prodotti elencati
+            if len(item_lines) > 1:
+                title = " • ".join(item_lines)
+            elif len(item_lines) == 1:
+                title = item_lines[0]
+            else:
+                title = "Prodotto in Promozione"
+
+            # Condizioni di spesa e rimborso
+            if condition_lines:
+                price_info = " • ".join(condition_lines)
+            else:
+                price_info = "100% rimborso"
 
             taxes_covered = True
             if any(w in raw_text.lower() for w in ["tasse forse", "tasse a parte", "no tasse", "tasse non coperte", "forse"]):
                 taxes_covered = False
-
-            # 5. Titolo
-            title = "Offerta Telegram"
-            for line in lines:
-                clean_l = re.sub(r'https?://\S+', '', line)
-                clean_l = re.sub(r'@[a-zA-Z0-9_]+', '', clean_l).strip()
-                if len(clean_l) > 8 and not any(w in clean_l.lower() for w in ["contattare", "pm per link", "disponibile"]):
-                    title = clean_l
-                    break
-            if title == "Offerta Telegram" and lines:
-                title = lines[0][:80]
 
             if not img_url:
                 img_url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
@@ -309,37 +322,48 @@ class TelegramManager:
             if seller_match:
                 seller_contact = f"@{seller_match[0]}"
 
-            # 3. Condizioni Spesa & Rimborso
-            price_info = "100% rimborso"
-            for line in lines:
-                if any(w in line.lower() for w in ['paga', 'costo', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback']):
-                    price_info = line
-                    break
-
-            taxes_covered = True
-            if any(w in raw_text.lower() for w in ['tasse forse', 'tasse a parte', 'no tasse', 'tasse non coperte', 'forse']):
-                taxes_covered = False
-
-            # 4. Titolo
-            title = ""
+            # 3. Estrazione Intelligente di Tutti i Prodotti e delle Condizioni
+            item_lines = []
+            condition_lines = []
+            
             for line in lines:
                 clean_l = re.sub(r'https?://\S+', '', line)
                 clean_l = re.sub(r'@[a-zA-Z0-9_]+', '', clean_l).strip()
-                if len(clean_l) > 4 and not any(w in clean_l.lower() for w in ['contattare', 'paga', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback']):
-                    title = clean_l
-                    break
-            
+                if not clean_l:
+                    continue
+                l_lower = clean_l.lower()
+                is_condition = any(w in l_lower for w in ['paga', 'costo', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback', 'recensione', 'contattare', 'disponibilit', 'pm per link'])
+                if is_condition:
+                    condition_lines.append(clean_l)
+                else:
+                    if len(clean_l) >= 2:
+                        item_lines.append(clean_l)
+
+            # Titolo: unione di tutti i prodotti elencati (es: Shampoo solido • Fondotinta • Rossetto • Siero effetto lifting)
+            if len(item_lines) > 1:
+                title = " • ".join(item_lines)
+            elif len(item_lines) == 1:
+                title = item_lines[0]
+            else:
+                title = "Prodotto in Promozione"
+
+            # Se il titolo era vuoto o generico, prova con AI Vision
             gemini_key = self.get_setting(db, "gemini_api_key")
-            if (not title or title.startswith("Articolo Offerta #")) and gemini_key:
+            if (not title or title == "Prodotto in Promozione" or title.startswith("Articolo Offerta #")) and gemini_key:
                 if message.media and os.path.exists(photo_path):
                     ai_title = extract_title_with_ai(photo_path, gemini_key)
                     if ai_title:
                         title = ai_title
 
-            if not title and lines:
-                title = lines[0][:80]
-            if not title:
-                title = "Prodotto in Promozione"
+            # Condizioni di spesa e rimborso
+            if condition_lines:
+                price_info = " • ".join(condition_lines)
+            else:
+                price_info = "100% rimborso"
+
+            taxes_covered = True
+            if any(w in raw_text.lower() for w in ['tasse forse', 'tasse a parte', 'no tasse', 'tasse non coperte', 'forse']):
+                taxes_covered = False
 
             msg_date = message.date.replace(tzinfo=None) if message.date else datetime.utcnow()
 
