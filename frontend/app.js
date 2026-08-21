@@ -1171,21 +1171,35 @@ function copyToClipboard(text, msg) {
   });
 }
 
+let toastTimer = null;
+
 function showToast(msg, isError = false) {
   const t = document.getElementById('toast');
   const m = document.getElementById('toast-msg');
   if (!t || !m) return;
 
-  m.innerText = msg;
-  if (isError) {
-    t.className = 'fixed top-5 right-5 z-50 bg-red-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold transform transition-all duration-300 opacity-100 translate-y-0 border border-red-400';
-  } else {
-    t.className = 'fixed top-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold transform transition-all duration-300 opacity-100 translate-y-0 border border-emerald-400';
+  if (toastTimer) {
+    clearTimeout(toastTimer);
+    toastTimer = null;
   }
 
-  setTimeout(() => {
-    t.classList.add('opacity-0', 'translate-y-[-20px]');
-  }, 3500);
+  m.innerText = msg;
+  
+  // Icona corretta
+  const icon = t.querySelector('i');
+  if (icon) {
+    icon.className = isError ? 'fa-solid fa-circle-exclamation text-base' : 'fa-solid fa-circle-check text-base';
+  }
+
+  const bgBorder = isError 
+    ? 'bg-red-600 border-red-400' 
+    : 'bg-emerald-600 border-emerald-400';
+
+  t.className = `fixed top-5 right-5 z-50 ${bgBorder} text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold transform transition-all duration-300 opacity-100 translate-y-0 border pointer-events-auto`;
+
+  toastTimer = setTimeout(() => {
+    t.className = `fixed top-5 right-5 z-50 ${bgBorder} text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold transform transition-all duration-500 opacity-0 -translate-y-4 border pointer-events-none`;
+  }, 2200);
 }
 
 function formatDate(isoStr) {
