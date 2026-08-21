@@ -135,12 +135,12 @@ function togglePasswordVisibility(inputId, iconId) {
 }
 
 async function changeAdminPassword() {
-  const oldPwd = document.getElementById('set_old_password').value;
-  const newPwd = document.getElementById('set_new_password').value;
+  const oldPwd = document.getElementById('set_old_password').value.trim() || '123456';
+  const newPwd = document.getElementById('set_new_password').value.trim();
 
-  if (!oldPwd || !newPwd) {
-    showToast('Inserisci sia la password attuale che la nuova', true);
-    return;
+  if (!newPwd) {
+    showToast('Inserisci la nuova password desiderata', true);
+    return false;
   }
 
   try {
@@ -155,11 +155,14 @@ async function changeAdminPassword() {
       showToast('Password di sicurezza aggiornata con successo!');
       document.getElementById('set_old_password').value = '';
       document.getElementById('set_new_password').value = '';
+      return true;
     } else {
       showToast(data.detail || 'Errore durante il cambio password', true);
+      return false;
     }
   } catch (err) {
     showToast('Errore di rete', true);
+    return false;
   }
 }
 
@@ -1260,6 +1263,12 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
+  const newPwd = document.getElementById('set_new_password') ? document.getElementById('set_new_password').value.trim() : '';
+  if (newPwd) {
+    const pwdSuccess = await changeAdminPassword();
+    if (!pwdSuccess) return;
+  }
+
   const items = [
     { key: 'test_mode', value: document.getElementById('set_test_mode').checked ? 'true' : 'false' },
     { key: 'telegram_api_id', value: document.getElementById('set_telegram_api_id').value },
@@ -1278,7 +1287,7 @@ async function saveSettings() {
       body: JSON.stringify(items)
     });
     if (res.ok) {
-      showToast('Configurazione salvata con successo!');
+      showToast('Configurazione e sicurezza salvate!');
       closeModal('modal-settings');
     }
   } catch (err) {
