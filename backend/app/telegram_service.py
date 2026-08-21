@@ -297,36 +297,124 @@ class TelegramManager:
             except Exception as e:
                 return {"success": False, "error": f"Impossibile trovare il canale: {e}"}
 
+from collections import OrderedDict
+from PIL import Image
+
+def create_album_collage(image_paths: list, output_path: str):
+    """Unisce più foto di uno stesso album Telegram in un'unica immagine collage pulita ad alta risoluzione"""
+    if not image_paths or len(image_paths) <= 1:
+        return
+    try:
+        imgs = []
+        for p in image_paths:
+            if os.path.exists(p):
+                try:
+                    imgs.append(Image.open(p).convert("RGB"))
+                except Exception:
+                    pass
+        if not imgs:
+            return
+
+        target_w, target_h = 450, 450
+        resized = []
+        for im in imgs:
+            # Mantieni proporzioni con letterbox scuro
+            im.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+            bg = Image.new("RGB", (target_w, target_h), (10, 15, 29))
+            offset_x = (target_w - im.width) // 2
+            offset_y = (target_h - im.height) // 2
+            bg.paste(im, (offset_x, offset_y))
+            resized.append(bg)
+
+        if len(resized) == 2:
+            collage = Image.new("RGB", (target_w * 2, target_h), (10, 15, 29))
+            collage.paste(resized[0], (0, 0))
+            collage.paste(resized[1], (target_w, 0))
+        elif len(resized) == 3:
+            collage = Image.new("RGB", (target_w * 3, target_h), (10, 15, 29))
+            collage.paste(resized[0], (0, 0))
+            collage.paste(resized[1], (target_w, 0))
+            collage.paste(resized[2], (target_w * 2, 0))
+        else:
+            # 2x2 grid per 4 o più immagini
+            collage = Image.new("RGB", (target_w * 2, target_h * 2), (10, 15, 29))
+            collage.paste(resized[0], (0, 0))
+            collage.paste(resized[1], (target_w, 0))
+            collage.paste(resized[2], (0, target_h))
+            collage.paste(resized[3] if len(resized) > 3 else resized[0], (target_w, target_h))
+
+        collage.save(output_path, "JPEG", quality=90)
+    except Exception as e:
+        print(f"[Collage create error] {e}")
+
         # Pulisci le vecchie offerte 'new' non ancora elaborate per sostituirle con quelle unificate
         db.query(Offer).filter(Offer.status == "new").delete()
         db.commit()
 
-        imported_count = 0
+        # Raccogli tutti i messaggi recenti
+        raw_messages = []
         async for message in self.client.iter_messages(entity, limit=limit):
-            raw_text = (message.text or "").strip()
-            if not raw_text and not message.media:
+            raw_messages.append(message)
+
+        # Raggruppa i messaggi per album (grouped_id) in modo che 4 foto con 1 testo diventino 1 singola offerta
+        album_groups = OrderedDict()
+        for m in raw_messages:
+            key = f"album_{m.grouped_id}" if m.grouped_id else f"single_{m.id}"
+            if key not in album_groups:
+                album_groups[key] = []
+            album_groups[key].append(m)
+
+        imported_count = 0
+        for key, msgs in album_groups.items():
+            # Trova il messaggio che contiene il testo con i nomi dei prodotti e condizioni
+            raw_text = ""
+            primary_msg = msgs[0]
+            for m in msgs:
+                if m.text and m.text.strip():
+                    raw_text = m.text.strip()
+                    primary_msg = m
+                    break
+
+            if not raw_text and not any(m.media for m in msgs):
                 continue
 
             lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
 
-            # 1. Foto
+            # Scarica tutte le foto dell'album/post
+            downloaded_photos = []
+            for m in msgs:
+                if m.media:
+                    fn = f"tg_offer_{m.id}.jpg"
+                    fp = os.path.join(screenshots_dir, fn)
+                    if not os.path.exists(fp):
+                        try:
+                            await self.client.download_media(m, file=fp)
+                        except Exception:
+                            pass
+                    if os.path.exists(fp):
+                        downloaded_photos.append(fp)
+
             photo_url = None
-            if message.media:
-                photo_filename = f"tg_offer_{message.id}.jpg"
-                photo_path = os.path.join(screenshots_dir, photo_filename)
-                if not os.path.exists(photo_path):
-                    await self.client.download_media(message, file=photo_path)
-                photo_url = f"/screenshots/{photo_filename}"
+            if len(downloaded_photos) > 1:
+                collage_fn = f"tg_album_{key}.jpg"
+                collage_fp = os.path.join(screenshots_dir, collage_fn)
+                create_album_collage(downloaded_photos, collage_fp)
+                if os.path.exists(collage_fp):
+                    photo_url = f"/screenshots/{collage_fn}"
+                else:
+                    photo_url = f"/screenshots/{os.path.basename(downloaded_photos[0])}"
+            elif len(downloaded_photos) == 1:
+                photo_url = f"/screenshots/{os.path.basename(downloaded_photos[0])}"
             else:
                 photo_url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
 
-            # 2. Venditore
+            # Venditore
             seller_match = re.findall(r'@([a-zA-Z0-9_]{3,32})', raw_text)
             seller_contact = "@alex8700"
             if seller_match:
                 seller_contact = f"@{seller_match[0]}"
 
-            # 3. Estrazione Intelligente di Tutti i Prodotti e delle Condizioni
+            # Estrazione Prodotti & Condizioni
             item_lines = []
             condition_lines = []
             
@@ -351,14 +439,6 @@ class TelegramManager:
             else:
                 title = "Prodotto in Promozione"
 
-            # Se il titolo era vuoto o generico, prova con AI Vision
-            gemini_key = self.get_setting(db, "gemini_api_key")
-            if (not title or title == "Prodotto in Promozione" or title.startswith("Articolo Offerta #")) and gemini_key:
-                if message.media and os.path.exists(photo_path):
-                    ai_title = extract_title_with_ai(photo_path, gemini_key)
-                    if ai_title:
-                        title = ai_title
-
             # Condizioni di spesa e rimborso
             if condition_lines:
                 price_info = " • ".join(condition_lines)
@@ -369,32 +449,22 @@ class TelegramManager:
             if any(w in raw_text.lower() for w in ['tasse forse', 'tasse a parte', 'no tasse', 'tasse non coperte', 'forse']):
                 taxes_covered = False
 
-            msg_date = message.date.replace(tzinfo=None) if message.date else datetime.utcnow()
+            msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
 
-            existing = db.query(Offer).filter_by(message_id=str(message.id)).first()
-            if not existing:
-                off = Offer(
-                    title=title,
-                    price_info=price_info,
-                    seller_contact=seller_contact,
-                    image_url=photo_url,
-                    refund_pct=100.0,
-                    taxes_covered=taxes_covered,
-                    channel_name="Articoli Addicted",
-                    message_id=str(message.id),
-                    status="new",
-                    created_at=msg_date
-                )
-                db.add(off)
-                imported_count += 1
-            else:
-                existing.title = title
-                existing.price_info = price_info
-                existing.taxes_covered = taxes_covered
-                existing.created_at = msg_date
-                if photo_url and not photo_url.startswith("http"):
-                    existing.image_url = photo_url
-                imported_count += 1
+            off = Offer(
+                title=title,
+                price_info=price_info,
+                seller_contact=seller_contact,
+                image_url=photo_url,
+                refund_pct=100.0,
+                taxes_covered=taxes_covered,
+                channel_name="Articoli Addicted",
+                message_id=str(primary_msg.id),
+                status="new",
+                created_at=msg_date
+            )
+            db.add(off)
+            imported_count += 1
 
         if imported_count > 0:
             log = ActivityLog(
