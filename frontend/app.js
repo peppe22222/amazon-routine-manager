@@ -294,17 +294,20 @@ async function loadOffers() {
                 ${escapeHtml(o.title)}
               </h3>
 
-              <!-- Griglia Condizioni & Spesa (Alto Contrasto) -->
-              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
-                  <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Condizioni Spesa:</span>
-                  <span class="font-extrabold text-emerald-300 text-xs mt-0.5 block truncate">${o.price_info || '100% rimborso'}</span>
-                </div>
-                <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-700/80">
-                  <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Copertura Tasse:</span>
-                  <span class="font-extrabold ${o.taxes_covered ? 'text-emerald-400' : 'text-amber-300'} text-xs mt-0.5 block flex items-center gap-1">
-                    ${o.taxes_covered ? '<i class="fa-solid fa-shield-check"></i> Coperte' : '<i class="fa-solid fa-triangle-exclamation"></i> Da verificare'}
-                  </span>
+              <!-- Riquadro Condizioni Spesa & Copertura Tasse (Testo Completo Multiriga) -->
+              <div class="mt-3 space-y-2 text-xs">
+                <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-700/80">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                      <i class="fa-solid fa-coins text-emerald-400"></i> Condizioni Spesa & Rimborso:
+                    </span>
+                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${o.taxes_covered ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
+                      ${o.taxes_covered ? 'Tasse Coperte' : 'Tasse da Verificare'}
+                    </span>
+                  </div>
+                  <p class="font-extrabold text-emerald-300 text-xs md:text-sm leading-relaxed break-words whitespace-normal">
+                    ${escapeHtml(o.price_info || '100% rimborso dopo recensione')}
+                  </p>
                 </div>
               </div>
             </div>
