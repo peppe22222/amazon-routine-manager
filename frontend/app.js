@@ -274,9 +274,6 @@ async function loadOffers() {
               <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 shadow-md flex items-center gap-1">
                 <i class="fa-solid fa-check"></i> ${o.refund_pct || 100}% RIMBORSO
               </span>
-              <span class="text-[11px] font-bold px-2 py-0.5 rounded-md bg-slate-900/90 backdrop-blur-md text-blue-300 border border-blue-500/30 flex items-center gap-1 shadow">
-                <i class="fa-brands fa-telegram text-blue-400"></i> ${o.seller_contact || '@venditore'}
-              </span>
             </div>
 
             <!-- Zoom Prompt Overlay -->
@@ -439,8 +436,6 @@ function renderConfirmations(orders) {
             <h3 class="text-sm md:text-base font-extrabold text-white mt-2 leading-snug">${escapeHtml(o.product_title)}</h3>
             
             <div class="mt-2 flex flex-wrap items-center gap-3 text-xs">
-              <span class="text-slate-300">Venditore Telegram: <strong class="text-blue-400 font-bold">${o.seller_contact}</strong></span>
-              <span class="text-slate-500">•</span>
               <span class="text-slate-300">Spesa: <strong class="text-white font-bold">€${o.price_paid.toFixed(2)}</strong></span>
               <span class="text-slate-500">•</span>
               <span class="text-emerald-400 font-bold">Rimborso: 100%</span>
@@ -614,7 +609,6 @@ function renderRefunds(orders) {
               </span>
             </div>
             <p class="text-sm font-extrabold text-white mt-1">${escapeHtml(o.product_title)}</p>
-            <p class="text-xs text-slate-300 mt-0.5">Venditore: <strong class="text-blue-400 font-bold">${o.seller_contact}</strong></p>
           </div>
         </div>
 
