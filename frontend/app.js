@@ -15,23 +15,153 @@ let lightboxState = {
   currentSrc: ''
 };
 
-document.addEventListener('DOMContentLoaded', () => {
+function loadAllData() {
   loadStats();
   loadOffers();
   loadOrders();
   loadLogs();
   loadSettings();
   loadActiveChannel();
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
   initLightboxEvents();
+  const isAuth = await checkAuth();
+  if (isAuth) {
+    loadAllData();
+  }
   
-  // Auto refresh ogni 15 secondi
-  setInterval(() => {
+  // Auto refresh ogni 15 secondi se autenticato
+  setInterval(async () => {
+    const token = localStorage.getItem('amz_auth_token');
+    if (!token) return;
     loadStats();
     if (currentTab === 'offers') loadOffers();
     if (currentTab === 'confirmations' || currentTab === 'reviews' || currentTab === 'refunds') loadOrders();
     if (currentTab === 'logs') loadLogs();
   }, 15000);
 });
+
+// ----------------- AUTHENTICATION & ACCESS CONTROL -----------------
+
+async function checkAuth() {
+  const token = localStorage.getItem('amz_auth_token');
+  const lockScreen = document.getElementById('auth-lock-screen');
+  if (!token) {
+    if (lockScreen) lockScreen.classList.remove('hidden');
+    return false;
+  }
+
+  try {
+    const res = await fetch(`/api/auth/status?token=${encodeURIComponent(token)}`);
+    const data = await res.json();
+    if (data.authenticated) {
+      if (lockScreen) lockScreen.classList.add('hidden');
+      return true;
+    } else {
+      localStorage.removeItem('amz_auth_token');
+      if (lockScreen) lockScreen.classList.remove('hidden');
+      return false;
+    }
+  } catch (err) {
+    if (lockScreen) lockScreen.classList.add('hidden');
+    return true;
+  }
+}
+
+async function handleAuthLogin(e) {
+  if (e) e.preventDefault();
+  const input = document.getElementById('auth-password-input');
+  const errorMsg = document.getElementById('auth-error-msg');
+  const password = input ? input.value : '';
+
+  if (!password) return;
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: password })
+    });
+    const data = await res.json();
+    if (res.ok && data.token) {
+      localStorage.setItem('amz_auth_token', data.token);
+      const lockScreen = document.getElementById('auth-lock-screen');
+      if (lockScreen) lockScreen.classList.add('hidden');
+      if (errorMsg) errorMsg.classList.add('hidden');
+      showToast('Accesso autorizzato!');
+      loadAllData();
+    } else {
+      if (errorMsg) {
+        errorMsg.innerText = data.detail || 'Password errata. Riprova.';
+        errorMsg.classList.remove('hidden');
+      }
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
+    }
+  } catch (err) {
+    if (errorMsg) {
+      errorMsg.innerText = 'Errore di connessione con il server.';
+      errorMsg.classList.remove('hidden');
+    }
+  }
+}
+
+function handleAuthLogout() {
+  localStorage.removeItem('amz_auth_token');
+  const lockScreen = document.getElementById('auth-lock-screen');
+  if (lockScreen) lockScreen.classList.remove('hidden');
+  const input = document.getElementById('auth-password-input');
+  if (input) {
+    input.value = '';
+    input.focus();
+  }
+  showToast('Sessione bloccata');
+}
+
+function togglePasswordVisibility(inputId, iconId) {
+  const input = document.getElementById(inputId);
+  const icon = document.getElementById(iconId);
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.className = 'fa-regular fa-eye-slash';
+  } else {
+    input.type = 'password';
+    if (icon) icon.className = 'fa-regular fa-eye';
+  }
+}
+
+async function changeAdminPassword() {
+  const oldPwd = document.getElementById('set_old_password').value;
+  const newPwd = document.getElementById('set_new_password').value;
+
+  if (!oldPwd || !newPwd) {
+    showToast('Inserisci sia la password attuale che la nuova', true);
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ old_password: oldPwd, new_password: newPwd })
+    });
+    const data = await res.json();
+    if (res.ok && data.token) {
+      localStorage.setItem('amz_auth_token', data.token);
+      showToast('Password di sicurezza aggiornata con successo!');
+      document.getElementById('set_old_password').value = '';
+      document.getElementById('set_new_password').value = '';
+    } else {
+      showToast(data.detail || 'Errore durante il cambio password', true);
+    }
+  } catch (err) {
+    showToast('Errore di rete', true);
+  }
+}
 
 // ----------------- TAB SWITCHING -----------------
 

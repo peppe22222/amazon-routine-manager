@@ -86,6 +86,49 @@
 </head>
 <body class="min-h-screen flex flex-col pb-24 md:pb-8 custom-scrollbar">
 
+  <!-- ========================================================================= -->
+  <!-- FULLSCREEN SECURITY LOCK / AUTH SCREEN -->
+  <!-- ========================================================================= -->
+  <div id="auth-lock-screen" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4">
+    <div class="glass-panel max-w-sm w-full p-6 md:p-8 rounded-3xl text-center shadow-2xl border border-brand-border space-y-5">
+      
+      <!-- App Logo Emblem -->
+      <div class="relative w-20 h-20 mx-auto rounded-3xl overflow-hidden shadow-2xl shadow-emerald-950/80 border-2 border-emerald-500/50 flex items-center justify-center p-1 bg-slate-900 animate-pulse">
+        <img src="/icon.svg" alt="Logo" class="w-full h-full object-contain">
+      </div>
+
+      <div>
+        <h2 class="text-xl font-extrabold text-white flex items-center justify-center gap-1.5">
+          <span>Amazon</span><span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">Routine</span><span class="text-amber-400 font-mono text-xs px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/30">PRO</span>
+        </h2>
+        <p class="text-xs text-slate-300 mt-1">Area Riservata • Inserisci Password / PIN</p>
+      </div>
+
+      <!-- Form Login -->
+      <form id="form-auth-login" onsubmit="handleAuthLogin(event)" class="space-y-4">
+        <div class="relative">
+          <input type="password" id="auth-password-input" placeholder="PIN o Password..." autocomplete="current-password" autofocus required class="w-full bg-brand-bg border-2 border-brand-border focus:border-emerald-500 rounded-2xl px-4 py-3 text-center text-lg text-white font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-500 focus:outline-none transition-all shadow-inner">
+          <button type="button" onclick="togglePasswordVisibility('auth-password-input', 'auth-eye-icon')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-sm">
+            <i id="auth-eye-icon" class="fa-regular fa-eye"></i>
+          </button>
+        </div>
+
+        <p id="auth-error-msg" class="text-xs text-rose-400 font-bold hidden"></p>
+
+        <button type="submit" id="btn-auth-submit" class="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/60 transition-all active:scale-[0.98]">
+          <i class="fa-solid fa-lock-open"></i> Sblocca Accesso
+        </button>
+      </form>
+
+      <div class="pt-2 border-t border-brand-border/60">
+        <p class="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-shield-halved text-emerald-400"></i> Crittografia HTTPS & Sessione Protetta
+        </p>
+      </div>
+
+    </div>
+  </div>
+
   <!-- TOP HEADER / NAVBAR -->
   <header class="sticky top-0 z-40 glass-panel border-b border-brand-border px-4 py-3 md:px-8 shadow-lg">
     <div class="max-w-7xl mx-auto flex items-center justify-between">
@@ -111,6 +154,9 @@
       <div class="flex items-center space-x-2 md:space-x-3">
         <button onclick="openSettingsModal()" title="Impostazioni" class="w-10 h-10 rounded-xl bg-brand-surface hover:bg-brand-card border border-brand-border flex items-center justify-center text-slate-200 hover:text-white transition-all shadow-md">
           <i class="fa-solid fa-gear text-base"></i>
+        </button>
+        <button onclick="handleAuthLogout()" title="Blocca / Disconnetti" class="w-10 h-10 rounded-xl bg-brand-surface hover:bg-rose-900/40 border border-brand-border hover:border-rose-500/40 flex items-center justify-center text-slate-300 hover:text-rose-300 transition-all shadow-md">
+          <i class="fa-solid fa-lock text-sm"></i>
         </button>
       </div>
     </div>
@@ -725,16 +771,26 @@
           </div>
         </div>
 
-        <!-- Timer & Giorni -->
-        <div class="grid grid-cols-2 gap-2">
-          <div class="p-3.5 rounded-xl bg-brand-bg border border-brand-border">
-            <label class="text-slate-400 font-bold">Giorni attesa recensione</label>
-            <input type="number" id="set_review_days_wait" value="10" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-bold mt-1">
+        <!-- Password & Sicurezza Accesso -->
+        <div class="space-y-2.5 p-3.5 rounded-xl bg-brand-bg border border-brand-border">
+          <div class="flex items-center justify-between">
+            <p class="font-bold text-amber-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <i class="fa-solid fa-key"></i> Modifica Password / PIN di Accesso
+            </p>
           </div>
-          <div class="p-3.5 rounded-xl bg-brand-bg border border-brand-border">
-            <label class="text-slate-400 font-bold">Chiave Gemini AI (Opzionale)</label>
-            <input type="password" id="set_gemini_api_key" placeholder="AIza..." class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-bold mt-1">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-slate-400 text-[11px]">Password Attuale</label>
+              <input type="password" id="set_old_password" placeholder="Password attuale..." class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white text-xs mt-1">
+            </div>
+            <div>
+              <label class="text-slate-400 text-[11px]">Nuova Password / PIN</label>
+              <input type="password" id="set_new_password" placeholder="Nuova password..." class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white text-xs mt-1">
+            </div>
           </div>
+          <button type="button" onclick="changeAdminPassword()" class="w-full py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-lock"></i> Aggiorna Password di Sicurezza
+          </button>
         </div>
 
       </form>

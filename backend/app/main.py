@@ -26,6 +26,8 @@ from app.screenshot_service import generate_amazon_order_screenshot, SCREENSHOTS
 from app.telegram_service import telegram_service, scrape_telegram_channel_offers
 from app.email_service import create_order_from_data
 
+import hashlib
+
 # Inizializza DB
 init_db()
 
@@ -42,7 +44,26 @@ app.add_middleware(
 # Monta la cartella degli screenshot
 app.mount("/screenshots", StaticFiles(directory=SCREENSHOTS_DIR), name="screenshots")
 
+# Default password if not set in DB or ENV
+DEFAULT_PASSWORD = os.getenv("ADMIN_PASSWORD", "123456")
+
+def get_current_admin_password(db: Session) -> str:
+    s = db.query(Setting).filter_by(key="admin_password").first()
+    if s and s.value:
+        return s.value
+    return DEFAULT_PASSWORD
+
+def generate_auth_token(password: str) -> str:
+    return hashlib.sha256(f"amz_salt_{password}_routine".encode()).hexdigest()
+
 # Pydantic Schemas
+class LoginPayload(BaseModel):
+    password: str
+
+class ChangePasswordPayload(BaseModel):
+    old_password: str
+    new_password: str
+
 class SettingUpdate(BaseModel):
     key: str
     value: str
@@ -87,6 +108,44 @@ class CreateOrderWithScreenshotPayload(BaseModel):
     price: float = 0.0
     seller_contact: Optional[str] = None
     image_base64: Optional[str] = None
+
+# ----------------- AUTHENTICATION & ACCESS CONTROL -----------------
+
+@app.post("/api/auth/login")
+def login(payload: LoginPayload, db: Session = Depends(get_db)):
+    """Verifica la password di sicurezza e restituisce un token di sessione autenticato"""
+    current_pwd = get_current_admin_password(db)
+    if payload.password == current_pwd:
+        token = generate_auth_token(current_pwd)
+        return {"success": True, "token": token, "message": "Accesso consentito con successo!"}
+    raise HTTPException(status_code=401, detail="Password errata. Riprova.")
+
+@app.get("/api/auth/status")
+def auth_status(token: Optional[str] = Query(None), db: Session = Depends(get_db)):
+    """Verifica se il token fornito è valido"""
+    current_pwd = get_current_admin_password(db)
+    valid_token = generate_auth_token(current_pwd)
+    return {"authenticated": bool(token and token == valid_token)}
+
+@app.post("/api/auth/change-password")
+def change_password(payload: ChangePasswordPayload, db: Session = Depends(get_db)):
+    """Permette all'utente di cambiare la password di sicurezza"""
+    current_pwd = get_current_admin_password(db)
+    if payload.old_password != current_pwd:
+        raise HTTPException(status_code=401, detail="La password attuale non è corretta")
+    
+    if len(payload.new_password.strip()) < 4:
+        raise HTTPException(status_code=400, detail="La nuova password deve contenere almeno 4 caratteri")
+
+    s = db.query(Setting).filter_by(key="admin_password").first()
+    if s:
+        s.value = payload.new_password.strip()
+    else:
+        db.add(Setting(key="admin_password", value=payload.new_password.strip()))
+    db.commit()
+    
+    new_token = generate_auth_token(payload.new_password.strip())
+    return {"success": True, "token": new_token, "message": "Password aggiornata con successo!"}
 
 # ----------------- TELEGRAM AUTH & CHANNEL MANAGEMENT -----------------
 
