@@ -220,31 +220,33 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
     except Exception as e:
         print(f"[Telethon Sync Fallback] {e}")
 
-    # 2. Fallback su anteprima web pubblica
-    offers_data = scrape_telegram_channel_offers(channel, limit=15)
+    # 2. Fallback su anteprima web pubblica: pulisci le offerte vecchie frammentate non richieste
+    offers_data = scrape_telegram_channel_offers(channel, limit=20)
     if not offers_data:
         return {
             "success": False,
             "count": 0,
-            "message": f"Nessun post rilevato per '{channel}'. Puoi sempre usare il tasto 'Incolla Post' per aggiungere offerte all'istante!"
+            "message": f"Nessun post rilevato per '{channel}'."
         }
+
+    # Rimuovi vecchie offerte 'new' per aggiornarle tutte alla nuova struttura combinata
+    db.query(Offer).filter(Offer.status == "new").delete()
+    db.commit()
 
     added_count = 0
     for item in offers_data:
-        existing = db.query(Offer).filter_by(title=item["title"]).first()
-        if not existing:
-            off = Offer(
-                title=item["title"],
-                price_info=item["price_info"],
-                seller_contact=item["seller_contact"],
-                image_url=item["image_url"],
-                refund_pct=100.0,
-                taxes_covered=item["taxes_covered"],
-                channel_name=channel,
-                status="new"
-            )
-            db.add(off)
-            added_count += 1
+        off = Offer(
+            title=item["title"],
+            price_info=item["price_info"],
+            seller_contact=item["seller_contact"],
+            image_url=item["image_url"],
+            refund_pct=100.0,
+            taxes_covered=item["taxes_covered"],
+            channel_name=channel,
+            status="new"
+        )
+        db.add(off)
+        added_count += 1
 
     if added_count > 0:
         log = ActivityLog(

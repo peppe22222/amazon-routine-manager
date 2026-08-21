@@ -297,6 +297,10 @@ class TelegramManager:
             except Exception as e:
                 return {"success": False, "error": f"Impossibile trovare il canale: {e}"}
 
+        # Pulisci le vecchie offerte 'new' non ancora elaborate per sostituirle con quelle unificate
+        db.query(Offer).filter(Offer.status == "new").delete()
+        db.commit()
+
         imported_count = 0
         async for message in self.client.iter_messages(entity, limit=limit):
             raw_text = (message.text or "").strip()
