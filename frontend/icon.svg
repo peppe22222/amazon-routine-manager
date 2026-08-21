@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="50%" stop-color="#1E1B4B" />
+      <stop offset="100%" stop-color="#022C22" />
+    </linearGradient>
+    <linearGradient id="primaryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE047" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Background Card -->
+  <rect width="512" height="512" rx="128" fill="url(#bgGrad)" />
+  <rect width="504" height="504" x="4" y="4" rx="124" fill="none" stroke="rgba(255, 255, 255, 0.12)" stroke-width="6" />
+
+  <!-- Glowing Aura -->
+  <circle cx="256" cy="220" r="130" fill="#10B981" opacity="0.15" filter="url(#glow)" />
+
+  <!-- Golden 5-Star Crown -->
+  <g transform="translate(0, -15)">
+    <!-- Central Big Star -->
+    <path d="M256,90 L278,145 L336,149 L292,187 L305,244 L256,213 L207,244 L220,187 L176,149 L234,145 Z" fill="url(#goldGrad)" filter="url(#glow)" />
+    
+    <!-- Left Small Star -->
+    <path d="M160,140 L174,175 L211,178 L183,202 L191,238 L160,218 L129,238 L137,202 L109,178 L146,175 Z" fill="url(#goldGrad)" opacity="0.85" transform="scale(0.7) translate(30, 20)" />
+    
+    <!-- Right Small Star -->
+    <path d="M352,140 L366,175 L403,178 L375,202 L383,238 L352,218 L321,238 L329,202 L301,178 L338,175 Z" fill="url(#goldGrad)" opacity="0.85" transform="scale(0.7) translate(220, 20)" />
+  </g>
+
+  <!-- Amazon Smile Curve / Lightning Dynamic Swoosh -->
+  <path d="M120,335 C170,395 342,395 392,335" fill="none" stroke="url(#goldGrad)" stroke-width="26" stroke-linecap="round" filter="url(#glow)" />
+  
+  <!-- Arrow Head on Smile -->
+  <path d="M396,330 L408,310 C398,328 402,348 402,348 C402,348 382,344 366,336 Z" fill="url(#goldGrad)" />
+
+  <!-- Central Speed / Automation Lightning Bolt -->
+  <path d="M268,210 L220,295 L255,295 L240,365 L292,275 L258,275 Z" fill="#FFFFFF" opacity="0.95" filter="url(#glow)" />
+</svg>

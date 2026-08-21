@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Amazon Review & Refund Manager</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0F172A">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AmzManager">
+  <link rel="icon" type="image/svg+xml" href="/icon.svg">
+  <link rel="apple-touch-icon" href="/icon.svg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              bg: '#0A0F1D',
+              surface: '#131D33',
+              card: '#1A2642',
+              cardHover: '#233256',
+              border: '#2E3F66',
+              borderLight: '#435887',
+              emerald: '#10B981',
+              emeraldGlow: 'rgba(16, 185, 129, 0.2)',
+              blue: '#3B82F6',
+              amber: '#F59E0B',
+              purple: '#8B5CF6'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: #0A0F1D;
+      color: #F8FAFC;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .glass-panel {
+      background: rgba(19, 29, 51, 0.92);
+      backdrop-filter: blur(16px);
+      border: 1px solid #2E3F66;
+    }
+    .glass-card {
+      background: #1A2642;
+      border: 1px solid #2E3F66;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
+    }
+    .glass-card:hover {
+      border-color: #435887;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #0A0F1D;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #2E3F66;
+      border-radius: 4px;
+    }
+    .zoom-container {
+      overflow: hidden;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+    .zoom-container.is-dragging {
+      cursor: grabbing;
+    }
+    .zoom-image {
+      transition: transform 0.15s ease-out;
+      transform-origin: center center;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col pb-24 md:pb-8 custom-scrollbar">
+
+  <!-- TOP HEADER / NAVBAR -->
+  <header class="sticky top-0 z-40 glass-panel border-b border-brand-border px-4 py-3 md:px-8 shadow-lg">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <!-- Logo & Titolo -->
+      <div class="flex items-center space-x-3">
+        <div class="relative w-11 h-11 rounded-2xl overflow-hidden shadow-lg shadow-emerald-950/60 border border-emerald-500/40 flex items-center justify-center p-0.5 bg-slate-950 group shrink-0">
+          <img src="/icon.svg" alt="Logo" class="w-full h-full object-contain group-hover:scale-105 transition-transform">
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base md:text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
+              <span>Amazon</span><span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">Routine</span><span class="text-amber-400 font-mono text-xs px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/30">PRO</span>
+            </h1>
+            <span id="sandbox-badge" class="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider">
+              <i class="fa-solid fa-flask-vial mr-1"></i>Sandbox
+            </span>
+          </div>
+          <p class="text-xs text-slate-300 hidden sm:block">Automazione Offerte Telegram • Ricevute Ordini • Recensioni 5★ • Rimborsi PayPal</p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex items-center space-x-2 md:space-x-3">
+        <button onclick="openSettingsModal()" title="Impostazioni" class="w-10 h-10 rounded-xl bg-brand-surface hover:bg-brand-card border border-brand-border flex items-center justify-center text-slate-200 hover:text-white transition-all shadow-md">
+          <i class="fa-solid fa-gear text-base"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- WORKFLOW PIPELINE PROGRESS GUIDE -->
+  <section class="max-w-7xl mx-auto w-full px-4 md:px-8 mt-4">
+    <div class="glass-panel rounded-2xl p-3 md:p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+          <i class="fa-solid fa-route text-emerald-400"></i> Come Funziona il Flusso Completo:
+        </span>
+        <span class="text-[11px] text-slate-400 font-medium">Controllabile 100% da iPhone e PC</span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs">
+        <div class="p-2.5 rounded-xl bg-brand-bg/80 border border-brand-border flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 font-extrabold flex items-center justify-center shrink-0">1</div>
+          <div>
+            <p class="font-bold text-white leading-tight">Offerta Telegram</p>
+            <p class="text-[11px] text-slate-400">Foto & Richiesta link</p>
+          </div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-brand-bg/80 border border-brand-border flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 font-extrabold flex items-center justify-center shrink-0">2</div>
+          <div>
+            <p class="font-bold text-white leading-tight">Acquisto Amazon</p>
+            <p class="text-[11px] text-slate-400">Ricevi ordine & mail</p>
+          </div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-brand-bg/80 border border-amber-500/30 flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-amber-500/20 text-amber-300 font-extrabold flex items-center justify-center shrink-0">3</div>
+          <div>
+            <p class="font-bold text-amber-200 leading-tight">Tasto di Conferma</p>
+            <p class="text-[11px] text-amber-300/80">Invia screen ordine</p>
+          </div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-brand-bg/80 border border-brand-border flex items-center gap-2.5">
+          <div class="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 font-extrabold flex items-center justify-center shrink-0">4</div>
+          <div>
+            <p class="font-bold text-white leading-tight">Recensione 5★</p>
+            <p class="text-[11px] text-slate-400">Timer 10gg & Testo pronto</p>
+          </div>
+        </div>
+        <div class="p-2.5 rounded-xl bg-brand-bg/80 border border-emerald-500/30 flex items-center gap-2.5 col-span-2 sm:col-span-1">
+          <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 font-extrabold flex items-center justify-center shrink-0">5</div>
+          <div>
+            <p class="font-bold text-emerald-300 leading-tight">Rimborso PayPal</p>
+            <p class="text-[11px] text-emerald-400/80">100% accreditato</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- QUICK STATS BAR -->
+  <section class="max-w-7xl mx-auto w-full px-4 md:px-8 mt-4">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <!-- Spesa Totale -->
+      <div class="glass-card p-4 rounded-2xl flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-300 uppercase tracking-wider">Spesa Anticipata</p>
+          <p id="stat-total-spent" class="text-2xl font-extrabold text-white mt-1">€0.00</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400 text-lg">
+          <i class="fa-solid fa-credit-card"></i>
+        </div>
+      </div>
+
+      <!-- In Attesa Rimborso -->
+      <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent">
+        <div>
+          <p class="text-xs font-bold text-amber-300 uppercase tracking-wider">Da Rimborsare</p>
+          <p id="stat-pending-refund" class="text-2xl font-extrabold text-amber-300 mt-1">€0.00</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 text-lg">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+      </div>
+
+      <!-- Totale Rimborsato -->
+      <div class="glass-card p-4 rounded-2xl flex items-center justify-between border-emerald-500/30 bg-gradient-to-b from-emerald-500/5 to-transparent">
+        <div>
+          <p class="text-xs font-bold text-emerald-300 uppercase tracking-wider">Rimborsi Ricevuti</p>
+          <p id="stat-reimbursed" class="text-2xl font-extrabold text-emerald-400 mt-1">€0.00</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300 text-lg">
+          <i class="fa-solid fa-hand-holding-dollar"></i>
+        </div>
+      </div>
+
+      <!-- Ordini Attivi -->
+      <div class="glass-card p-4 rounded-2xl flex items-center justify-between">
+        <div>
+          <p class="text-xs font-bold text-slate-300 uppercase tracking-wider">Pratiche Attive</p>
+          <p id="stat-active-count" class="text-2xl font-extrabold text-purple-300 mt-1">0</p>
+        </div>
+        <div class="w-11 h-11 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 text-lg">
+          <i class="fa-solid fa-list-check"></i>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DESKTOP NAV TABS -->
+  <div class="max-w-7xl mx-auto w-full px-4 md:px-8 mt-5">
+    <div class="flex items-center space-x-2 border-b border-brand-border pb-2 overflow-x-auto custom-scrollbar">
+      <button onclick="switchTab('offers')" id="tab-btn-offers" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
+        <i class="fa-solid fa-tags text-emerald-400"></i> Offerte Telegram
+        <span id="badge-offers-count" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 font-extrabold">0</span>
+      </button>
+      <button onclick="switchTab('confirmations')" id="tab-btn-confirmations" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+        <i class="fa-solid fa-camera-retro text-amber-400"></i> Da Confermare (Screen)
+        <span id="badge-confirm-count" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold">0</span>
+      </button>
+      <button onclick="switchTab('reviews')" id="tab-btn-reviews" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+        <i class="fa-solid fa-star text-amber-400"></i> Recensioni 5★ (Timer 10gg)
+      </button>
+      <button onclick="switchTab('refunds')" id="tab-btn-refunds" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+        <i class="fa-brands fa-paypal text-blue-400"></i> Rimborsi PayPal
+      </button>
+      <button onclick="switchTab('logs')" id="tab-btn-logs" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+        <i class="fa-solid fa-list-ul text-slate-400"></i> Registro Attività
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN TAB CONTENT CONTAINER -->
+  <main class="max-w-7xl mx-auto w-full px-4 md:px-8 mt-4 flex-1">
+    
+    <!-- TAB 1: OFFERTE TELEGRAM -->
+    <div id="tab-offers" class="tab-content space-y-4">
+      
+      <!-- ACTIVE TELEGRAM CHANNEL OPERATIONAL BAR -->
+      <div class="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-gradient-to-r from-blue-600/20 via-brand-surface to-brand-card border border-blue-500/30 shadow-md">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center text-xl shrink-0">
+            <i class="fa-brands fa-telegram"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-slate-300 font-bold uppercase tracking-wider">Canale Operativo:</span>
+              <span id="active-channel-badge" class="text-xs font-mono font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-500/50">Canale Offerte Test 🧪</span>
+            </div>
+            <p class="text-[11px] text-slate-300 mt-0.5">Modalità Sicura Test: Le offerte sono simulate e inviate solo a te stesso.</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="syncActiveChannel()" id="btn-sync-channel" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-md flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-cloud-arrow-down"></i> Sincronizza Canale Live
+          </button>
+          <button onclick="openChangeChannelModal()" class="px-3 py-1.5 rounded-xl bg-brand-card hover:bg-brand-cardHover border border-brand-border text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-pen-to-square"></i> Modifica Canale
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3 rounded-xl bg-brand-surface/60 border border-brand-border">
+        <div class="flex items-center gap-2.5">
+          <div class="w-3 h-3 rounded-full bg-emerald-400 animate-pulse"></div>
+          <h2 class="text-sm md:text-base font-extrabold text-white flex items-center gap-2">
+            Feed Offerte Intercettate
+          </h2>
+          <span class="text-xs text-slate-300 hidden md:inline">• Tocca le foto per ingrandirle con zoom ad alta risoluzione</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="resetAllRequests()" title="Reimposta tutte le richieste inviate per poterle provare di nuovo" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-rotate-left text-amber-400"></i> Reset Richieste
+          </button>
+          <button onclick="loadOffers()" class="px-3 py-1.5 rounded-lg bg-brand-card hover:bg-brand-cardHover border border-brand-border text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-rotate-right"></i> Aggiorna
+          </button>
+        </div>
+      </div>
+
+      <!-- Offerte Grid -->
+      <div id="offers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <!-- Renderizzato via JS -->
+      </div>
+    </div>
+
+    <!-- TAB 2: ORDINI DA CONFERMARE (TASTO DI CONFERMA) -->
+    <div id="tab-confirmations" class="tab-content hidden space-y-4">
+      <div class="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent border border-amber-500/30 text-slate-200 text-xs md:text-sm flex items-start gap-3.5 shadow-md">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 text-lg shrink-0 mt-0.5">
+          <i class="fa-solid fa-camera"></i>
+        </div>
+        <div>
+          <p class="font-bold text-amber-200 text-sm">Tasto di Conferma (Semi-Automazione Sicura)</p>
+          <p class="text-slate-300 text-xs mt-0.5 leading-relaxed">
+            Non appena acquisti su Amazon, il sistema preleva il numero d'ordine (es. <code class="bg-brand-bg px-1.5 py-0.5 rounded text-amber-300 font-bold">408-xxxxxxx</code>) e genera lo screenshot della schermata d'ordine.
+            Clicca su <strong>"Visualizza Screen"</strong> per verificarlo e su <strong>"Conferma e Invia"</strong> per inoltrarlo su Telegram con 1 tocco.
+          </p>
+        </div>
+      </div>
+      <div id="confirmations-list" class="space-y-4">
+        <!-- Renderizzato via JS -->
+      </div>
+    </div>
+
+    <!-- TAB 3: RECENSIONI (TIMER 10GG + TESTO 5 STELLE PRONTO) -->
+    <div id="tab-reviews" class="tab-content hidden space-y-4">
+      <div class="p-4 rounded-2xl bg-gradient-to-r from-purple-500/15 via-purple-500/10 to-transparent border border-purple-500/30 text-slate-200 text-xs md:text-sm flex items-start gap-3.5 shadow-md">
+        <div class="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300 text-lg shrink-0 mt-0.5">
+          <i class="fa-solid fa-star"></i>
+        </div>
+        <div>
+          <p class="font-bold text-purple-200 text-sm">Generatore Recensioni 5 Stelle & Timer 10 Giorni</p>
+          <p class="text-slate-300 text-xs mt-0.5 leading-relaxed">
+            Traccia il conto alla rovescia di 10 giorni dall'acquisto. Per ogni prodotto trovi un <strong>Titolo</strong> e un <strong>Testo dettagliato in italiano</strong> pronti da copiare con un solo clic e incollare su Amazon.
+          </p>
+        </div>
+      </div>
+      <div id="reviews-list" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Renderizzato via JS -->
+      </div>
+    </div>
+
+    <!-- TAB 4: RIMBORSI PAYPAL -->
+    <div id="tab-refunds" class="tab-content hidden space-y-4">
+      <div class="p-4 rounded-2xl bg-gradient-to-r from-blue-500/15 via-blue-500/10 to-transparent border border-blue-500/30 text-slate-200 text-xs md:text-sm flex items-start gap-3.5 shadow-md">
+        <div class="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-300 text-lg shrink-0 mt-0.5">
+          <i class="fa-brands fa-paypal"></i>
+        </div>
+        <div>
+          <p class="font-bold text-blue-200 text-sm">Registro Rimborsi PayPal 100%</p>
+          <p class="text-slate-300 text-xs mt-0.5 leading-relaxed">
+            Monitora le pratiche in attesa di rimborso e segna gli accrediti ricevuti sul tuo conto PayPal per archiviare l'operazione con saldo contabile automatico.
+          </p>
+        </div>
+      </div>
+      <div id="refunds-list" class="space-y-3">
+        <!-- Renderizzato via JS -->
+      </div>
+    </div>
+
+    <!-- TAB 5: LOG ATTIVITÀ -->
+    <div id="tab-logs" class="tab-content hidden space-y-3">
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-list-check text-slate-400"></i> Storico Operazioni del Sistema
+        </h3>
+        <button onclick="loadLogs()" class="text-xs text-slate-300 hover:text-white flex items-center gap-1 font-medium">
+          <i class="fa-solid fa-rotate-right"></i> Ricarica
+        </button>
+      </div>
+      <div id="logs-container" class="glass-card p-4 rounded-2xl space-y-3">
+        <!-- Renderizzato via JS -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MOBILE BOTTOM NAV BAR (Ottimizzato iPhone PWA) -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-brand-border px-3 py-2 flex justify-around items-center shadow-2xl">
+    <button onclick="switchTab('offers')" id="mob-btn-offers" class="flex flex-col items-center text-emerald-400 transition-colors">
+      <i class="fa-solid fa-tags text-lg"></i>
+      <span class="text-[11px] font-bold mt-0.5">Offerte</span>
+    </button>
+    <button onclick="switchTab('confirmations')" id="mob-btn-confirmations" class="flex flex-col items-center text-slate-400 relative transition-colors">
+      <i class="fa-solid fa-camera text-lg"></i>
+      <span class="text-[11px] font-bold mt-0.5">Conferma</span>
+      <span id="mob-badge-confirm" class="hidden absolute -top-1 right-2 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-brand-bg"></span>
+    </button>
+    <button onclick="switchTab('reviews')" id="mob-btn-reviews" class="flex flex-col items-center text-slate-400 transition-colors">
+      <i class="fa-solid fa-star text-lg"></i>
+      <span class="text-[11px] font-bold mt-0.5">Recensioni</span>
+    </button>
+    <button onclick="switchTab('refunds')" id="mob-btn-refunds" class="flex flex-col items-center text-slate-400 transition-colors">
+      <i class="fa-solid fa-hand-holding-dollar text-lg"></i>
+      <span class="text-[11px] font-bold mt-0.5">Rimborsi</span>
+    </button>
+  </nav>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: INTERACTIVE IMAGE LIGHTBOX & ZOOM VIEWER -->
+  <!-- ========================================================================= -->
+  <div id="modal-lightbox" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden flex flex-col justify-between p-3 md:p-6 transition-all duration-300">
+    
+    <!-- Lightbox Header -->
+    <div class="flex items-center justify-between pb-3 border-b border-slate-700/60 max-w-6xl w-full mx-auto">
+      <div class="flex items-center space-x-3 truncate mr-3">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-magnifying-glass-plus text-sm"></i>
+        </div>
+        <div class="truncate">
+          <h3 id="lightbox-title" class="text-sm md:text-base font-bold text-white truncate">Foto Prodotto</h3>
+          <p id="lightbox-subtitle" class="text-xs text-slate-300 truncate">Visualizzatore ad alta risoluzione</p>
+        </div>
+      </div>
+
+      <!-- Controls Toolbar -->
+      <div class="flex items-center space-x-1.5 shrink-0">
+        <button onclick="zoomLightbox(0.25)" title="Zoom In (+)" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white flex items-center justify-center text-sm transition-all">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+        <button onclick="zoomLightbox(-0.25)" title="Zoom Out (-)" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white flex items-center justify-center text-sm transition-all">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+        <button onclick="resetLightboxZoom()" title="Ripristina Zoom (1:1)" class="px-2.5 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-slate-200 flex items-center justify-center transition-all">
+          1:1
+        </button>
+        <button onclick="openLightboxImageOriginal()" title="Apri Originale" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 hover:text-white flex items-center justify-center text-sm transition-all">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        </button>
+        <button onclick="closeLightbox()" title="Chiudi (Esc)" class="w-9 h-9 rounded-lg bg-red-600/30 hover:bg-red-600 text-red-200 hover:text-white border border-red-500/40 flex items-center justify-center text-base transition-all ml-2">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Lightbox Main Stage -->
+    <div id="lightbox-container" class="zoom-container flex-1 flex items-center justify-center my-3 relative overflow-hidden rounded-2xl bg-black/50 border border-slate-800/80">
+      <img id="lightbox-img" src="" alt="Anteprima Prodotto" class="zoom-image max-h-[75vh] max-w-[92vw] object-contain rounded-xl shadow-2xl transition-transform cursor-grab select-none">
+      
+      <!-- Indicator Zoom Level -->
+      <div id="lightbox-zoom-badge" class="absolute bottom-4 right-4 bg-black/75 backdrop-blur-md text-slate-200 text-xs font-bold px-3 py-1.5 rounded-full border border-slate-700">
+        100%
+      </div>
+    </div>
+
+    <!-- Lightbox Footer -->
+    <div class="flex items-center justify-between text-xs text-slate-400 max-w-6xl w-full mx-auto pt-2 border-t border-slate-800">
+      <span>💡 Suggerimento: trascina per muovere l'immagine zoomata o usa la rotella del mouse</span>
+      <button onclick="closeLightbox()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold">Chiudi</button>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: ANTEPRIMA SCREENSHOT ORDINE -->
+  <!-- ========================================================================= -->
+  <div id="modal-screenshot" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+    <div class="glass-panel max-w-lg w-full p-4 md:p-5 rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+        <div>
+          <h3 id="modal-screen-title" class="text-sm md:text-base font-extrabold text-white">Ricevuta Ordine Amazon</h3>
+          <p id="modal-screen-ord-num" class="text-xs font-mono text-amber-300 mt-0.5">408-xxxxxxx-xxxxxxx</p>
+        </div>
+        <button onclick="closeModal('modal-screenshot')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <div class="my-3 overflow-y-auto flex-1 text-center bg-brand-bg rounded-xl p-2 border border-brand-border">
+        <img id="modal-screen-img" src="" alt="Screenshot Ordine" class="rounded-lg mx-auto max-h-[58vh] object-contain shadow-2xl cursor-pointer hover:opacity-95 transition-all" onclick="openLightboxFromSrc(this.src, 'Screenshot Ordine Amazon', document.getElementById('modal-screen-ord-num').innerText)">
+      </div>
+      <div class="flex items-center justify-between pt-3 border-t border-brand-border">
+        <button onclick="openLightboxFromSrc(document.getElementById('modal-screen-img').src, 'Screenshot Ordine Amazon', document.getElementById('modal-screen-ord-num').innerText)" class="px-3.5 py-2 rounded-xl bg-brand-surface hover:bg-brand-card text-slate-200 text-xs font-bold border border-brand-border flex items-center gap-1.5">
+          <i class="fa-solid fa-magnifying-glass-plus"></i> Ingrandisci a Schermo Intero
+        </button>
+        <button onclick="closeModal('modal-screenshot')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold">
+          Chiudi
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: DETTAGLI RECENSIONE A 5 STELLE -->
+  <!-- ========================================================================= -->
+  <div id="modal-review" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+    <div class="glass-panel max-w-xl w-full p-4 md:p-6 rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+        <div class="flex items-center gap-2.5">
+          <div class="text-amber-400 flex text-base">
+            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+          </div>
+          <h3 class="text-sm md:text-base font-extrabold text-white">Recensione 5 Stelle Pronta</h3>
+        </div>
+        <button onclick="closeModal('modal-review')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      
+      <div class="my-4 space-y-4 overflow-y-auto flex-1">
+        <!-- Titolo Recensione -->
+        <div>
+          <label class="text-xs font-bold text-slate-300 uppercase tracking-wider">1. Titolo Recensione Amazon</label>
+          <div class="mt-1 flex items-center gap-2">
+            <input type="text" id="modal-review-title" readonly class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none">
+            <button onclick="copyToClipboard(document.getElementById('modal-review-title').value, 'Titolo recensione copiato!')" class="px-3.5 py-2.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-sm">
+              <i class="fa-regular fa-copy"></i> Copia
+            </button>
+          </div>
+        </div>
+
+        <!-- Testo Recensione -->
+        <div>
+          <label class="text-xs font-bold text-slate-300 uppercase tracking-wider">2. Testo Recensione Completo</label>
+          <div class="mt-1 relative">
+            <textarea id="modal-review-body" rows="6" readonly class="w-full bg-brand-bg border border-brand-border rounded-xl p-3.5 text-xs md:text-sm text-slate-100 focus:outline-none leading-relaxed font-medium"></textarea>
+          </div>
+          <div class="mt-2.5 flex flex-wrap justify-between items-center gap-2">
+            <button id="btn-regenerate-review" class="text-xs text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 font-bold">
+              <i class="fa-solid fa-arrows-rotate"></i> Rigenera nuova formulazione
+            </button>
+            <button onclick="copyToClipboard(document.getElementById('modal-review-body').value, 'Testo recensione copiato!')" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/40 flex items-center gap-1.5">
+              <i class="fa-regular fa-copy"></i> Copia Testo Recensione
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap justify-between items-center pt-3 border-t border-brand-border gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="modal-review-iphone-btn" onclick="openIPhoneUploadModal(currentActiveOrderId, 'review')" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/50 hover:to-indigo-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
+            <i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone / Incolla
+          </button>
+          <a href="https://www.amazon.it/gp/your-account/order-history" target="_blank" class="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1.5 font-bold underline">
+            <i class="fa-solid fa-arrow-up-right-from-square"></i> I Miei Ordini Amazon
+          </a>
+        </div>
+        <button onclick="closeModal('modal-review')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: OPZIONI CARICAMENTO & INCOLLA SCREENSHOT (OTTIMIZZATO IPHONE) -->
+  <!-- ========================================================================= -->
+  <div id="modal-iphone-upload" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+    <div class="glass-panel max-w-md w-full p-4 md:p-6 rounded-2xl max-h-[92vh] flex flex-col shadow-2xl space-y-4">
+      
+      <!-- Header -->
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 border border-purple-500/40 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-mobile-screen-button"></i>
+          </div>
+          <div>
+            <h3 class="text-sm md:text-base font-extrabold text-white">Carica Screenshot Amazon</h3>
+            <p id="modal-iphone-ord-title" class="text-[11px] text-slate-300">Scegli come inserire lo screenshot da iPhone</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modal-iphone-upload')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Opzioni di Inserimento per iPhone -->
+      <div class="space-y-3">
+        
+        <!-- Opzione 1: Incolla da Appunti iOS (1 Tap) -->
+        <button onclick="pasteFromIPhoneClipboard()" class="w-full p-3.5 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-extrabold text-xs md:text-sm flex items-center justify-between shadow-lg shadow-purple-900/30 transition-all">
+          <div class="flex items-center gap-3 text-left">
+            <div class="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-paste"></i>
+            </div>
+            <div>
+              <span class="block">Incolla Foto da Appunti iOS</span>
+              <span class="text-[11px] text-purple-100 font-normal">Se hai appena copiato lo screenshot su iPhone</span>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-xs text-purple-200"></i>
+        </button>
+
+        <!-- Opzione 2: Rullino Foto iPhone -->
+        <button onclick="triggerIPhonePhotoLibrary()" class="w-full p-3.5 rounded-2xl bg-brand-surface hover:bg-brand-card border border-brand-border text-slate-100 font-bold text-xs md:text-sm flex items-center justify-between shadow-md transition-all">
+          <div class="flex items-center gap-3 text-left">
+            <div class="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/30 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-images"></i>
+            </div>
+            <div>
+              <span class="block">Scegli da Rullino / Galleria Foto</span>
+              <span class="text-[11px] text-slate-300 font-normal">Apre la galleria iPhone con l'ultimo screenshot</span>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-xs text-slate-400"></i>
+        </button>
+
+        <!-- Opzione 3: Fotocamera iPhone -->
+        <button onclick="triggerIPhoneCamera()" class="w-full p-3.5 rounded-2xl bg-brand-surface hover:bg-brand-card border border-brand-border text-slate-100 font-bold text-xs md:text-sm flex items-center justify-between shadow-md transition-all">
+          <div class="flex items-center gap-3 text-left">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center justify-center text-lg">
+              <i class="fa-solid fa-camera"></i>
+            </div>
+            <div>
+              <span class="block">Scatta Foto Schermo</span>
+              <span class="text-[11px] text-slate-300 font-normal">Usa la fotocamera per fotografare lo schermo</span>
+            </div>
+          </div>
+          <i class="fa-solid fa-chevron-right text-xs text-slate-400"></i>
+        </button>
+
+        <!-- Opzione 4: Box Tocco / Trascina / Long Press -->
+        <div id="iphone-paste-dropzone" class="p-4 rounded-2xl border-2 border-dashed border-slate-700 bg-brand-bg text-center cursor-pointer hover:border-purple-500/60 transition-all" onclick="focusIPhonePasteBox()">
+          <i class="fa-solid fa-hand-pointer text-purple-400 text-xl mb-1.5 animate-bounce"></i>
+          <p class="text-xs font-bold text-white">Area Tocco Rapido</p>
+          <p class="text-[11px] text-slate-300 mt-0.5">Tieni premuto qui per incollare, o trascina l'immagine</p>
+          <input type="text" id="iphone-hidden-paste-input" class="opacity-0 w-1 h-1 pointer-events-none absolute" />
+        </div>
+
+      </div>
+
+      <!-- Footer -->
+      <div class="pt-2 border-t border-brand-border text-right">
+        <button onclick="closeModal('modal-iphone-upload')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold">
+          Annulla
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: SIMULATORE TEST SANDBOX -->
+  <!-- ========================================================================= -->
+  <div id="modal-simulator" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+    <div class="glass-panel max-w-lg w-full p-5 md:p-6 rounded-2xl shadow-2xl">
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+        <h3 class="text-sm md:text-base font-extrabold text-white flex items-center gap-2">
+          <i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i> Generatore Dati di Prova Sandbox
+        </h3>
+        <button onclick="closeModal('modal-simulator')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <div class="my-4 space-y-3.5 text-xs">
+        <p class="text-slate-300">Usa questi pulsanti per simulare il flusso completo con foto zoomabili, numeri d'ordine e timer:</p>
+        
+        <!-- Reset Demo Completo -->
+        <div class="p-3 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between">
+          <div>
+            <p class="font-bold text-indigo-200">Set Completo Esempi HD</p>
+            <p class="text-slate-400 text-[11px]">Ripristina 3 offerte + 3 ordini con foto ad alta risoluzione</p>
+          </div>
+          <button onclick="resetFullDemo()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md">
+            Ripristina Demo
+          </button>
+        </div>
+
+        <!-- Simula Offerta Singola -->
+        <div class="p-3 rounded-xl bg-brand-bg border border-brand-border space-y-2">
+          <p class="font-bold text-white text-xs">1. Simula arrivo Offerta Telegram:</p>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="simulateOffer('Comodino Moderno Cilindrico 2 Ripiani', 'si paga 8,00€ - 10% (tasse coperte)', '@venditore_arredo', 'https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80')" class="p-2 rounded-lg bg-brand-surface hover:bg-brand-card border border-brand-border text-[11px] font-bold text-slate-200 text-left">
+              + Comodino 8€
+            </button>
+            <button onclick="simulateOffer('Lavatappeti e Divani Portatile 650W', 'si paga 20,00€ (tasse forse)', '@venditore_elettro', 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80')" class="p-2 rounded-lg bg-brand-surface hover:bg-brand-card border border-brand-border text-[11px] font-bold text-slate-200 text-left">
+              + Lavatappeti 20€
+            </button>
+          </div>
+        </div>
+
+        <!-- Simula Ordine Amazon -->
+        <div class="p-3 rounded-xl bg-brand-bg border border-brand-border space-y-2">
+          <p class="font-bold text-white text-xs">2. Simula Acquisto Amazon & Ricezione Ricevuta:</p>
+          <button onclick="simulateOrder('Comodino Moderno Cilindrico', 8.00, '@venditore_arredo', 'https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80')" class="w-full py-2.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-200 font-bold flex items-center justify-center gap-2">
+            <i class="fa-solid fa-cart-shopping"></i> Crea Ordine Pronto per "Tasto di Conferma"
+          </button>
+        </div>
+      </div>
+      <div class="flex justify-end pt-3 border-t border-brand-border">
+        <button onclick="closeModal('modal-simulator')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: IMPOSTAZIONI & CONFIGURAZIONE -->
+  <!-- ========================================================================= -->
+  <div id="modal-settings" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+    <div class="glass-panel max-w-xl w-full p-5 md:p-6 rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+        <h3 class="text-sm md:text-base font-extrabold text-white flex items-center gap-2">
+          <i class="fa-solid fa-sliders text-emerald-400"></i> Configurazione & Credenziali
+        </h3>
+        <button onclick="closeModal('modal-settings')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <form id="form-settings" class="my-4 space-y-4 overflow-y-auto flex-1 text-xs">
+        
+        <!-- Modalità Test -->
+        <div class="p-3.5 rounded-xl bg-brand-bg border border-brand-border flex items-center justify-between">
+          <div>
+            <p class="font-bold text-white text-sm">Modalità Sandbox (Test Sicuro)</p>
+            <p class="text-slate-400 text-[11px] mt-0.5">Se attiva, i messaggi vengono registrati internamente senza invii a persone reali.</p>
+          </div>
+          <input type="checkbox" id="set_test_mode" class="w-5 h-5 rounded text-emerald-500 bg-brand-card border-brand-border focus:ring-0 cursor-pointer">
+        </div>
+
+        <!-- Telegram -->
+        <div class="space-y-2 p-3.5 rounded-xl bg-brand-bg border border-brand-border">
+          <p class="font-bold text-blue-400 uppercase tracking-wider text-[11px]">Parametri Telegram API (Opzionale)</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-slate-400">API ID</label>
+              <input type="text" id="set_telegram_api_id" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-mono mt-1">
+            </div>
+            <div>
+              <label class="text-slate-400">API Hash</label>
+              <input type="text" id="set_telegram_api_hash" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-mono mt-1">
+            </div>
+          </div>
+          <div>
+            <label class="text-slate-400">Destinatario di Prova Telegram</label>
+            <input type="text" id="set_test_recipient" placeholder="@tuo_username" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white mt-1">
+          </div>
+        </div>
+
+        <!-- Email IMAP -->
+        <div class="space-y-2 p-3.5 rounded-xl bg-brand-bg border border-brand-border">
+          <p class="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">Monitoraggio Ricevute Amazon via Email (Opzionale)</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="text-slate-400">Email Amazon</label>
+              <input type="email" id="set_email_user" placeholder="tua@gmail.com" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white mt-1">
+            </div>
+            <div>
+              <label class="text-slate-400">Password App / IMAP</label>
+              <input type="password" id="set_email_password" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white mt-1">
+            </div>
+          </div>
+        </div>
+
+        <!-- Timer & Giorni -->
+        <div class="grid grid-cols-2 gap-2">
+          <div class="p-3.5 rounded-xl bg-brand-bg border border-brand-border">
+            <label class="text-slate-400 font-bold">Giorni attesa recensione</label>
+            <input type="number" id="set_review_days_wait" value="10" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-bold mt-1">
+          </div>
+          <div class="p-3.5 rounded-xl bg-brand-bg border border-brand-border">
+            <label class="text-slate-400 font-bold">Chiave Gemini AI (Opzionale)</label>
+            <input type="password" id="set_gemini_api_key" placeholder="AIza..." class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-bold mt-1">
+          </div>
+        </div>
+
+      </form>
+      <div class="flex justify-between items-center pt-3 border-t border-brand-border">
+        <button onclick="saveSettings()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40">
+          Salva Configurazione
+        </button>
+        <button onclick="closeModal('modal-settings')" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: CAMBIA CANALE TELEGRAM OPERATIVO -->
+  <!-- ========================================================================= -->
+  <div id="modal-change-channel" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+    <div class="glass-panel max-w-md w-full p-5 md:p-6 rounded-2xl shadow-2xl">
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+        <h3 class="text-sm md:text-base font-extrabold text-white flex items-center gap-2">
+          <i class="fa-brands fa-telegram text-blue-400"></i> Imposta Canale Telegram
+        </h3>
+        <button onclick="closeModal('modal-change-channel')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <div class="my-4 space-y-3 text-xs">
+        <p class="text-slate-300">Inserisci il nome utente o il link del canale Telegram da cui ricevi le offerte di prodotti:</p>
+        <div>
+          <label class="text-slate-400 font-bold uppercase tracking-wider block mb-1">Username o Link Canale</label>
+          <input type="text" id="input-channel-name" placeholder="@MioCanaleOfferte o https://t.me/MioCanale" class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-slate-300 text-[11px]">
+          💡 Puoi inserire il nome con o senza <code>@</code> (es. <code>@OfferteAmazonVIP</code> o <code>https://t.me/OfferteAmazonVIP</code>).
+        </div>
+      </div>
+      <div class="flex justify-between items-center pt-3 border-t border-brand-border">
+        <button onclick="saveActiveChannel()" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-lg shadow-blue-900/40">
+          Salva Canale Operativo
+        </button>
+        <button onclick="closeModal('modal-change-channel')" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: INCOLLA POST DAL CANALE TELEGRAM -->
+  <!-- ========================================================================= -->
+  <div id="modal-paste-post" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+    <div class="glass-panel max-w-xl w-full p-5 md:p-6 rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+        <h3 class="text-sm md:text-base font-extrabold text-white flex items-center gap-2">
+          <i class="fa-solid fa-paste text-emerald-400"></i> Incolla Post Telegram
+        </h3>
+        <button onclick="closeModal('modal-paste-post')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+      <div class="my-4 space-y-3.5 overflow-y-auto flex-1 text-xs">
+        <p class="text-slate-300 leading-relaxed">
+          Incolla direttamente qui il testo del messaggio copiato dal tuo canale Telegram. Il sistema estrarrà in automatico: <strong>titolo prodotto, condizioni di spesa, rimborso e username del venditore (@...)</strong>!
+        </p>
+
+        <!-- Testo Messaggio -->
+        <div>
+          <label class="text-slate-300 font-bold uppercase tracking-wider block mb-1">1. Testo del Post Telegram</label>
+          <textarea id="paste-post-text" rows="5" placeholder="Esempio:
+Comodino moderno con cassetto per camera
+Si paga 8 euro - 10% (tasse coperte)
+100% rimborso dopo recensione 5 stelle
+Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg border border-brand-border rounded-xl p-3 text-xs md:text-sm text-slate-100 focus:outline-none focus:border-emerald-500 font-mono leading-relaxed"></textarea>
+        </div>
+
+        <!-- URL Foto Prodotto -->
+        <div>
+          <label class="text-slate-300 font-bold uppercase tracking-wider block mb-1">2. Link Immagine / Foto Prodotto (Opzionale)</label>
+          <input type="text" id="paste-post-image" placeholder="https://... (oppure lascia vuoto per foto automatica)" class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-emerald-500">
+        </div>
+      </div>
+      <div class="flex justify-between items-center pt-3 border-t border-brand-border">
+        <button onclick="submitParsedPost()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 flex items-center gap-1.5">
+          <i class="fa-solid fa-sparkles"></i> Analizza & Aggiungi alle Offerte
+        </button>
+        <button onclick="closeModal('modal-paste-post')" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">Annulla</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-5 right-5 z-50 bg-emerald-600 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold transform transition-all duration-300 opacity-0 pointer-events-none translate-y-[-20px] border border-emerald-400">
+    <i class="fa-solid fa-circle-check text-base"></i>
+    <span id="toast-msg">Operazione completata!</span>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

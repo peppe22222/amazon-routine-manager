@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  amazon-manager:
+    build: .
+    container_name: amazon-routine-manager
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATA_DIR=/app/data
+      - PORT=8000
