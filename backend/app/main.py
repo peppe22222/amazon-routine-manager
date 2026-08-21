@@ -45,13 +45,23 @@ app.add_middleware(
 app.mount("/screenshots", StaticFiles(directory=SCREENSHOTS_DIR), name="screenshots")
 
 # Default password if not set in DB or ENV
-DEFAULT_PASSWORD = os.getenv("ADMIN_PASSWORD", "123456")
+def get_env_admin_password() -> str:
+    return (
+        os.getenv("ADMIN_PASSWORD")
+        or os.getenv("admin_password")
+        or os.getenv("PASSWORD")
+        or os.getenv("password")
+        or "123456"
+    )
 
 def get_current_admin_password(db: Session) -> str:
+    env_pwd = get_env_admin_password()
+    if env_pwd != "123456":
+        return env_pwd
     s = db.query(Setting).filter_by(key="admin_password").first()
     if s and s.value:
         return s.value
-    return DEFAULT_PASSWORD
+    return env_pwd
 
 def generate_auth_token(password: str) -> str:
     return hashlib.sha256(f"amz_salt_{password}_routine".encode()).hexdigest()
