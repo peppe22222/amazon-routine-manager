@@ -1,12 +1,39 @@
 import os
 import re
 import html
+import base64
 import asyncio
 import requests
 from datetime import datetime
 from telethon import TelegramClient, events
 from sqlalchemy.orm import Session
 from app.database import Setting, ActivityLog, Order, Offer
+
+def extract_title_with_ai(image_path: str, gemini_key: str) -> str:
+    """Utilizza Gemini Vision per estrarre il nome esatto del prodotto visibile sulla confezione/immagine"""
+    if not gemini_key or not os.path.exists(image_path):
+        return ""
+    try:
+        with open(image_path, "rb") as f:
+            img_b64 = base64.b64encode(f.read()).decode("utf-8")
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        payload = {
+            "contents": [{
+                "parts": [
+                    {"text": "Leggi l'immagine del prodotto ed estrai il nome esatto del prodotto e la marca visibili sull'oggetto o confezione (es: 'Venalux Crema Vene Varicose', 'Diffusore Aromi Ultrasuoni'). Rispondi SOLO con il nome del prodotto in italiano (max 5-7 parole), senza commenti."},
+                    {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+                ]
+            }]
+        }
+        r = requests.post(url, json=payload, timeout=6)
+        if r.status_code == 200:
+            data = r.json()
+            txt = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+            if txt and len(txt) > 2:
+                return txt
+    except Exception as e:
+        print(f"[AI Vision extract error] {e}")
+    return ""
 
 def clean_html_text(raw_html: str) -> str:
     if not raw_html:
@@ -298,13 +325,21 @@ class TelegramManager:
             for line in lines:
                 clean_l = re.sub(r'https?://\S+', '', line)
                 clean_l = re.sub(r'@[a-zA-Z0-9_]+', '', clean_l).strip()
-                if len(clean_l) > 6 and not any(w in clean_l.lower() for w in ['contattare', 'paga', 'euro', 'tasse', '100%']):
+                if len(clean_l) > 4 and not any(w in clean_l.lower() for w in ['contattare', 'paga', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback']):
                     title = clean_l
                     break
+            
+            gemini_key = self.get_setting(db, "gemini_api_key")
+            if (not title or title.startswith("Articolo Offerta #")) and gemini_key:
+                if message.media and os.path.exists(photo_path):
+                    ai_title = extract_title_with_ai(photo_path, gemini_key)
+                    if ai_title:
+                        title = ai_title
+
             if not title and lines:
                 title = lines[0][:80]
             if not title:
-                title = f"Articolo Offerta #{message.id}"
+                title = "Prodotto in Promozione"
 
             msg_date = message.date.replace(tzinfo=None) if message.date else datetime.utcnow()
 

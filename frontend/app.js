@@ -288,11 +288,15 @@ async function loadOffers() {
 
           <!-- Card Content Body -->
           <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
-            <div>
-              <!-- Titolo Prodotto -->
-              <h3 class="text-sm md:text-base font-extrabold text-white leading-snug line-clamp-2">
-                ${escapeHtml(o.title)}
-              </h3>
+              <!-- Titolo Prodotto con tasto Modifica Rapida -->
+              <div class="flex items-start justify-between gap-2">
+                <h3 class="text-sm md:text-base font-extrabold text-white leading-snug flex-1">
+                  ${escapeHtml(o.title)}
+                </h3>
+                <button onclick="quickEditOfferTitle(${o.id}, '${escapeHtml(o.title).replace(/'/g, "\\'")}')" title="Modifica Nome Articolo" class="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 border border-slate-700 text-xs transition-colors shrink-0">
+                  <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+              </div>
 
               <!-- Riquadro Condizioni Spesa & Copertura Tasse (Testo Completo Multiriga) -->
               <div class="mt-3 space-y-2 text-xs">
@@ -340,6 +344,31 @@ async function loadOffers() {
     }).join('');
   } catch (err) {
     console.error('Errore caricamento offerte:', err);
+  }
+}
+
+async function quickEditOfferTitle(offerId, currentTitle) {
+  const newTitle = prompt('Modifica il nome di questo articolo:', currentTitle || '');
+  if (newTitle === null) return;
+  if (!newTitle.trim()) {
+    showToast('Il nome articolo non può essere vuoto', true);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/offers/${offerId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: newTitle.trim() })
+    });
+    if (res.ok) {
+      showToast('Nome articolo aggiornato!');
+      loadOffers();
+    } else {
+      showToast('Errore durante l\'aggiornamento', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
   }
 }
 

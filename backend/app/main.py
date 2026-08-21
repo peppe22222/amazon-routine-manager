@@ -446,7 +446,22 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
             "is_test": o.is_test
         })
-    return res
+class OfferUpdatePayload(BaseModel):
+    title: Optional[str] = None
+    price_info: Optional[str] = None
+
+@app.put("/api/offers/{offer_id}")
+def update_offer(offer_id: int, payload: OfferUpdatePayload, db: Session = Depends(get_db)):
+    """Permette di modificare il nome articolo o le condizioni di spesa"""
+    offer = db.query(Offer).filter_by(id=offer_id).first()
+    if not offer:
+        raise HTTPException(status_code=404, detail="Offerta non trovata")
+    if payload.title is not None and payload.title.strip():
+        offer.title = payload.title.strip()
+    if payload.price_info is not None and payload.price_info.strip():
+        offer.price_info = payload.price_info.strip()
+    db.commit()
+    return {"success": True, "title": offer.title, "price_info": offer.price_info}
 
 @app.post("/api/orders/{order_id}/confirm-and-send")
 async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = ConfirmOrderPayload(), db: Session = Depends(get_db)):
