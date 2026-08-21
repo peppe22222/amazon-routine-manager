@@ -384,7 +384,13 @@ class TelegramManager:
                 db.add(off)
                 imported_count += 1
             else:
+                existing.title = title
+                existing.price_info = price_info
+                existing.taxes_covered = taxes_covered
                 existing.created_at = msg_date
+                if photo_url and not photo_url.startswith("http"):
+                    existing.image_url = photo_url
+                imported_count += 1
 
         if imported_count > 0:
             log = ActivityLog(
