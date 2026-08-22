@@ -955,8 +955,25 @@ def get_stats(db: Session = Depends(get_db)):
     }
 
 @app.get("/api/logs")
-def get_logs(limit: int = 50, db: Session = Depends(get_db)):
+def get_logs(limit: int = 100, db: Session = Depends(get_db)):
     return db.query(ActivityLog).order_by(desc(ActivityLog.timestamp)).limit(limit).all()
+
+@app.delete("/api/logs/{log_id}")
+def delete_log(log_id: int, db: Session = Depends(get_db)):
+    """Elimina una singola voce del registro attività"""
+    log = db.query(ActivityLog).filter_by(id=log_id).first()
+    if not log:
+        raise HTTPException(status_code=404, detail="Voce di registro non trovata")
+    db.delete(log)
+    db.commit()
+    return {"success": True, "message": "Voce eliminata dal registro"}
+
+@app.delete("/api/logs")
+def clear_all_logs(db: Session = Depends(get_db)):
+    """Svuota completamente il registro attività"""
+    deleted_count = db.query(ActivityLog).delete(synchronize_session=False)
+    db.commit()
+    return {"success": True, "deleted_count": deleted_count, "message": f"Registro svuotato ({deleted_count} eventi rimossi)"}
 
 # ----------------- SETTINGS -----------------
 

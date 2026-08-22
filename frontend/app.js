@@ -1091,7 +1091,7 @@ async function confirmAndDeleteOrder(orderId, itemTitle, wrapperElement) {
   }
 }
 
-// ----------------- LOGS RENDERING -----------------
+// ----------------- LOGS RENDERING & SWIPE-TO-DELETE -----------------
 
 async function loadLogs() {
   try {
@@ -1101,24 +1101,96 @@ async function loadLogs() {
     const container = document.getElementById('logs-container');
 
     if (logs.length === 0) {
-      container.innerHTML = `<p class="text-xs text-slate-400 text-center py-6">Nessuna attività registrata finora.</p>`;
+      container.innerHTML = `
+        <div class="py-12 text-center text-slate-400 glass-card rounded-2xl p-6 border border-dashed border-slate-700">
+          <i class="fa-solid fa-list-check text-2xl text-slate-500 mb-2"></i>
+          <p class="text-xs font-bold text-white">Nessuna attività registrata nel registro.</p>
+          <p class="text-[11px] text-slate-400 mt-0.5">Le operazioni eseguite verranno tracciate qui in automatico.</p>
+        </div>
+      `;
       return;
     }
 
     container.innerHTML = logs.map(l => `
-      <div class="p-3 rounded-xl bg-brand-bg border border-brand-border flex items-start justify-between gap-3 text-xs">
-        <div class="space-y-0.5">
-          <div class="flex items-center gap-2">
-            <span class="font-bold text-white">${escapeHtml(l.title)}</span>
-            <span class="text-[10px] px-2 py-0.5 rounded bg-brand-surface text-slate-300 font-mono">${escapeHtml(l.action_type)}</span>
-          </div>
-          <p class="text-slate-300 text-[11px] leading-relaxed">${escapeHtml(l.details || '')}</p>
+      <div class="swipe-item-wrapper relative overflow-hidden rounded-xl select-none group" data-log-id="${l.id}">
+        <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
+        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-4 rounded-xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
+          <button onclick="confirmAndDeleteLog(${l.id}, '${escapeHtml(l.title || '')}', this.closest('.swipe-item-wrapper'))" class="flex items-center gap-1.5 bg-red-800/90 hover:bg-red-900 px-3 py-2 rounded-lg border border-red-400/50 shadow-md text-white text-xs font-bold">
+            <i class="fa-solid fa-trash-can"></i>
+            <span>Elimina</span>
+          </button>
         </div>
-        <span class="text-[10px] text-slate-400 font-mono shrink-0">${formatDate(l.timestamp || l.created_at)}</span>
+
+        <!-- Contenuto Log Card -->
+        <div class="swipe-card-content p-3 rounded-xl bg-brand-surface border border-brand-border flex items-start justify-between gap-3 text-xs relative z-10">
+          <div class="space-y-0.5 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-white">${escapeHtml(l.title)}</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-brand-bg text-slate-300 font-mono border border-slate-700/50">${escapeHtml(l.action_type)}</span>
+            </div>
+            <p class="text-slate-300 text-[11px] leading-relaxed">${escapeHtml(l.details || '')}</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-[10px] text-slate-400 font-mono">${formatDate(l.timestamp || l.created_at)}</span>
+            <button onclick="event.stopPropagation(); confirmAndDeleteLog(${l.id}, '${escapeHtml(l.title || '')}', this.closest('.swipe-item-wrapper'))" title="Elimina questa voce" class="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors">
+              <i class="fa-solid fa-trash-can text-xs"></i>
+            </button>
+          </div>
+        </div>
       </div>
     `).join('');
+
+    initSwipeToDelete('logs-container');
   } catch (err) {
     console.error('Errore caricamento log:', err);
+  }
+}
+
+async function confirmAndDeleteLog(logId, logTitle, wrapperElement) {
+  if (wrapperElement) {
+    wrapperElement.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
+    wrapperElement.style.transform = 'translateX(-100%)';
+    wrapperElement.style.opacity = '0';
+    wrapperElement.style.maxHeight = wrapperElement.offsetHeight + 'px';
+    setTimeout(() => {
+      wrapperElement.style.maxHeight = '0px';
+      wrapperElement.style.margin = '0px';
+      wrapperElement.style.padding = '0px';
+    }, 120);
+  }
+
+  try {
+    const res = await fetch(`/api/logs/${logId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Voce eliminata dal registro');
+      setTimeout(() => loadLogs(), 300);
+    } else {
+      showToast(data.detail || 'Errore durante l\'eliminazione', true);
+      loadLogs();
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
+    loadLogs();
+  }
+}
+
+async function confirmAndClearAllLogs() {
+  if (!confirm('Vuoi davvero svuotare completamente tutto il registro attività?')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/logs', { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Registro attività svuotato con successo!');
+      loadLogs();
+    } else {
+      showToast(data.detail || 'Errore durante lo svuotamento', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
   }
 }
 
