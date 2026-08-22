@@ -708,16 +708,25 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     prod_title = order.product_title
     order_num = order.order_number
     
+    # Se esiste un'offerta collegata con stato 'requested', reimpostala a 'new'
+    offer = db.query(Offer).filter_by(title=prod_title).first()
+    if offer and offer.status == "requested":
+        offer.status = "new"
+
+    # Assicura che il flag demo_initialized sia attivo per evitare che il riavvio del server ricrei demo
+    if not db.query(Setting).filter_by(key="demo_initialized").first():
+        db.add(Setting(key="demo_initialized", value="true"))
+
     # Registra nel log attività
     log = ActivityLog(
         action_type="ORDER_DELETED",
         title=f"Pratica Eliminata: {order_num or prod_title}",
-        details=f"L'ordine per '{prod_title}' è stato rimosso dalla gestione."
+        details=f"L'ordine per '{prod_title}' è stato rimosso definitivamente dalla gestione."
     )
     db.add(log)
     db.delete(order)
     db.commit()
-    return {"success": True, "message": f"Pratica '{prod_title}' eliminata con successo!"}
+    return {"success": True, "message": f"Pratica '{prod_title}' eliminata definitivamente!"}
 
 @app.get("/api/orders/{order_id}/regenerate-review")
 def regenerate_order_review(order_id: int, db: Session = Depends(get_db)):
@@ -1174,31 +1183,21 @@ def reset_demo_data(db: Session = Depends(get_db)):
     db.commit()
     return {"success": True, "message": "Demo data resettati con successo!"}
 
-# Inserisci dati iniziali demo se il DB è vuoto o aggiorna immagini mancanti
+# Inserisci dati iniziali demo SOLO la prima volta in assoluto (mai se l'utente li ha cancellati)
 @app.on_event("startup")
 def populate_demo_data_if_empty():
     db = next(get_db())
     try:
-        if db.query(Offer).count() == 0 and db.query(Order).count() == 0:
-            reset_demo_data(db)
-        else:
-            # Aggiorna offerte senza immagini
-            for o in db.query(Offer).filter(Offer.image_url == None).all():
-                for p in DEMO_PRODUCTS:
-                    if p["title"][:15].lower() in o.title.lower() or o.title[:15].lower() in p["title"].lower():
-                        o.image_url = p["image_url"]
-                        break
-                if not o.image_url:
-                    o.image_url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
-            
-            for ord in db.query(Order).filter(Order.product_image == None).all():
-                for p in DEMO_PRODUCTS:
-                    if p["title"][:15].lower() in ord.product_title.lower() or ord.product_title[:15].lower() in p["title"].lower():
-                        ord.product_image = p["image_url"]
-                        break
-                if not ord.product_image:
-                    ord.product_image = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
+        demo_flag = db.query(Setting).filter_by(key="demo_initialized").first()
+        if not demo_flag:
+            # Solo alla prima inizializzazione in assoluto
+            if db.query(Offer).count() == 0 and db.query(Order).count() == 0:
+                reset_demo_data(db)
+            db.add(Setting(key="demo_initialized", value="true"))
             db.commit()
+        else:
+            # L'utente ha già inizializzato il database: NON ricreare mai ordini o recensioni cancellati!
+            pass
     finally:
         db.close()
 
