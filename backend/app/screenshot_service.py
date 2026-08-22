@@ -260,7 +260,45 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
         except Exception as e:
             print(f"[OCR Gemini Vision Error] {e}")
 
-    # 2. TENTATIVO CON PYTESSERACT OCR NATIVO (se disponibile su sistema)
+    # 2. TENTATIVO CON MOTORE OCR CLOUD ALTA PRECISIONE (OCR.space - Zero installazione, ultra preciso)
+    try:
+        b64_img = base64.b64encode(image_bytes).decode("utf-8")
+        ocr_payload = {
+            "base64Image": "data:image/jpeg;base64," + b64_img,
+            "language": "ita",
+            "isOverlayRequired": False,
+            "apikey": "K88728994588957"
+        }
+        ocr_resp = requests.post("https://api.ocr.space/parse/image", data=ocr_payload, timeout=8)
+        if ocr_resp.status_code == 200:
+            ocr_data = ocr_resp.json()
+            parsed_res = ocr_data.get("ParsedResults", [])
+            ocr_text = parsed_res[0].get("ParsedText", "") if parsed_res else ""
+            
+            # Cerca numero d'ordine Amazon (es. 404-1867984-8717122 o 408 1234567 8901234)
+            order_m = re.search(r'([0-9]{3}[-\s][0-9]{7}[-\s][0-9]{7})', ocr_text)
+            if order_m:
+                result["order_number"] = re.sub(r'\s+', '-', order_m.group(0)).strip()
+                result["method"] = "cloud_ocr"
+
+            # Cerca importo totale pagato
+            price_m = re.search(r'(?:totale|importo|pagato|totale ordine)[\s:]*(?:€|eur)?\s*([0-9]+(?:[.,][0-9]{2}))', ocr_text, re.IGNORECASE)
+            if not price_m:
+                price_m = re.search(r'([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur)\b', ocr_text, re.IGNORECASE)
+            if price_m:
+                try:
+                    val = float(price_m.group(1).replace(',', '.'))
+                    if val > 0:
+                        result["price_paid"] = val
+                except ValueError:
+                    pass
+
+            if result["order_number"]:
+                return result
+    except Exception as e:
+        print(f"[Cloud OCR Error] {e}")
+
+    # 3. TENTATIVO CON PYTESSERACT OCR NATIVO (se disponibile su sistema)
     try:
         import pytesseract
         image = Image.open(io.BytesIO(image_bytes))
