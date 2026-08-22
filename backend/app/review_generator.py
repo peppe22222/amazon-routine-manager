@@ -603,101 +603,205 @@ CATEGORIES = {
             "Un acquisto di grande stile e praticità che consiglio vivamente. 5 stelle piene!",
             "Ottimo rapporto qualità-prezzo, supera molti prodotti di marche note!"
         ]
+    },
+    # --- 6. AUTO, MOTO & COMPRESSORI ---
+    "compressore_portatile_auto": {
+        "keywords": ["compressore portatile", "compressore auto", "compressore", "gonfiatore portatile", "gonfiatore auto", "gonfiatore", "avviatore auto", "avviatore portatile", "jump starter", "booster auto", "manometro digitale", "manometro", "150psi", "150 psi"],
+        "titles": [
+            "Pressione PSI precisa e gonfiaggio fulmineo: salva da ogni emergenza!",
+            "Autonomia eccellente, display digitale chiaro e spegnimento automatico a pressione raggiunta",
+            "Compatto, potente e robusto: gonfia pneumatici e ruote in pochissimi minuti senza sforzo!"
+        ],
+        "openings": [
+            "Ho acquistato questo compressore/avviatore portatile per tenerlo sempre in auto ed è già stato provvidenziale.",
+            "Valigetta/sacca completa di adattatori per valvole auto, moto, bici e palloni, con cavo di ricarica rapida e luce LED di emergenza."
+        ],
+        "bodies": [
+            "Il manometro digitale legge la pressione con assoluta precisione e la funzione di auto-stop arresta l'erogazione esattamente al valore impostato.",
+            "Il motore interno sviluppa una pressione notevole gonfiando uno pneumatico sgonfio in tempi record senza surriscaldamenti eccessivi.",
+            "La batteria integrata funge anche da powerbank di emergenza e la torcia LED incorporata è comodissima per interventi notturni sul ciglio della strada."
+        ],
+        "closings": [
+            "Uno strumento di emergenza indispensabile per ogni automobilista e motociclista. 5 stelle meritatissime!",
+            "Qualità costruttiva al top, preciso, affidabile e compatto. Consigliatissimo!"
+        ]
+    },
+    "cuscini_materassi_riposo": {
+        "keywords": ["cuscino cervicale", "cuscino memory", "cuscino ortopedico", "guanciale memory", "guanciale ortopedico", "guanciale", "cuscino letto", "memory foam", "topper memory", "materasso", "fodera traspirante"],
+        "titles": [
+            "Sostegno cervicale perfetto: niente più dolori al collo e sonno finalmente riposante!",
+            "Memory foam ad alta densità a lento ritorno: comfort ortopedico eccezionale",
+            "Traspirante, ergonomico e con federa lavabile: una vera svolta per la qualità del sonno!"
+        ],
+        "openings": [
+            "Soffrivo spesso di risvegli con rigidità al collo e alle spalle, ma con questo supporto per il riposo la situazione è cambiata radicalmente fin dalla prima notte.",
+            "Arrivato sottovuoto perfettamente sigillato, ha ripreso la sua forma corretta in poche ore senza rilasciare alcun odore chimico."
+        ],
+        "bodies": [
+            "La schiuma memory accoglie la testa e allinea la colonna vertebrale in modo naturale sia dormendo supini che sul fianco, distribuendo la pressione in modo uniforme.",
+            "La sagomatura ergonomica sostiene la zona cervicale senza affossarsi eccessivamente e mantiene la sua elasticità e densità nel tempo.",
+            "La fodera esterna in tessuto traspirante è fresca, ipoallergenica e facilmente sfoderabile con cerniera per il lavaggio in lavatrice."
+        ],
+        "closings": [
+            "Un toccasana per la salute cervicale e il riposo notturno. Consigliatissimo a tutti!",
+            "Rapporto qualità-prezzo imbattibile rispetto ai negozi di ortopedia. 5 stelle piene!"
+        ]
+    },
+    "integratori_salute": {
+        "keywords": ["integratore", "capsule", "compresse", "magnesio", "collagene", "vitamina d3", "vitamina c", "omega 3", "probiotici", "fermenti lattici", "creatina", "multivitaminico", "zinco", "melatonina"],
+        "titles": [
+            "Alta concentrazione di principi attivi, facile da deglutire e ottima digeribilità!",
+            "Formula pura e certificata: benefici tangibili su energia e benessere in pochi giorni",
+            "Nessun retrogusto, ottimo dosaggio giornaliero e flacone sigillato a regola d'arte. 5 stelle!"
+        ],
+        "openings": [
+            "Assumo questo integratore regolarmente ogni giorno come supporto nutrizionale e ne apprezzo particolarmente la qualità degli ingredienti.",
+            "Flacone sigillato con sigillo di garanzia integro e data di scadenza generosa."
+        ],
+        "bodies": [
+            "Le capsule sono di dimensioni ottimali e facili da assumere con un bicchiere d'acqua, senza causare alcuna pesantezza gastrica o retrogusto sgradevole.",
+            "La titolazione dei principi attivi rispetta i più elevati standard nutrizionali fornendo il giusto fabbisogno giornaliero per sostenere vitalità e difese.",
+            "Composizione pulita priva di glutine, lattosio o additivi superflui, garanzia di elevata purezza e massima biodisponibilità."
+        ],
+        "closings": [
+            "Un integratore di qualità farmaceutica a un prezzo conveniente. Lo ricomprerò sicuramente!",
+            "Pienamente soddisfatto dei benefici riscontrati. 5 stelle meritate!"
+        ]
     }
 }
 
 
 def detect_specific_category(title: str) -> tuple:
-    """Trova la categoria specifica più adatta al titolo del prodotto usando word boundaries strict."""
+    """Trova la categoria specifica più adatta dando priorità alle parole chiave più lunghe e tecniche."""
     t = title.lower()
+    matches = []
     for cat_name, cat_data in CATEGORIES.items():
         for kw in cat_data["keywords"]:
-            # Match su parola intera o frase intera
             pattern = r'(?<!\w)' + re.escape(kw.lower()) + r'(?!\w)'
             if re.search(pattern, t):
-                return cat_name, cat_data
+                matches.append((len(kw), cat_name, cat_data))
+    
+    if matches:
+        # La keyword più lunga e specifica vince sempre (es. 'compressore portatile' batte 'pc')
+        matches.sort(key=lambda x: x[0], reverse=True)
+        return matches[0][1], matches[0][2]
+        
     return None, None
+
+
+def extract_deep_technical_specs(title: str) -> list:
+    """Estrae e analizza le specifiche tecniche concrete dal titolo dell'articolo."""
+    t = title.lower()
+    specs = []
+    
+    # 1. Wattaggio / Potenza
+    w_match = re.search(r'\b(\d+\s*(?:w|watt|kw))\b', t)
+    if w_match:
+        val = w_match.group(1).upper().replace(" ", "")
+        specs.append(f"L'erogazione di potenza ({val}) è vigorosa e costante, garantendo prestazioni elevate senza cali di rendimento sotto sforzo.")
+    
+    # 2. Batteria & Autonomia
+    mah_match = re.search(r'\b(\d+\s*(?:mah|ah))\b', t)
+    if mah_match:
+        val = mah_match.group(1).upper().replace(" ", "")
+        specs.append(f"La batteria ad alta densità da {val} assicura un'autonomia davvero generosa, consentendo utilizzi prolungati senza l'ansia di ricaricare.")
+        
+    # 3. Risoluzione, Frequenza & Display
+    res_match = re.search(r'\b(4k|2k|1080p|fhd|qhd|amoled|oled|ips|144hz|165hz|240hz|hdr)\b', t)
+    if res_match:
+        val = res_match.group(1).upper()
+        specs.append(f"La qualità visiva con standard {val} offre una nitidezza eccellente, colori vivaci e un'ottima fluidità priva di scie o sfarfallio.")
+        
+    # 4. Standard Connettività & Porte
+    conn_match = re.search(r'\b(bluetooth\s*5\.[0-4]|bt\s*5\.[0-4]|wi-fi\s*6|wifi\s*6|type-c|usb-c|hdmi\s*2\.[01])\b', t)
+    if conn_match:
+        val = conn_match.group(1).title()
+        specs.append(f"La connettività {val} garantisce un accoppiamento istantaneo, latenza impercettibile e massima stabilità di trasmissione.")
+        
+    # 5. Materiali di costruzione
+    mat_match = re.search(r'\b(acciaio\s*inox|alluminio|silicone|vetro\s*temperato|legno\s*massello|carbonio|ecopelle|cotone|abs)\b', t)
+    if mat_match:
+        val = mat_match.group(1)
+        specs.append(f"La struttura realizzata in {val} trasmette una sensazione di notevole solidità e resistenza all'usura, con finiture curate al millimetro.")
+
+    # 6. Dimensioni, Capacità & Volumi
+    cap_match = re.search(r'\b(\d+(?:[.,]\d+)?\s*(?:l|litri|ml|kg|g|pollici|cm|mm))\b', t)
+    if cap_match:
+        val = cap_match.group(1)
+        specs.append(f"Il formato/capacità da {val} rispetta scrupolosamente le specifiche tecniche, risultando perfettamente proporzionato e funzionale all'uso quotidiano.")
+
+    # 7. Funzionalità specifiche (impermeabile, silenzioso, etc.)
+    if re.search(r'\b(impermeabile|ip6[5-8]|ipx[5-8]|waterproof)\b', t):
+        specs.append("La certificazione di impermeabilità protegge i componenti interni da schizzi, pioggia e umidità offrendo totale affidabilità.")
+    if re.search(r'\b(brushless|inverter|silenzioso|low noise)\b', t):
+        specs.append("Il motore ad alta efficienza lavora con una silenziosità esemplare e vibrazioni minime.")
+
+    return specs
 
 
 def synthesize_custom_review(product_title: str) -> dict:
     """
-    Sintetizza una recensione ultra-specifica anche per articoli insoliti,
-    leggendo la tipologia e gli attributi del prodotto per evitare TASSATIVAMENTE
-    qualsiasi frase generica.
+    Sintetizza una recensione tecnica ultra-specifica analizzando minuziosamente
+    i parametri tecnici, costruttivi ed ergonomici del prodotto.
     """
     subject = clean_product_subject(product_title)
-    feats = extract_features(product_title)
+    tech_specs = extract_deep_technical_specs(product_title)
     
-    # Titoli dinamici personalizzati che contengono l'oggetto
+    # Titoli tecnici contestuali
     titles = [
-        f"Qualità eccellente per {subject}: funzionale, solido e curato nei minimi dettagli!",
-        f"Superiore alle aspettative! {subject.capitalize()} pratico, robusto e performante",
-        f"Ottimo acquisto per {subject}: materiali di prima scelta e resa impeccabile!",
-        f"Design moderno, facilità d'uso e grande efficienza: 5 stelle piene per {subject}!"
+        f"Prestazioni tecniche eccellenti e dettagli costruttivi impeccabili per {subject}!",
+        f"{subject.capitalize()}: caratteristiche tecniche conformi alle aspettative e resa al top",
+        f"Ottima efficienza, materiali di prima scelta e funzionamento impeccabile per {subject}",
+        f"Superiore alle aspettative: {subject} offre grande affidabilità e precisione tecnica"
     ]
     
-    # Aperture contestualizzate
+    # Aperture tecniche
     openings = [
-        f"Sto utilizzando questo {subject} da diversi giorni e ha dimostrato una qualità costruttiva notevole fin dal primo momento.",
-        f"Ricevuto nei tempi stabiliti con un imballaggio impeccabile che ha protetto {subject} durante tutto il trasporto.",
-        f"Messo subito alla prova nelle sue funzioni principali: questo {subject} risponde perfettamente a quanto promesso nella descrizione."
+        f"Sto utilizzando questo {subject} da diversi giorni e ha dimostrato una qualità tecnica e costruttiva notevole in ogni scenario d'uso.",
+        f"Ricevuto perfettamente imballato e conforme al 100% alla scheda tecnica: {subject} risponde con precisione a quanto dichiarato.",
+        f"Messo subito sotto test per valutarne le specifiche: questo {subject} si distingue per affidabilità e cura nei dettagli tecnici."
     ]
     
-    # Costruzione corpo specifico basato sui parametri rilevati
-    body_parts = []
-    
-    if feats["has_battery"]:
-        body_parts.append("L'autonomia della batteria è davvero generosa e consente un utilizzo prolungato senza l'ansia di dover ricaricare continuamente.")
-    elif feats["has_power"]:
-        body_parts.append("La potenza erogata è costante e vigorosa, garantendo prestazioni elevate e senza cali di rendimento sotto sforzo.")
+    # Corpo con specifiche concrete
+    if tech_specs:
+        body_text = " ".join(tech_specs[:3])
     else:
-        body_parts.append(f"La struttura di questo {subject} è solida ed ergonomica, con finiture curate e prive di imperfezioni.")
-
-    if feats["has_led"]:
-        body_parts.append("Il display luminoso e reattivo rende immediato il controllo dei parametri e delle impostazioni operative.")
-    elif feats["has_bluetooth"]:
-        body_parts.append("La connettività senza fili è stabile e reattiva, accoppiandosi all'istante senza perdite di segnale.")
-    elif feats["has_waterproof"]:
-        body_parts.append("L'impermeabilità e la resistenza ai liquidi garantiscono massima tranquillità e facilità di pulizia.")
-    else:
-        body_parts.append(f"I materiali impiegati per realizzare {subject} trasmettono grande robustezza e longevità all'uso quotidiano.")
-
-    body_text = " ".join(body_parts)
+        body_text = f"La costruzione di {subject} si distingue per l'assemblaggio solido privo di giochi meccanici, un'eccellente risposta funzionale e un'ottimizzazione ideale per l'utilizzo quotidiano intensivo."
     
     # Chiusure
     closings = [
-        f"Un articolo affidabile e ben realizzato che consiglio senza alcun dubbio. 5 stelle meritatissime per {subject}!",
-        f"Rapporto qualità-prezzo straordinario: {subject} fa esattamente ciò che promette con grande efficacia.",
-        f"Pienamente soddisfatto dell'acquisto, ha soddisfatto in pieno tutte le mie esigenze!"
+        f"Un prodotto tecnicamente valido e affidabile che soddisfa appieno le aspettative. 5 stelle meritatissime per {subject}!",
+        f"Rapporto qualità-prezzo eccellente in rapporto alle prestazioni offerte. Consigliatissimo!",
+        f"Pienamente soddisfatto delle prestazioni e dell'affidabilità dimostrata nel tempo."
     ]
     
     return {
         "title": random.choice(titles),
         "body": f"{random.choice(openings)} {body_text} {random.choice(closings)}",
-        "source": "Dynamic Contextual Engine"
+        "source": "Deep Technical Synthesizer"
     }
 
 
 def generate_review(product_title: str, gemini_api_key: str = None) -> dict:
     """
-    Genera una recensione a 5 stelle autentica, dettagliata e categoricamente NON generica.
-    1. Se è configurata una chiave Gemini AI, genera una recensione contestuale al 100%.
-    2. Altrimenti usa il motore di riconoscimento categoriale avanzato (40+ settori).
+    Genera una recensione a 5 stelle autentica, tecnica, dettagliata e categoricamente NON generica.
+    1. Se è configurata una chiave Gemini AI, genera una recensione analitica al 100%.
+    2. Altrimenti usa il database categoriale specifico (50+ settori tecnici).
     3. In subordine sintetizza dinamicamente la recensione estraendo le caratteristiche tecniche dal titolo.
     """
     clean_title = (product_title or "Articolo Amazon").strip()
     
-    # 1. TENTATIVO CON INTELLIGENZA ARTIFICIALE GEMINI
+    # 1. TENTATIVO CON INTELLIGENZA ARTIFICIALE GEMINI (ANALISI TECNICA APPROFONDITA)
     if gemini_api_key and gemini_api_key.strip():
         try:
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key.strip()}"
             prompt = (
-                f"Sei un acquirente italiano entusiasta e scrupoloso che ha acquistato e testato su Amazon il seguente articolo: '{clean_title}'. "
-                f"Scrivi una recensione a 5 stelle dettagliata, veritiera ed entusiasta in perfetto italiano. "
-                f"REGOLA TASSATIVA: È SEVERAMENTE VIETATO scrivere recensioni generiche come 'ottimo prodotto, spedizione veloce'. "
-                f"Devi citare esplicitamente la tipologia di articolo (es. se è un tiralatte parla di coppe, suzione e silenziosità; se è un trapano parla di mandrino e coppia; se è un comodino parla di montaggio e stabilità; se è una crema parla di texture e assorbimento). "
-                f"Esalta i dettagli d'uso pratico e le caratteristiche tecniche peculiari dell'articolo. "
-                f"Rispondi ESCLUSIVAMENTE in formato JSON con due chiavi: 'title' (titolo specifico e accattivante di 5-10 parole) e 'body' (testo della recensione di 3-4 frasi fluide ed articolate)."
+                f"Sei un acquirente italiano competente ed entusiasta che ha acquistato e testato su Amazon il seguente articolo: '{clean_title}'.\n"
+                f"Scrivi una recensione a 5 stelle ricca di dettagli tecnici, funzionali e pratici in perfetto italiano.\n"
+                f"REGOLA TASSATIVA ASSOLUTA:\n"
+                f"- È SEVERAMENTE VIETATO scrivere frasi generiche (tipo 'ottimo prodotto', 'spedizione rapida', 'consigliato a tutti').\n"
+                f"- Devi leggere ATTENTAMENTE il titolo e analizzare le caratteristiche tecniche dell'oggetto (es. se è un PC parla di CPU, RAM, SSD NVMe, display e ventole; se è un trapano parla di coppia Nm, mandrino e batterie; se è una friggitrice parla di wattaggio, capienza litri e cestello; se è un cosmetico parla di principi attivi e assorbimento; se è un capo/arredo parla di tessuti, cuciture e dimensioni).\n"
+                f"- Rispondi ESCLUSIVAMENTE in formato JSON con due chiavi: 'title' (titolo specifico e accattivante di 5-10 parole) e 'body' (testo della recensione di 3-4 frasi articolate e tecniche)."
             )
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
@@ -709,9 +813,9 @@ def generate_review(product_title: str, gemini_api_key: str = None) -> dict:
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
                 parsed = json.loads(text)
                 return {
-                    "title": parsed.get("title", f"Ottimo acquisto per {clean_product_subject(clean_title)}!"),
+                    "title": parsed.get("title", f"Ottime prestazioni tecniche per {clean_product_subject(clean_title)}!"),
                     "body": parsed.get("body", "Recensione generata con successo."),
-                    "source": "AI (Gemini Specific Engine)"
+                    "source": "AI (Gemini Technical Engine)"
                 }
         except Exception as e:
             print(f"[Review Generator AI Fallback] {e}")
@@ -729,5 +833,5 @@ def generate_review(product_title: str, gemini_api_key: str = None) -> dict:
             "source": f"Specialized Category ({cat_name})"
         }
 
-    # 3. MOTORE CONTESTUALE DINAMICO ZERO-GENERIC
+    # 3. MOTORE PARAMETRICO TECNICO ZERO-GENERIC
     return synthesize_custom_review(clean_title)
