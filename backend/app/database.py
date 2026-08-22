@@ -82,12 +82,12 @@ def init_db():
     db = SessionLocal()
     try:
         defaults = {
-            "test_mode": "true",
+            "test_mode": "false",
             "telegram_api_id": "",
             "telegram_api_hash": "",
             "telegram_phone": "",
             "telegram_channel": "offerte_test_channel",
-            "test_recipient": "@tuo_username_test",
+            "test_recipient": "@alex8700",
             "email_host": "imap.gmail.com",
             "email_user": "",
             "email_password": "",

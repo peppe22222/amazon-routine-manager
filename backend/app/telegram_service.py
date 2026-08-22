@@ -678,10 +678,10 @@ class TelegramManager:
 
     async def send_availability_request(self, db: Session, offer: Offer, recipient: str = None) -> dict:
         """
-        Invia la richiesta di disponibilità per un prodotto ai tuoi Messaggi Salvati ('me') per test.
+        Invia la richiesta di disponibilità per un prodotto ad Alex (@alex8700 o contatto venditore).
         """
-        target_contact = "me"
-        message_text = f"🧪 [TEST RICHIESTA VENDITORE]\n\nCiao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
+        target_contact = (recipient or offer.seller_contact or "@alex8700").strip()
+        message_text = f"Ciao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
 
         try:
             client = await self._ensure_connected_client(db)
@@ -697,23 +697,23 @@ class TelegramManager:
             
             log = ActivityLog(
                 action_type="MESSAGE_SENT",
-                title=f"Richiesta inviata ai tuoi Messaggi Salvati",
-                details=f"Articolo: {offer.title[:40]}"
+                title=f"Richiesta inviata ad Alex ({target_contact})",
+                details=f"Articolo: {offer.title[:50]}"
             )
             db.add(log)
             offer.status = "requested"
             db.commit()
-            return {"success": True, "message": "Richiesta inviata ai tuoi Messaggi Salvati su Telegram!"}
+            return {"success": True, "message": f"Richiesta inviata con successo ad Alex ({target_contact}) su Telegram!"}
         except Exception as e:
             print(f"[Telegram Send Error] {e}")
             return {"success": False, "error": str(e)}
 
     async def send_order_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
         """
-        Invia lo screenshot di conferma ordine e il numero d'ordine ai tuoi Messaggi Salvati ('me') per test.
+        Invia lo screenshot di conferma ordine e il numero d'ordine ad Alex (@alex8700 o contatto venditore).
         """
-        target_contact = "me"
-        caption_text = f"🧪 [TEST SCREENSHOT RICEVUTA ACQUISTO]\n\nCiao Alex, ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\nGrazie!"
+        target_contact = (recipient or order.seller_contact or "@alex8700").strip()
+        caption_text = f"Ciao Alex, ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\nGrazie!"
 
         try:
             client = await self._ensure_connected_client(db)
@@ -729,24 +729,24 @@ class TelegramManager:
 
             log = ActivityLog(
                 action_type="SCREEN_SENT",
-                title=f"Screenshot inviato ai tuoi Messaggi Salvati",
-                details=f"Ordine: {order.order_number}"
+                title=f"Screenshot ordine inviato ad Alex ({target_contact})",
+                details=f"Ordine: {order.order_number} ({order.product_title})"
             )
             db.add(log)
             order.status = "waiting_review"
             order.confirmation_sent_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": "Screenshot inviato ai tuoi Messaggi Salvati su Telegram!"}
+            return {"success": True, "message": f"Screenshot inviato con successo ad Alex ({target_contact}) su Telegram!"}
         except Exception as e:
             print(f"[Telegram Screen Send Error] {e}")
             return {"success": False, "error": str(e)}
 
     async def send_review_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
         """
-        Invia la conferma della recensione pubblicata con screenshot ai tuoi Messaggi Salvati ('me') per test.
+        Invia la conferma della recensione pubblicata con screenshot ad Alex (@alex8700 o contatto venditore).
         """
-        target_contact = "me"
-        caption_text = f"🧪 [TEST SCREENSHOT RECENSIONE 5★]\n\nCiao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
+        target_contact = (recipient or order.seller_contact or "@alex8700").strip()
+        caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
 
         try:
             client = await self._ensure_connected_client(db)
@@ -773,15 +773,15 @@ class TelegramManager:
                 await client.send_message(target_contact, caption_text)
             
             log = ActivityLog(
-                action_type="REVIEW_READY",
-                title=f"Screenshot recensione inviato ai tuoi Messaggi Salvati",
-                details=f"Ordine: {order.order_number} | Prodotto: {order.product_title[:40]}"
+                action_type="REVIEW_SENT",
+                title=f"Screenshot recensione 5★ inviato ad Alex ({target_contact})",
+                details=f"Ordine: {order.order_number} ({order.product_title})"
             )
             db.add(log)
-            order.status = "review_submitted"
-            order.review_sent_to_seller_at = datetime.utcnow()
+            order.status = "waiting_refund"
+            order.review_submitted_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": "Screenshot recensione inviato ai tuoi Messaggi Salvati!"}
+            return {"success": True, "message": f"Screenshot recensione inviato con successo ad Alex ({target_contact})!"}
         except Exception as e:
             print(f"[Telegram Review Send Error] {e}")
             return {"success": False, "error": str(e)}

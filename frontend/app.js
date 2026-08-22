@@ -546,9 +546,6 @@ function renderConfirmations(orders) {
         </div>
         <h3 class="text-base font-bold text-white">Nessuna schermata ordine in attesa di conferma</h3>
         <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto">Non appena invii una richiesta ad Alex, la scheda comparirà qui pronta per collegare la ricevuta dell'ordine fatto su Amazon.</p>
-        <button onclick="simulateOrder('Comodino Moderno Cilindrico', 8.00, '@venditore_arredo')" class="mt-4 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold inline-flex items-center gap-2">
-          <i class="fa-solid fa-cart-shopping"></i> Crea Ordine di Prova
-        </button>
       </div>
     `;
     return;
