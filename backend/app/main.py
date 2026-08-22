@@ -1205,23 +1205,28 @@ def reset_demo_data(db: Session = Depends(get_db)):
     db.commit()
     return {"success": True, "message": "Demo data resettati con successo!"}
 
-# Inserisci dati iniziali demo SOLO la prima volta in assoluto (mai se l'utente li ha cancellati)
-@app.on_event("startup")
-def populate_demo_data_if_empty():
-    db = next(get_db())
-    try:
-        demo_flag = db.query(Setting).filter_by(key="demo_initialized").first()
-        if not demo_flag:
-            # Solo alla prima inizializzazione in assoluto
-            if db.query(Offer).count() == 0 and db.query(Order).count() == 0:
-                reset_demo_data(db)
-            db.add(Setting(key="demo_initialized", value="true"))
-            db.commit()
+@app.delete("/api/orders")
+def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
+    """Elimina tutte le pratiche (ordini, recensioni, rimborsi) o filtrate per categoria"""
+    query = db.query(Order)
+    if status:
+        if status == "reviews":
+            query = query.filter(Order.status.in_(["waiting_review", "review_ready"]))
+        elif status == "refunds":
+            query = query.filter(Order.status.in_(["review_submitted", "reimbursed"]))
+        elif status == "confirmations":
+            query = query.filter(Order.status == "pending_confirmation")
         else:
-            # L'utente ha già inizializzato il database: NON ricreare mai ordini o recensioni cancellati!
-            pass
-    finally:
-        db.close()
+            query = query.filter_by(status=status)
+            
+    deleted_count = query.delete(synchronize_session=False)
+    db.commit()
+    return {"success": True, "deleted_count": deleted_count, "message": f"{deleted_count} pratiche eliminate definitivamente!"}
+
+# Evento di avvio: non inserire MAI più dati demo in automatico
+@app.on_event("startup")
+def on_app_startup():
+    pass
 
 # Monta la cartella del frontend statico
 candidate_frontend_dirs = [

@@ -1065,32 +1065,67 @@ async function confirmAndDeleteOrder(orderId, itemTitle, wrapperElement) {
     return;
   }
 
-  // Animazione fluida di uscita
+  // Animazione immediata di uscita
   if (wrapperElement) {
-    wrapperElement.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    wrapperElement.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
     wrapperElement.style.transform = 'translateX(-100%)';
     wrapperElement.style.opacity = '0';
     wrapperElement.style.maxHeight = wrapperElement.offsetHeight + 'px';
     setTimeout(() => {
-      wrapperElement.style.maxHeight = '0px';
-      wrapperElement.style.margin = '0px';
-      wrapperElement.style.padding = '0px';
-    }, 150);
+      wrapperElement.remove();
+    }, 200);
   }
 
   try {
     const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
     const data = await res.json();
     if (res.ok) {
-      showToast(data.message || 'Pratica eliminata con successo');
-      setTimeout(() => loadOrders(), 350);
+      showToast(data.message || 'Pratica eliminata definitivamente!');
     } else {
       showToast(data.detail || 'Errore durante l\'eliminazione', true);
-      loadOrders();
     }
   } catch (err) {
     showToast('Errore di connessione durante l\'eliminazione', true);
+  } finally {
     loadOrders();
+    loadStats();
+    loadLogs();
+  }
+}
+
+async function clearAllReviews() {
+  if (!confirm('Vuoi davvero cancellare tutte le recensioni attive?')) return;
+  try {
+    const res = await fetch('/api/orders?status=reviews', { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Tutte le recensioni sono state eliminate!');
+      loadOrders();
+      loadStats();
+      loadLogs();
+    } else {
+      showToast(data.detail || 'Errore durante l\'eliminazione', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
+  }
+}
+
+async function clearAllRefunds() {
+  if (!confirm('Vuoi davvero cancellare tutti i rimborsi PayPal registrati?')) return;
+  try {
+    const res = await fetch('/api/orders?status=refunds', { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Tutti i rimborsi sono stati eliminati!');
+      loadOrders();
+      loadStats();
+      loadLogs();
+    } else {
+      showToast(data.detail || 'Errore durante l\'eliminazione', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
   }
 }
 
