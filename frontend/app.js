@@ -1703,42 +1703,88 @@ async function pasteFromIPhoneClipboard() {
 async function analyzeImageClientOCR(imageSource) {
   try {
     if (typeof Tesseract === 'undefined') return { order_number: null, price: null };
-    showToast('🔍 Analisi OCR ricevuta Amazon in corso...');
-    const worker = await Tesseract.createWorker('ita+eng');
-    const { data: { text } } = await worker.recognize(imageSource);
-    await worker.terminate();
+    
+    // Mostra toast di avanzamento
+    showToast('🔍 Analisi OCR in corso (lettura N° Ordine)...');
 
-    let order_number = null;
-    // Cerca numero ordine Amazon esatto (es. 404-1867984-8717122 o 408-1234567-8901234)
-    const orderMatch = text.match(/\b([0-9]{3}-[0-9]{7}-[0-9]{7})\b/);
-    if (orderMatch) {
-      order_number = orderMatch[1];
-    } else {
-      const looseMatch = text.match(/\b([0-9]{3})\s*[-–—]\s*([0-9]{7})\s*[-–—]\s*([0-9]{7})\b/);
-      if (looseMatch) {
-        order_number = `${looseMatch[1]}-${looseMatch[2]}-${looseMatch[3]}`;
+    // Funzione interna con timeout di 4 secondi per non bloccare mai l'upload
+    const ocrPromise = new Promise(async (resolve) => {
+      try {
+        // Ridimensiona immagine con canvas per rendere l'OCR istantaneo (max 1200px)
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = async () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const maxDim = 1200;
+            let w = img.width;
+            let h = img.height;
+            if (w > maxDim || h > maxDim) {
+              if (w > h) {
+                h = Math.round((h * maxDim) / w);
+                w = maxDim;
+              } else {
+                w = Math.round((w * maxDim) / h);
+                h = maxDim;
+              }
+            }
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, w, h);
+            const scaledDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+            // Esegui riconoscimento 'eng' (contiene tutte le cifre e simboli, carica in 0.5s)
+            const res = await Tesseract.recognize(scaledDataUrl, 'eng', {
+              logger: () => {}
+            });
+            const text = (res && res.data && res.data.text) ? res.data.text : '';
+            
+            let order_number = null;
+            // 1. Cerca numero ordine Amazon (es. 404-1867984-8717122 o 408-1234567-8901234)
+            const orderMatch = text.match(/\b([0-9]{3}-[0-9]{7}-[0-9]{7})\b/);
+            if (orderMatch) {
+              order_number = orderMatch[1];
+            } else {
+              const looseMatch = text.match(/\b([0-9]{3})\s*[-–—\s]\s*([0-9]{7})\s*[-–—\s]\s*([0-9]{7})\b/);
+              if (looseMatch) {
+                order_number = `${looseMatch[1]}-${looseMatch[2]}-${looseMatch[3]}`;
+              }
+            }
+
+            // 2. Cerca prezzo pagato (es. 22,99 € o € 100,00)
+            let price = null;
+            const pricePatterns = [
+              /(?:totale|importo|pagato|totale ordine|total)[\s:]*(?:€|eur|\$)?\s*([0-9]+(?:[.,][0-9]{2}))/i,
+              /(?:€|eur|\$)\s*([0-9]+(?:[.,][0-9]{2}))/i,
+              /([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur|\$)\b/i
+            ];
+            for (let p of pricePatterns) {
+              const pm = text.match(p);
+              if (pm) {
+                const val = parseFloat(pm[1].replace(',', '.'));
+                if (val > 0) {
+                  price = val;
+                  break;
+                }
+              }
+            }
+
+            resolve({ order_number, price, text });
+          } catch (innerErr) {
+            console.warn('[OCR Canvas Process Error]', innerErr);
+            resolve({ order_number: null, price: null });
+          }
+        };
+        img.onerror = () => resolve({ order_number: null, price: null });
+        img.src = imageSource;
+      } catch (err) {
+        resolve({ order_number: null, price: null });
       }
-    }
+    });
 
-    // Cerca prezzo pagato (es. 22,99 € o € 100,00)
-    let price = null;
-    const pricePatterns = [
-      /(?:totale|importo|pagato|totale ordine|totale da pagare)[\s:]*(?:€|eur)?\s*([0-9]+(?:[.,][0-9]{2}))/i,
-      /(?:€|eur)\s*([0-9]+(?:[.,][0-9]{2}))/i,
-      /([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur)\b/i
-    ];
-    for (let p of pricePatterns) {
-      const pm = text.match(p);
-      if (pm) {
-        const val = parseFloat(pm[1].replace(',', '.'));
-        if (val > 0) {
-          price = val;
-          break;
-        }
-      }
-    }
-
-    return { order_number, price, text };
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ order_number: null, price: null }), 4500));
+    return await Promise.race([ocrPromise, timeoutPromise]);
   } catch (err) {
     console.error('[Client OCR Error]', err);
     return { order_number: null, price: null };
