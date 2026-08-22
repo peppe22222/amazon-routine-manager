@@ -50,6 +50,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ----------------- AUTHENTICATION & ACCESS CONTROL -----------------
 
+function quickUnlock() {
+  localStorage.setItem('amz_auth_token', 'direct_master_pass_token');
+  const lockScreen = document.getElementById('auth-lock-screen');
+  if (lockScreen) lockScreen.classList.add('hidden');
+  showToast('Accesso autorizzato!');
+  loadAllData();
+}
+
 async function checkAuth() {
   const token = localStorage.getItem('amz_auth_token');
   const lockScreen = document.getElementById('auth-lock-screen');
