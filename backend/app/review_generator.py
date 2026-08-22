@@ -241,7 +241,96 @@ CATEGORIES = {
         ]
     },
 
-    # --- 4. AUDIO, ELETTRONICA & SMARTPHONE ---
+    # --- 4. COMPUTER, LAPTOP, MONITOR & TABLET ---
+    "computer_notebook_pc": {
+        "keywords": ["pc", "mini pc", "computer", "notebook", "laptop", "desktop", "all-in-one", "macbook", "chromebook", "workstation", "portatile", "ultrabook", "i3", "i5", "i7", "i9", "ryzen", "n100", "n95", "n5105", "intel core", "amd ryzen"],
+        "titles": [
+            "PC fluido, velocissimo e silenzioso: processore potente e ottima dissipazione termica!",
+            "Prestazioni eccellenti, avvio in pochi secondi con SSD e reattività totale in multitasking",
+            "Display nitido dai colori brillanti, memoria capiente e batteria duratura. 5 stelle piene!",
+            "Rapporto qualità/prezzo imbattibile per studio, smart working e produttività quotidiana!"
+        ],
+        "openings": [
+            "Utilizzo questo computer quotidianamente per lavoro, navigazione e streaming e si è dimostrato straordinariamente fluido e scattante.",
+            "Arrivato perfettamente imballato con alimentatore originale e sistema operativo già configurato e pronto all'uso fin dalla prima accensione.",
+            "Messo subito alla prova aprendo molteplici software e schede del browser in contemporanea: reattività impeccabile senza alcun rallentamento."
+        ],
+        "bodies": [
+            "La combinazione tra il processore veloce e la memoria SSD NVMe garantisce tempi di caricamento istantanei all'avvio e nell'apertura di qualsiasi applicazione, con una gestione della RAM eccellente.",
+            "Lo schermo offre una risoluzione definita con ottimi angoli di visione, neri profondi e trattamento antiriflesso che non affatica la vista anche dopo molte ore consecutive di lavoro.",
+            "La ventola di raffreddamento è sorprendentemente silenziosa e mantiene le temperature costantemente basse anche sotto carico prolungato. La dotazione di porte (USB 3.0, Type-C, HDMI) è completa e comodissima."
+        ],
+        "closings": [
+            "Una macchina affidabile, elegante e performante che consiglio senza riserve. 5 stelle meritatissime!",
+            "Superiore alle aspettative rispetto al prezzo di acquisto: hardware scattante e ottima qualità costruttiva.",
+            "Pienamente soddisfatto, perfetto per chi cerca produttività e velocità senza spendere cifre esorbitanti."
+        ]
+    },
+    "monitor_schermi": {
+        "keywords": ["monitor", "schermo pc", "display gaming", "curvo", "144hz", "165hz", "240hz", "2k", "4k", "ips", "fhd", "qhd"],
+        "titles": [
+            "Colori brillanti, neri profondi e frequenza di aggiornamento fluidissima!",
+            "Monitor eccezionale: cornici sottili, zero affaticamento visivo e resa visiva spettacolare",
+            "Luminosità uniforme e tempi di risposta istantanei: perfetto sia per lavoro che per gaming"
+        ],
+        "openings": [
+            "Ho collegato questo monitor alla mia postazione di lavoro e la qualità visiva è sbalorditiva fin dalla prima accensione.",
+            "Pannello privo di pixel difettosi o aloni di luce, con base solida e inclinazione regolabile."
+        ],
+        "bodies": [
+            "La tecnologia del pannello garantisce angoli di visione ampi e una fedeltà cromatica impeccabile con colori vividi e contrasti definiti.",
+            "L'elevato refresh rate rende lo scorrimento dei testi, delle finestre e dei giochi incredibilmente fluido senza scie o sfarfallii.",
+            "Le tecnologie di protezione visiva (antiriflesso e filtro luce blu) permettono di lavorare per ore senza mai stancare la vista."
+        ],
+        "closings": [
+            "Un monitor di fascia alta a un prezzo eccezionale. 5 stelle meritate!",
+            "Consigliatissimo a chiunque cerchi nitidezza, fluidità e comfort visivo."
+        ]
+    },
+    "tablet_e_ipad": {
+        "keywords": ["tablet", "ipad", "android tablet", "fire hd", "tab", "display touch"],
+        "titles": [
+            "Touch screen reattivo, display brillante e fluidità assoluta con tutte le app!",
+            "Leggero, compatto e con una batteria infinita: perfetto per streaming, studio e lettura",
+            "Ottimo tablet: audio stereo coinvolgente e prestazioni fluide senza lag. 5 stelle!"
+        ],
+        "openings": [
+            "Utilizzo questo tablet ogni giorno per guardare video, leggere documenti e navigare sul web con grandissima soddisfazione.",
+            "Arrivato in una confezione protettiva con cavo di ricarica rapida e accessori completi."
+        ],
+        "bodies": [
+            "Il display touch risponde istantaneamente al tocco con immagini limpide e colori saturi, ideale per godersi film e serie TV.",
+            "Il processore gestisce la riproduzione multimediale e le applicazioni con fluidità senza impuntamenti o surriscaldamenti.",
+            "La batteria garantisce molte ore continuative di utilizzo e gli altoparlanti integrati offrono un suono chiaro e corposo."
+        ],
+        "closings": [
+            "Un dispositivo versatile ed affidabile per tutta la famiglia. Consigliatissimo!",
+            "Rapporto qualità-prezzo imbattibile, super consigliato a studenti e professionisti."
+        ]
+    },
+    "mouse_tastiere_gaming": {
+        "keywords": ["mouse", "tastiera", "mouse gaming", "tastiera meccanica", "tastiera wireless", "tappetino mouse", "mousepad"],
+        "titles": [
+            "Digitazione confortevole e silenziosa, switch reattivi e precisione assoluta!",
+            "Ergonomia perfetta che non affatica il polso, connessione wireless stabile e zero ritardi",
+            "Sensore ottico millimetrico, tasti precisi e materiali piacevoli al tatto. 5 stelle!"
+        ],
+        "openings": [
+            "Ho acquistato questa periferica per la mia scrivania e la comodità d'uso è notevole fin dai primi minuti.",
+            "Packaging curato con ricevitore USB e cavo inclusi, riconosciuto all'istante dal computer senza driver complessi."
+        ],
+        "bodies": [
+            "I tasti offrono una corsa precisa e una risposta tattile piacevole, garantendo una digitazione rapida e priva di errori.",
+            "Il sensore e la connessione lavorano con latenza impercettibile e precisione millimetrica su qualsiasi superficie.",
+            "L'impugnatura e il profilo anatomico supportano la mano in posizione naturale riducendo l'affaticamento articolare."
+        ],
+        "closings": [
+            "Una periferica indispensabile per lavorare o giocare al massimo del comfort. 5 stelle!",
+            "Costruzione solida e grande piacevolezza d'uso quotidiana."
+        ]
+    },
+
+    # --- 5. AUDIO, ELETTRONICA & SMARTPHONE ---
     "cuffie_auricolari_audio": {
         "keywords": ["auricolari", "cuffie", "earbuds", "tws", "bluetooth", "soundbar", "altoparlante", "speaker", "cassa bluetooth", "microfono", "anc", "cancellazione rumore"],
         "titles": [
@@ -290,8 +379,8 @@ CATEGORIES = {
             "Ottimo compagno per monitorare la salute e le notifiche al polso."
         ]
     },
-    "accessori_smartphone_pc": {
-        "keywords": ["powerbank", "caricatore", "caricabatterie", "cavo usb", "cover", "pellicola", "vetro temperato", "supporto smartphone", "supporto tablet", "supporto pc", "mouse", "tastiera", "hub usb", "docking station", "chiavetta usb", "ssd", "scheda sd"],
+    "accessori_smartphone_cavi": {
+        "keywords": ["powerbank", "caricatore", "caricabatterie", "cavo usb", "cavo type-c", "cavo lightning", "cover", "pellicola", "vetro temperato", "supporto smartphone", "supporto tablet", "hub usb", "docking station", "chiavetta usb", "ssd esterno", "scheda sd"],
         "titles": [
             "Ricarica ultra-rapida, materiali robusti e connettività impeccabile!",
             "Compatto, resistente e affidabile: risolve ogni esigenza di ricarica e connessione",
