@@ -1700,6 +1700,51 @@ async function pasteFromIPhoneClipboard() {
   }
 }
 
+async function analyzeImageClientOCR(imageSource) {
+  try {
+    if (typeof Tesseract === 'undefined') return { order_number: null, price: null };
+    showToast('🔍 Analisi OCR ricevuta Amazon in corso...');
+    const worker = await Tesseract.createWorker('ita+eng');
+    const { data: { text } } = await worker.recognize(imageSource);
+    await worker.terminate();
+
+    let order_number = null;
+    // Cerca numero ordine Amazon esatto (es. 404-1867984-8717122 o 408-1234567-8901234)
+    const orderMatch = text.match(/\b([0-9]{3}-[0-9]{7}-[0-9]{7})\b/);
+    if (orderMatch) {
+      order_number = orderMatch[1];
+    } else {
+      const looseMatch = text.match(/\b([0-9]{3})\s*[-–—]\s*([0-9]{7})\s*[-–—]\s*([0-9]{7})\b/);
+      if (looseMatch) {
+        order_number = `${looseMatch[1]}-${looseMatch[2]}-${looseMatch[3]}`;
+      }
+    }
+
+    // Cerca prezzo pagato (es. 22,99 € o € 100,00)
+    let price = null;
+    const pricePatterns = [
+      /(?:totale|importo|pagato|totale ordine|totale da pagare)[\s:]*(?:€|eur)?\s*([0-9]+(?:[.,][0-9]{2}))/i,
+      /(?:€|eur)\s*([0-9]+(?:[.,][0-9]{2}))/i,
+      /([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur)\b/i
+    ];
+    for (let p of pricePatterns) {
+      const pm = text.match(p);
+      if (pm) {
+        const val = parseFloat(pm[1].replace(',', '.'));
+        if (val > 0) {
+          price = val;
+          break;
+        }
+      }
+    }
+
+    return { order_number, price, text };
+  } catch (err) {
+    console.error('[Client OCR Error]', err);
+    return { order_number: null, price: null };
+  }
+}
+
 function triggerIPhonePhotoLibrary() {
   let fileInput = document.getElementById('iphone-photo-input');
   if (!fileInput) {
@@ -1720,10 +1765,19 @@ function triggerIPhonePhotoLibrary() {
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target.result;
+        let ocrRes = { order_number: null, price: null };
+        if (currentUploadType !== 'review') {
+          ocrRes = await analyzeImageClientOCR(base64);
+        }
+
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image_base64: base64 })
+          body: JSON.stringify({ 
+            image_base64: base64,
+            recognized_order_number: ocrRes.order_number,
+            recognized_price: ocrRes.price
+          })
         });
         let data = {};
         try { data = await res.json(); } catch(e) {}
@@ -1762,10 +1816,19 @@ function triggerIPhoneCamera() {
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target.result;
+        let ocrRes = { order_number: null, price: null };
+        if (currentUploadType !== 'review') {
+          ocrRes = await analyzeImageClientOCR(base64);
+        }
+
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image_base64: base64 })
+          body: JSON.stringify({ 
+            image_base64: base64,
+            recognized_order_number: ocrRes.order_number,
+            recognized_price: ocrRes.price
+          })
         });
         let data = {};
         try { data = await res.json(); } catch(e) {}
@@ -1821,10 +1884,15 @@ window.addEventListener('paste', async (e) => {
           const targetOrder = orders.find(o => o.status === 'pending_confirmation');
 
           if (targetOrder) {
+            const ocrRes = await analyzeImageClientOCR(base64);
             const res = await fetch(`/api/orders/${targetOrder.id}/upload-screenshot`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ image_base64: base64 })
+              body: JSON.stringify({ 
+                image_base64: base64,
+                recognized_order_number: ocrRes.order_number,
+                recognized_price: ocrRes.price
+              })
             });
             let data = {};
             try { data = await res.json(); } catch(e) {}

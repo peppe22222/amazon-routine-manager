@@ -124,6 +124,8 @@ class ParseTelegramPostPayload(BaseModel):
 
 class UploadScreenshotPayload(BaseModel):
     image_base64: str
+    recognized_order_number: Optional[str] = None
+    recognized_price: Optional[float] = None
 
 class CreateOrderWithScreenshotPayload(BaseModel):
     product_title: str
@@ -931,11 +933,17 @@ def upload_order_screenshot(order_id: int, payload: UploadScreenshotPayload, db:
     order.confirmation_screen_url = f"/screenshots/{filename}"
     
     # Estrazione automatica del Numero Ordine e del Prezzo
-    extracted = extract_amazon_order_from_screenshot(img_bytes, gemini_api_key=get_gemini_api_key(db))
-    extracted_num = extracted.get("order_number")
-    extracted_price = extracted.get("price_paid")
+    extracted_num = (payload.recognized_order_number or "").strip()
+    extracted_price = payload.recognized_price
+
+    if not extracted_num or not extracted_price:
+        extracted = extract_amazon_order_from_screenshot(img_bytes, gemini_api_key=get_gemini_api_key(db))
+        if not extracted_num:
+            extracted_num = extracted.get("order_number")
+        if not extracted_price:
+            extracted_price = extracted.get("price_paid")
     
-    if extracted_num:
+    if extracted_num and len(extracted_num) >= 5:
         # Se esiste già un altro ordine con questo numero, rinominalo
         existing = db.query(Order).filter(Order.order_number == extracted_num, Order.id != order.id).first()
         if existing:
