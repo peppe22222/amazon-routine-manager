@@ -50,14 +50,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // ----------------- AUTHENTICATION & ACCESS CONTROL -----------------
 
-function quickUnlock() {
-  localStorage.setItem('amz_auth_token', 'direct_master_pass_token');
-  const lockScreen = document.getElementById('auth-lock-screen');
-  if (lockScreen) lockScreen.classList.add('hidden');
-  showToast('Accesso autorizzato!');
-  loadAllData();
-}
-
 async function checkAuth() {
   const token = localStorage.getItem('amz_auth_token');
   const lockScreen = document.getElementById('auth-lock-screen');
@@ -114,15 +106,6 @@ async function handleAuthLogin(e) {
       showToast('Accesso autorizzato!');
       loadAllData();
     } else {
-      if (['999999', '123456', 'admin', 'amazon'].includes(password)) {
-        // Fallback locale di emergenza immediato
-        const lockScreen = document.getElementById('auth-lock-screen');
-        if (lockScreen) lockScreen.classList.add('hidden');
-        if (errorMsg) errorMsg.classList.add('hidden');
-        showToast('Accesso autorizzato!');
-        loadAllData();
-        return;
-      }
       if (errorMsg) {
         errorMsg.innerText = data.detail || 'Password errata. Riprova.';
         errorMsg.classList.remove('hidden');
@@ -133,14 +116,6 @@ async function handleAuthLogin(e) {
       }
     }
   } catch (err) {
-    if (['999999', '123456', 'admin', 'amazon'].includes(password)) {
-      const lockScreen = document.getElementById('auth-lock-screen');
-      if (lockScreen) lockScreen.classList.add('hidden');
-      if (errorMsg) errorMsg.classList.add('hidden');
-      showToast('Accesso consentito!');
-      loadAllData();
-      return;
-    }
     if (errorMsg) {
       errorMsg.innerText = 'Server in riavvio (deploy in corso). Riprova tra qualche istante...';
       errorMsg.classList.remove('hidden');

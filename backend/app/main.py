@@ -138,8 +138,7 @@ def login(payload: LoginPayload, db: Session = Depends(get_db)):
     """Verifica la password di sicurezza e restituisce un token di sessione autenticato"""
     current_pwd = get_current_admin_password(db)
     entered = (payload.password or "").strip()
-    valid_passwords = {current_pwd, "999999", "123456", "admin", "amazon"}
-    if entered in valid_passwords:
+    if entered == current_pwd:
         token = generate_auth_token(entered)
         return {"success": True, "token": token, "message": "Accesso consentito con successo!"}
     raise HTTPException(status_code=401, detail="Password errata. Riprova.")
@@ -150,9 +149,8 @@ def auth_status(token: Optional[str] = Query(None), db: Session = Depends(get_db
     if not token:
         return {"authenticated": False}
     current_pwd = get_current_admin_password(db)
-    valid_tokens = {generate_auth_token(p) for p in [current_pwd, "999999", "123456", "admin", "amazon"]}
-    valid_tokens.add("direct_master_pass_token")
-    return {"authenticated": bool(token in valid_tokens or token == "direct_master_pass_token")}
+    valid_token = generate_auth_token(current_pwd)
+    return {"authenticated": bool(token == valid_token)}
 
 @app.post("/api/auth/change-password")
 def change_password(payload: ChangePasswordPayload, db: Session = Depends(get_db)):
