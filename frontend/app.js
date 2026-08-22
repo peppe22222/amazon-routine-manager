@@ -326,9 +326,24 @@ async function loadOffers() {
                     </button>
                   </div>
                 `
-                : `<button onclick="requestOffer(${o.id})" class="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition-all">
-                    <i class="fa-solid fa-paper-plane"></i> Richiedi Disponibilità
-                  </button>`
+                : `
+                  <button id="hold-btn-${o.id}" 
+                          onmousedown="startHoldOffer(${o.id}, event)" 
+                          onmouseup="cancelHoldOffer(${o.id})" 
+                          onmouseleave="cancelHoldOffer(${o.id})" 
+                          ontouchstart="startHoldOffer(${o.id}, event)" 
+                          ontouchend="cancelHoldOffer(${o.id})" 
+                          ontouchcancel="cancelHoldOffer(${o.id})"
+                          class="relative overflow-hidden select-none flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+                          style="-webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
+                    <!-- Barra di riempimento animata -->
+                    <div id="hold-progress-${o.id}" class="absolute inset-y-0 left-0 bg-emerald-400/40 w-0 pointer-events-none rounded-xl"></div>
+                    <!-- Testo del pulsante -->
+                    <span id="hold-text-${o.id}" class="relative z-10 flex items-center gap-1.5 pointer-events-none">
+                      <i class="fa-solid fa-fingerprint text-emerald-200 text-sm"></i> Tieni premuto per inviare
+                    </span>
+                  </button>
+                `
               }
               <button onclick="dismissOffer(${o.id})" title="Rimuovi offerta" class="w-10 h-10 rounded-xl bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700/80 flex items-center justify-center transition-all shrink-0">
                 <i class="fa-regular fa-trash-can text-sm"></i>
@@ -341,6 +356,50 @@ async function loadOffers() {
     }).join('');
   } catch (err) {
     console.error('Errore caricamento offerte:', err);
+  }
+}
+
+// ----------------- HOLD TO CONFIRM LOGIC -----------------
+const holdTimers = {};
+
+function startHoldOffer(offerId, e) {
+  if (e && e.cancelable && e.type === 'touchstart') {
+    // Non bloccare lo scroll globale se è solo swipe
+  }
+  
+  const progressBar = document.getElementById(`hold-progress-${offerId}`);
+  const textSpan = document.getElementById(`hold-text-${offerId}`);
+  if (!progressBar) return;
+
+  // Avvia l'animazione di riempimento a 1.2 secondi
+  progressBar.style.transition = 'width 1.2s cubic-bezier(0.2, 0.8, 0.4, 1)';
+  progressBar.style.width = '100%';
+  if (textSpan) {
+    textSpan.innerHTML = '<i class="fa-solid fa-bolt text-amber-300 animate-bounce"></i> Rilascia solo per inviare...';
+  }
+
+  holdTimers[offerId] = setTimeout(() => {
+    if (navigator.vibrate) {
+      try { navigator.vibrate([50, 40, 50]); } catch (err) {}
+    }
+    requestOffer(offerId);
+    cancelHoldOffer(offerId);
+  }, 1200);
+}
+
+function cancelHoldOffer(offerId) {
+  if (holdTimers[offerId]) {
+    clearTimeout(holdTimers[offerId]);
+    delete holdTimers[offerId];
+  }
+  const progressBar = document.getElementById(`hold-progress-${offerId}`);
+  const textSpan = document.getElementById(`hold-text-${offerId}`);
+  if (progressBar) {
+    progressBar.style.transition = 'width 0.25s ease-out';
+    progressBar.style.width = '0%';
+  }
+  if (textSpan) {
+    textSpan.innerHTML = '<i class="fa-solid fa-fingerprint text-emerald-200 text-sm"></i> Tieni premuto per inviare';
   }
 }
 
