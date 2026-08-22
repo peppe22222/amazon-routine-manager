@@ -188,3 +188,107 @@ def generate_amazon_review_screenshot(order_number: str, product_title: str, rev
     img.save(file_path, "JPEG", quality=95)
     
     return f"/screenshots/{filename}"
+
+
+def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str = None) -> dict:
+    """
+    Analizza uno screenshot di un ordine Amazon (ricevuta, conferma app, email)
+    ed estrae automaticamente:
+    - Numero Ordine Amazon (formato xxx-xxxxxxx-xxxxxxx)
+    - Totale Pagato (€)
+    - Titolo Prodotto
+    """
+    import re
+    import base64
+    import json
+    import requests
+
+    result = {
+        "order_number": None,
+        "price_paid": None,
+        "product_title": None,
+        "method": "none"
+    }
+
+    if not image_bytes:
+        return result
+
+    # 1. TENTATIVO CON GEMINI VISION AI (Se API Key disponibile in Impostazioni o ENV)
+    api_key = (gemini_api_key or os.getenv("GEMINI_API_KEY", "")).strip()
+    if api_key:
+        try:
+            b64_data = base64.b64encode(image_bytes).decode("utf-8")
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+            prompt = (
+                "Analizza questa immagine di conferma o ricevuta ordine Amazon.\n"
+                "Estrai con la massima precisione in formato JSON:\n"
+                "1. 'order_number': il numero d'ordine Amazon reale a 17 cifre nel formato 'xxx-xxxxxxx-xxxxxxx' (es. '404-1867984-8717122'). Se non presente scrivi null.\n"
+                "2. 'price_paid': il totale complessivo pagato su Amazon in euro come numero float (es. 22.99 o 100.00). Se non presente scrivi null.\n"
+                "3. 'product_title': il nome o descrizione dell'articolo ordinato. Se non presente scrivi null.\n"
+                "Rispondi ESCLUSIVAMENTE con il JSON."
+            )
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": b64_data
+                            }
+                        }
+                    ]
+                }],
+                "generationConfig": {"response_mime_type": "application/json"}
+            }
+            resp = requests.post(url, json=payload, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(text)
+                if parsed.get("order_number"):
+                    result["order_number"] = parsed["order_number"].strip()
+                if parsed.get("price_paid") is not None:
+                    try:
+                        result["price_paid"] = float(parsed["price_paid"])
+                    except ValueError:
+                        pass
+                if parsed.get("product_title"):
+                    result["product_title"] = parsed["product_title"].strip()
+                result["method"] = "gemini_vision"
+                return result
+        except Exception as e:
+            print(f"[OCR Gemini Vision Error] {e}")
+
+    # 2. TENTATIVO CON PYTESSERACT OCR NATIVO (se disponibile su sistema)
+    try:
+        import pytesseract
+        image = Image.open(io.BytesIO(image_bytes))
+        ocr_text = pytesseract.image_to_string(image, lang="ita+eng")
+        
+        # Cerca numero ordine Amazon (es. 404-1867984-8717122 o 408-1234567-8901234)
+        order_match = re.search(r'\b([0-9]{3}-[0-9]{7}-[0-9]{7})\b', ocr_text)
+        if order_match:
+            result["order_number"] = order_match.group(1).strip()
+            result["method"] = "tesseract_ocr"
+
+        # Cerca prezzo pagato (es. Totale: 22,99 € o € 100,00)
+        price_patterns = [
+            r'(?:totale|totale ordine|importo|pagato|totale da pagare)[\s:]*(?:€|eur)?\s*([0-9]+(?:[.,][0-9]{2}))',
+            r'(?:€|eur)\s*([0-9]+(?:[.,][0-9]{2}))',
+            r'([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur)\b'
+        ]
+        for p in price_patterns:
+            pm = re.search(p, ocr_text, re.IGNORECASE)
+            if pm:
+                try:
+                    val = float(pm.group(1).replace(',', '.'))
+                    if val > 0:
+                        result["price_paid"] = val
+                        break
+                except ValueError:
+                    pass
+    except Exception as e:
+        print(f"[OCR Tesseract Error] {e}")
+
+    return result

@@ -1725,10 +1725,13 @@ function triggerIPhonePhotoLibrary() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image_base64: base64 })
         });
+        let data = {};
+        try { data = await res.json(); } catch(e) {}
         if (res.ok) {
-          showToast(currentUploadType === 'review' ? '⭐ Screenshot Recensione caricato dal Rullino!' : '📦 Screenshot Ordine caricato dal Rullino!');
+          showToast(data.message || (currentUploadType === 'review' ? '⭐ Screenshot Recensione caricato!' : '📦 Screenshot Ordine caricato!'));
           closeModal('modal-iphone-upload');
           loadOrders();
+          loadStats();
         }
       };
       reader.readAsDataURL(file);
@@ -1764,10 +1767,13 @@ function triggerIPhoneCamera() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image_base64: base64 })
         });
+        let data = {};
+        try { data = await res.json(); } catch(e) {}
         if (res.ok) {
-          showToast('📷 Foto scattata e collegata con successo!');
+          showToast(data.message || '📷 Foto scattata e collegata con successo!');
           closeModal('modal-iphone-upload');
           loadOrders();
+          loadStats();
         }
       };
       reader.readAsDataURL(file);
@@ -1820,9 +1826,12 @@ window.addEventListener('paste', async (e) => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ image_base64: base64 })
             });
+            let data = {};
+            try { data = await res.json(); } catch(e) {}
             if (res.ok) {
-              showToast(`📋 Screenshot incollato con successo all'ordine ${targetOrder.order_number}!`);
+              showToast(data.message || `📋 Screenshot incollato con successo all'ordine!`);
               loadOrders();
+              loadStats();
             }
           } else {
             showToast('📋 Screenshot copiato negli appunti! Seleziona una pratica per associarlo.');

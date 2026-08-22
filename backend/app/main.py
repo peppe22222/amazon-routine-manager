@@ -909,12 +909,14 @@ def get_order_review_screen(order_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/orders/{order_id}/upload-screenshot")
 def upload_order_screenshot(order_id: int, payload: UploadScreenshotPayload, db: Session = Depends(get_db)):
-    """Permette all'utente di caricare o incollare lo screenshot originale reale preso dall'app/sito Amazon"""
+    """Permette all'utente di caricare o incollare lo screenshot originale reale preso dall'app/sito Amazon ed estrae automaticamente Numero d'Ordine e Prezzo tramite OCR / Vision"""
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     
     import base64
+    from app.screenshot_service import extract_amazon_order_from_screenshot
+    
     raw_b64 = payload.image_base64
     if "," in raw_b64:
         raw_b64 = raw_b64.split(",", 1)[1]
@@ -927,12 +929,40 @@ def upload_order_screenshot(order_id: int, payload: UploadScreenshotPayload, db:
         f.write(img_bytes)
         
     order.confirmation_screen_url = f"/screenshots/{filename}"
+    
+    # Estrazione automatica del Numero Ordine e del Prezzo
+    extracted = extract_amazon_order_from_screenshot(img_bytes, gemini_api_key=get_gemini_api_key(db))
+    extracted_num = extracted.get("order_number")
+    extracted_price = extracted.get("price_paid")
+    
+    if extracted_num:
+        # Se esiste già un altro ordine con questo numero, rinominalo
+        existing = db.query(Order).filter(Order.order_number == extracted_num, Order.id != order.id).first()
+        if existing:
+            existing.order_number = f"{extracted_num}_old_{existing.id}"
+            db.commit()
+        order.order_number = extracted_num
+        
+    if extracted_price and extracted_price > 0:
+        order.price_paid = extracted_price
+        order.refund_amount = compute_order_refund(order.price_paid, order.product_title, db)
+        
     db.commit()
+    
+    msg_parts = ["Screenshot caricato con successo!"]
+    if extracted_num:
+        msg_parts.append(f"Riconosciuto N° Ordine: {extracted_num}")
+    if extracted_price:
+        msg_parts.append(f"Spesa: €{extracted_price:.2f} (Rimborso PayPal: €{order.refund_amount:.2f})")
     
     return {
         "success": True,
         "confirmation_screen_url": order.confirmation_screen_url,
-        "message": "Screenshot originale caricato con successo!"
+        "order_number": order.order_number,
+        "price_paid": order.price_paid,
+        "refund_amount": order.refund_amount,
+        "extracted": extracted,
+        "message": " • ".join(msg_parts)
     }
 
 @app.post("/api/orders/{order_id}/upload-review-screenshot")

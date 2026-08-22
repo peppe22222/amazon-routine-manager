@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     curl \
     fonts-liberation \
+    tesseract-ocr \
+    tesseract-ocr-ita \
     && rm -rf /var/lib/apt/lists/*
 
 # Copia i requisiti e installa
