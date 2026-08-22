@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, or_
 
 from app.database import init_db, get_db, Offer, Order, Setting, ActivityLog
 from app.review_generator import generate_review
@@ -356,6 +356,19 @@ def parse_and_create_offer(payload: ParseTelegramPostPayload, db: Session = Depe
 
 @app.get("/api/offers")
 def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db: Session = Depends(get_db)):
+    # Rimuovi automaticamente offerte orfane incomplete o frammentate da vecchi import
+    try:
+        db.query(Offer).filter(
+            Offer.status == "new",
+            or_(
+                Offer.title.like("Articolo Offerta #%"),
+                Offer.title == "Prodotto in Promozione"
+            )
+        ).delete(synchronize_session=False)
+        db.commit()
+    except Exception as e:
+        db.rollback()
+
     query = db.query(Offer)
     if not include_dismissed:
         query = query.filter(Offer.status != "dismissed")

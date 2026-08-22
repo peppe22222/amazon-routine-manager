@@ -327,19 +327,11 @@ async function loadOffers() {
                   </div>
                 `
                 : `
-                  <button id="hold-btn-${o.id}" 
-                          onmousedown="startHoldOffer(${o.id}, event)" 
-                          onmouseup="cancelHoldOffer(${o.id})" 
-                          onmouseleave="cancelHoldOffer(${o.id})" 
-                          ontouchstart="startHoldOffer(${o.id}, event)" 
-                          ontouchend="cancelHoldOffer(${o.id})" 
-                          ontouchcancel="cancelHoldOffer(${o.id})"
-                          class="relative overflow-hidden select-none flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-                          style="-webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
-                    <!-- Barra di riempimento animata -->
-                    <div id="hold-progress-${o.id}" class="absolute inset-y-0 left-0 bg-emerald-400/40 w-0 pointer-events-none rounded-xl"></div>
-                    <!-- Testo del pulsante -->
-                    <span id="hold-text-${o.id}" class="relative z-10 flex items-center gap-1.5 pointer-events-none">
+                  <button data-hold-id="${o.id}" 
+                          class="hold-to-confirm-btn relative overflow-hidden select-none flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+                          style="touch-action: pan-y; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
+                    <div class="hold-bar absolute inset-y-0 left-0 bg-emerald-300/40 w-0 pointer-events-none rounded-xl"></div>
+                    <span class="hold-label relative z-10 flex items-center gap-1.5 pointer-events-none">
                       <i class="fa-solid fa-fingerprint text-emerald-200 text-sm"></i> Tieni premuto per inviare
                     </span>
                   </button>
@@ -354,52 +346,99 @@ async function loadOffers() {
         </div>
       `;
     }).join('');
+
+    // Inizializza i listener sui pulsanti di pressione prolungata
+    bindHoldButtons();
+
   } catch (err) {
     console.error('Errore caricamento offerte:', err);
   }
 }
 
-// ----------------- HOLD TO CONFIRM LOGIC -----------------
-const holdTimers = {};
+// ----------------- ROBUST HOLD TO CONFIRM LOGIC -----------------
+let currentHoldState = {
+  offerId: null,
+  btn: null,
+  bar: null,
+  label: null,
+  timer: null,
+  startTime: 0,
+  startX: 0,
+  startY: 0
+};
 
-function startHoldOffer(offerId, e) {
-  if (e && e.cancelable && e.type === 'touchstart') {
-    // Non bloccare lo scroll globale se è solo swipe
-  }
-  
-  const progressBar = document.getElementById(`hold-progress-${offerId}`);
-  const textSpan = document.getElementById(`hold-text-${offerId}`);
-  if (!progressBar) return;
+function bindHoldButtons() {
+  document.querySelectorAll('.hold-to-confirm-btn').forEach(btn => {
+    const offerId = btn.dataset.holdId;
+    const bar = btn.querySelector('.hold-bar');
+    const label = btn.querySelector('.hold-label');
 
-  // Avvia l'animazione di riempimento a 1.2 secondi
-  progressBar.style.transition = 'width 1.2s cubic-bezier(0.2, 0.8, 0.4, 1)';
-  progressBar.style.width = '100%';
-  if (textSpan) {
-    textSpan.innerHTML = '<i class="fa-solid fa-bolt text-amber-300 animate-bounce"></i> Rilascia solo per inviare...';
-  }
+    btn.onpointerdown = (e) => {
+      abortHold();
 
-  holdTimers[offerId] = setTimeout(() => {
-    if (navigator.vibrate) {
-      try { navigator.vibrate([50, 40, 50]); } catch (err) {}
-    }
-    requestOffer(offerId);
-    cancelHoldOffer(offerId);
-  }, 1200);
+      currentHoldState = {
+        offerId: offerId,
+        btn: btn,
+        bar: bar,
+        label: label,
+        startX: e.clientX,
+        startY: e.clientY,
+        startTime: Date.now(),
+        timer: null
+      };
+
+      if (bar) {
+        bar.style.transition = 'width 0.9s linear';
+        bar.style.width = '100%';
+      }
+      if (label) {
+        label.innerHTML = '<i class="fa-solid fa-bolt text-amber-300 animate-bounce"></i> Tieni premuto...';
+      }
+
+      currentHoldState.timer = setTimeout(() => {
+        if (currentHoldState.offerId === offerId) {
+          if (navigator.vibrate) {
+            try { navigator.vibrate([40, 30, 40]); } catch (err) {}
+          }
+          requestOffer(offerId);
+          abortHold(true);
+        }
+      }, 900);
+    };
+
+    btn.onpointermove = (e) => {
+      if (!currentHoldState.timer) return;
+      const dist = Math.hypot(e.clientX - currentHoldState.startX, e.clientY - currentHoldState.startY);
+      if (dist > 15) {
+        // Movimento rilevato (scroll della pagina): annulla pressione senza bloccare lo scroll
+        abortHold();
+      }
+    };
+
+    btn.onpointerup = (e) => {
+      const duration = Date.now() - (currentHoldState.startTime || 0);
+      if (duration < 750 && currentHoldState.offerId === offerId) {
+        showToast('💡 Tieni premuto 1 secondo per inviare la richiesta');
+      }
+      abortHold();
+    };
+
+    btn.onpointercancel = () => abortHold();
+    btn.onpointerleave = () => abortHold();
+  });
 }
 
-function cancelHoldOffer(offerId) {
-  if (holdTimers[offerId]) {
-    clearTimeout(holdTimers[offerId]);
-    delete holdTimers[offerId];
+function abortHold(completed = false) {
+  if (currentHoldState.timer) {
+    clearTimeout(currentHoldState.timer);
+    currentHoldState.timer = null;
   }
-  const progressBar = document.getElementById(`hold-progress-${offerId}`);
-  const textSpan = document.getElementById(`hold-text-${offerId}`);
-  if (progressBar) {
-    progressBar.style.transition = 'width 0.25s ease-out';
-    progressBar.style.width = '0%';
+  if (currentHoldState.bar && !completed) {
+    currentHoldState.bar.style.transition = 'width 0.2s ease-out';
+    currentHoldState.bar.style.width = '0%';
   }
-  if (textSpan) {
-    textSpan.innerHTML = '<i class="fa-solid fa-fingerprint text-emerald-200 text-sm"></i> Tieni premuto per inviare';
+  if (currentHoldState.label && !completed) {
+    currentHoldState.label.innerHTML = '<i class="fa-solid fa-fingerprint text-emerald-200 text-sm"></i> Tieni premuto per inviare';
   }
 }
 
