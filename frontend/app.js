@@ -34,27 +34,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAllData();
   }
   
-  // Timer live per conto alla rovescia recensioni (aggiorna ogni secondo)
+  // Timer live per conto alla rovescia recensioni (aggiorna solo i numeri dei secondi senza ricaricare la pagina)
   setInterval(updateReviewLiveTimers, 1000);
 
-  // Auto refresh dati locali ogni 15 secondi se autenticato
-  setInterval(async () => {
-    const token = localStorage.getItem('amz_auth_token');
-    if (!token) return;
-    loadStats();
-    if (currentTab === 'offers') loadOffers();
-    if (currentTab === 'confirmations' || currentTab === 'reviews' || currentTab === 'refunds') loadOrders();
-    if (currentTab === 'logs') loadLogs();
-  }, 15000);
-
-  // Auto-sync Telegram channel live in background ogni 45 secondi
-  setInterval(async () => {
-    const token = localStorage.getItem('amz_auth_token');
-    if (!token) return;
-    if (currentTab === 'offers') {
-      syncActiveChannel(true);
+  // Sincronizza solo quando si riapre l'app o si torna sulla scheda del browser (senza refresh continuo fastidioso)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      const token = localStorage.getItem('amz_auth_token');
+      if (token) {
+        loadAllData();
+      }
     }
-  }, 45000);
+  });
 });
 
 // ----------------- AUTHENTICATION & ACCESS CONTROL -----------------
