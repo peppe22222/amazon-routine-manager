@@ -522,66 +522,80 @@ function renderConfirmations(orders) {
     const screenUrl = o.confirmation_screen_url || '';
     
     return `
-      <div class="glass-card rounded-2xl p-5 border-amber-500/40 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg">
-        
-        <!-- Sinistra: Foto Prodotto + Dati Ordine -->
-        <div class="flex items-start gap-4 flex-1">
-          <!-- Thumbnail Prodotto Zoomabile -->
-          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Numero Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
-            <img src="${prodImg}" alt="Foto Prodotto" class="max-w-full max-h-full object-contain p-1 group-hover:scale-110 transition-transform">
-            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
-              <i class="fa-solid fa-magnifying-glass-plus text-base"></i>
-            </div>
-            <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] text-white font-bold">Foto</span>
-          </div>
+      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
+        <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
+        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
+          <button onclick="confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
+            <i class="fa-solid fa-trash-can text-sm"></i>
+            <span>Elimina</span>
+          </button>
+        </div>
 
-          <!-- Dettagli Ordine & Venditore -->
-          <div class="flex-1">
-            <div class="flex flex-wrap items-center gap-2">
-              <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                ${o.order_number || 'In attesa N° Ordine'}
-              </span>
-              ${o.order_number ? `
-                <button onclick="copyToClipboard('${o.order_number}', 'N° Ordine copiato!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1">
-                  <i class="fa-regular fa-copy"></i> Copia N°
+        <!-- Contenuto Card -->
+        <div class="swipe-card-content glass-card rounded-2xl p-5 border-amber-500/40 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg relative z-10 bg-brand-surface border border-brand-border">
+          <!-- Sinistra: Foto Prodotto + Dati Ordine -->
+          <div class="flex items-start gap-4 flex-1">
+            <!-- Thumbnail Prodotto Zoomabile -->
+            <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Numero Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
+              <img src="${prodImg}" alt="Foto Prodotto" class="max-w-full max-h-full object-contain p-1 group-hover:scale-110 transition-transform">
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
+                <i class="fa-solid fa-magnifying-glass-plus text-base"></i>
+              </div>
+              <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] text-white font-bold">Foto</span>
+            </div>
+
+            <!-- Dettagli Ordine & Venditore -->
+            <div class="flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  ${o.order_number || 'In attesa N° Ordine'}
+                </span>
+                ${o.order_number ? `
+                  <button onclick="copyToClipboard('${o.order_number}', 'N° Ordine copiato!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1">
+                    <i class="fa-regular fa-copy"></i> Copia N°
+                  </button>
+                ` : ''}
+                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" title="Elimina pratica (o fai swipe a sinistra)" class="ml-auto text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                  <i class="fa-solid fa-trash-can text-xs"></i>
                 </button>
-              ` : ''}
-            </div>
+              </div>
 
-            <h3 class="text-sm md:text-base font-extrabold text-white mt-2 leading-snug">${escapeHtml(o.product_title || 'Articolo in promozione')}</h3>
-            
-            <div class="mt-2 flex flex-wrap items-center gap-3 text-xs">
-              <span class="text-slate-300">Spesa: <strong class="text-white font-bold">€${pricePaid}</strong></span>
-              <span class="text-slate-500">•</span>
-              <span class="text-emerald-400 font-bold">Rimborso: 100%</span>
+              <h3 class="text-sm md:text-base font-extrabold text-white mt-2 leading-snug">${escapeHtml(o.product_title || 'Articolo in promozione')}</h3>
+              
+              <div class="mt-2 flex flex-wrap items-center gap-3 text-xs">
+                <span class="text-slate-300">Spesa: <strong class="text-white font-bold">€${pricePaid}</strong></span>
+                <span class="text-slate-500">•</span>
+                <span class="text-emerald-400 font-bold">Rimborso: 100%</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Destra: Azioni Tasto di Conferma & Anteprima Screen -->
-        <div class="flex flex-wrap items-center gap-2 shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 border-brand-border">
-          <button onclick="openIPhoneUploadModal(${o.id})" class="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/50 hover:to-indigo-600/50 border border-purple-500/50 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all" title="Incolla dagli appunti iPhone, scegli da Rullino o carica file">
-            <i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone / Incolla
-          </button>
-
-          ${screenUrl ? `
-            <button onclick="showScreenshot('${screenUrl}', '${o.order_number || ''}')" class="px-3 py-2.5 rounded-xl bg-brand-surface hover:bg-brand-card border border-brand-border text-slate-200 text-xs font-bold flex items-center gap-1.5 shadow-md">
-              <i class="fa-solid fa-receipt text-amber-400"></i> Ricevuta
+          <!-- Destra: Azioni Tasto di Conferma & Anteprima Screen -->
+          <div class="flex flex-wrap items-center gap-2 shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 border-brand-border">
+            <button onclick="openIPhoneUploadModal(${o.id})" class="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600/30 to-indigo-600/30 hover:from-purple-600/50 hover:to-indigo-600/50 border border-purple-500/50 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow-md transition-all" title="Incolla dagli appunti iPhone, scegli da Rullino o carica file">
+              <i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone / Incolla
             </button>
-          ` : `
-            <button onclick="openIPhoneUploadModal(${o.id})" class="px-3 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-md">
-              <i class="fa-solid fa-plus text-amber-400"></i> Aggiungi Screen
-            </button>
-          `}
-          
-          <button onclick="confirmAndSendOrder(${o.id})" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/40 flex items-center gap-1.5 transition-all">
-            <i class="fa-solid fa-paper-plane"></i> Conferma e Invia
-          </button>
-        </div>
 
+            ${screenUrl ? `
+              <button onclick="showScreenshot('${screenUrl}', '${o.order_number || ''}')" class="px-3 py-2.5 rounded-xl bg-brand-surface hover:bg-brand-card border border-brand-border text-slate-200 text-xs font-bold flex items-center gap-1.5 shadow-md">
+                <i class="fa-solid fa-receipt text-amber-400"></i> Ricevuta
+              </button>
+            ` : `
+              <button onclick="openIPhoneUploadModal(${o.id})" class="px-3 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-md">
+                <i class="fa-solid fa-plus text-amber-400"></i> Aggiungi Screen
+              </button>
+            `}
+            
+            <button onclick="confirmAndSendOrder(${o.id})" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/40 flex items-center gap-1.5 transition-all">
+              <i class="fa-solid fa-paper-plane"></i> Conferma e Invia
+            </button>
+          </div>
+        </div>
       </div>
     `;
   }).join('');
+
+  initSwipeToDelete('confirmations-list');
 }
 
 function renderReviews(orders) {
@@ -608,101 +622,116 @@ function renderReviews(orders) {
     const isSubmitted = o.status === 'review_submitted' || o.status === 'reimbursed';
 
     return `
-      <div class="review-timer-card glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-lg"
-           data-review-order-id="${o.id}"
-           data-target-date="${targetIso}"
-           data-start-date="${startIso}"
-           data-status="${o.status}">
-        <div>
-          <!-- Header Card con Immagine & Timer Badge -->
-          <div class="flex items-start justify-between gap-3">
-            <div class="flex items-center gap-3">
-              <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
-                <img src="${prodImg}" alt="Foto" class="max-w-full max-h-full object-contain p-0.5 group-hover:scale-110 transition-transform">
-                <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-[10px]">
-                  <i class="fa-solid fa-magnifying-glass-plus"></i>
-                </div>
-              </div>
-              <div>
-                <span class="text-xs font-mono text-slate-400 font-bold">${o.order_number || ''}</span>
-                <h3 class="text-sm font-extrabold text-white line-clamp-1 mt-0.5">${escapeHtml(o.product_title || 'Prodotto')}</h3>
-              </div>
-            </div>
-            
-            <div class="flex flex-col items-end gap-1">
-              <span class="review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 ${isSubmitted ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
-                ${isSubmitted ? '✓ RECENSIONE PUBBLICATA' : 'Calcolo in corso...'}
-              </span>
-            </div>
-          </div>
-
-          <!-- Barra di Progresso Timer 10 Giorni in Tempo Reale -->
-          <div class="mt-4 p-3 rounded-xl bg-brand-bg border border-brand-border">
-            <div class="flex items-center justify-between text-xs text-slate-300 mb-1.5 font-bold">
-              <span class="flex items-center gap-1.5">
-                <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> Conto alla Rovescia (10gg)
-              </span>
-              <span class="review-countdown-text font-extrabold text-purple-300 font-mono">
-                Calcolo...
-              </span>
-            </div>
-            <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
-              <div class="review-progress-bar h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300" style="width: 10%"></div>
-            </div>
-            <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
-              <span class="review-progress-pct font-bold">0% completato</span>
-              <div class="flex items-center gap-2">
-                <button onclick="fastForwardOrderTimer(${o.id})" title="Avanza timer per testare l'invio della recensione" class="text-[10px] text-purple-400 hover:text-purple-200 underline font-semibold transition-colors">
-                  ⏩ Salta 10gg (Test)
-                </button>
-                <span class="text-slate-600">•</span>
-                <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer a 10 giorni da adesso" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
-                  🔄 Reset 10gg
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- Anteprima Recensione 5 Stelle Generata -->
-          <div class="mt-4 p-3.5 rounded-xl bg-brand-bg border border-brand-border space-y-2">
-            <div class="flex items-center justify-between text-amber-400 text-xs">
-              <div class="flex text-sm">
-                <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
-              </div>
-              <span class="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Testo Generato Pronto</span>
-            </div>
-            <p class="text-xs font-extrabold text-white line-clamp-1">"${escapeHtml(o.review_title || 'Ottimo prodotto, spedizione impeccabile')}"</p>
-            <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed font-medium">${escapeHtml(o.review_body || 'Arrivato puntuale, ben imballato. Qualità dei materiali ottima e facilissimo da utilizzare. Pienamente soddisfatto!')}</p>
-          </div>
+      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
+        <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
+        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
+          <button onclick="confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
+            <i class="fa-solid fa-trash-can text-sm"></i>
+            <span>Elimina</span>
+          </button>
         </div>
 
-        <!-- Bottoni Azione Recensione -->
-        <div class="pt-3 border-t border-brand-border flex flex-wrap items-center gap-2">
-          <!-- Tasto Visualizza Testo: sempre consultabile -->
-          <button onclick="openReviewModal(${o.id})" class="flex-1 py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md">
-            <i class="fa-solid fa-copy"></i> Testo Recensione
-          </button>
-          
-          <!-- Tasto Screen iPhone: Sbloccato solo a scadenza raggiunta -->
-          <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
-                  onclick="openIPhoneUploadModal(${o.id}, 'review')"
-                  disabled>
-            <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
-          </button>
-          
-          <!-- Tasto Invia a Venditore: Sbloccato solo a scadenza raggiunta -->
-          <button class="review-btn-send py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
-                  onclick="sendReviewToSeller(${o.id})"
-                  disabled>
-            <i class="fa-solid fa-lock text-[10px]"></i> Invia a Venditore
-          </button>
+        <!-- Contenuto Card Recensione -->
+        <div class="swipe-card-content review-timer-card glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-lg relative z-10 bg-brand-surface border border-brand-border"
+             data-review-order-id="${o.id}"
+             data-target-date="${targetIso}"
+             data-start-date="${startIso}"
+             data-status="${o.status}">
+          <div>
+            <!-- Header Card con Immagine & Timer Badge -->
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
+                  <img src="${prodImg}" alt="Foto" class="max-w-full max-h-full object-contain p-0.5 group-hover:scale-110 transition-transform">
+                  <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-[10px]">
+                    <i class="fa-solid fa-magnifying-glass-plus"></i>
+                  </div>
+                </div>
+                <div>
+                  <span class="text-xs font-mono text-slate-400 font-bold">${o.order_number || ''}</span>
+                  <h3 class="text-sm font-extrabold text-white line-clamp-1 mt-0.5">${escapeHtml(o.product_title || 'Prodotto')}</h3>
+                </div>
+              </div>
+              
+              <div class="flex items-center gap-2">
+                <span class="review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 ${isSubmitted ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
+                  ${isSubmitted ? '✓ RECENSIONE PUBBLICATA' : 'Calcolo in corso...'}
+                </span>
+                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" title="Elimina recensione (o fai swipe a sinistra)" class="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                  <i class="fa-solid fa-trash-can text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Barra di Progresso Timer 10 Giorni in Tempo Reale -->
+            <div class="mt-4 p-3 rounded-xl bg-brand-bg border border-brand-border">
+              <div class="flex items-center justify-between text-xs text-slate-300 mb-1.5 font-bold">
+                <span class="flex items-center gap-1.5">
+                  <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> Conto alla Rovescia (10gg)
+                </span>
+                <span class="review-countdown-text font-extrabold text-purple-300 font-mono">
+                  Calcolo...
+                </span>
+              </div>
+              <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                <div class="review-progress-bar h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300" style="width: 10%"></div>
+              </div>
+              <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+                <span class="review-progress-pct font-bold">0% completato</span>
+                <div class="flex items-center gap-2">
+                  <button onclick="fastForwardOrderTimer(${o.id})" title="Avanza timer per testare l'invio della recensione" class="text-[10px] text-purple-400 hover:text-purple-200 underline font-semibold transition-colors">
+                    ⏩ Salta 10gg (Test)
+                  </button>
+                  <span class="text-slate-600">•</span>
+                  <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer a 10 giorni da adesso" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
+                    🔄 Reset 10gg
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Anteprima Recensione 5 Stelle Generata -->
+            <div class="mt-4 p-3.5 rounded-xl bg-brand-bg border border-brand-border space-y-2">
+              <div class="flex items-center justify-between text-amber-400 text-xs">
+                <div class="flex text-sm">
+                  <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                </div>
+                <span class="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Testo Generato Pronto</span>
+              </div>
+              <p class="text-xs font-extrabold text-white line-clamp-1">"${escapeHtml(o.review_title || 'Ottimo acquisto per questo articolo!')}"</p>
+              <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed font-medium">${escapeHtml(o.review_body || 'Recensione dettagliata pronta.')}</p>
+            </div>
+          </div>
+
+          <!-- Bottoni Azione Recensione -->
+          <div class="pt-3 border-t border-brand-border flex flex-wrap items-center gap-2">
+            <!-- Tasto Visualizza Testo: sempre consultabile -->
+            <button onclick="openReviewModal(${o.id})" class="flex-1 py-2.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-md">
+              <i class="fa-solid fa-copy"></i> Testo Recensione
+            </button>
+            
+            <!-- Tasto Screen iPhone: Sbloccato solo a scadenza raggiunta -->
+            <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+                    onclick="openIPhoneUploadModal(${o.id}, 'review')"
+                    disabled>
+              <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
+            </button>
+            
+            <!-- Tasto Invia a Venditore: Sbloccato solo a scadenza raggiunta -->
+            <button class="review-btn-send py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+                    onclick="sendReviewToSeller(${o.id})"
+                    disabled>
+              <i class="fa-solid fa-lock text-[10px]"></i> Invia a Venditore
+            </button>
+          </div>
         </div>
       </div>
     `;
   }).join('');
 
-  // Aggiorna subito i valori del timer
+  // Aggiorna subito i valori del timer e attiva swipe
   updateReviewLiveTimers();
+  initSwipeToDelete('reviews-list');
 }
 
 // ----------------- REAL-TIME LIVE COUNTDOWN TIMER ENGINE -----------------
@@ -877,46 +906,189 @@ function renderRefunds(orders) {
     const refundAmt = (o.refund_amount != null ? Number(o.refund_amount) : 0).toFixed(2);
 
     return `
-      <div class="glass-card rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border ${isReimbursed ? 'border-emerald-500/30' : 'border-blue-500/30'}">
-        
-        <div class="flex items-center gap-4">
-          <!-- Thumbnail Prodotto Zoomabile -->
-          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Rimborso €${refundAmt}')" class="cursor-pointer relative w-14 h-14 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group">
-            <img src="${prodImg}" alt="Foto" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
-            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-xs">
-              <i class="fa-solid fa-magnifying-glass-plus"></i>
-            </div>
-          </div>
-
-          <div>
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-mono text-slate-300 font-bold">${o.order_number || ''}</span>
-              <span class="text-[11px] px-2.5 py-0.5 rounded-md ${isReimbursed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} font-extrabold uppercase">
-                ${isReimbursed ? '✓ Rimborso Saldato' : '⏳ In Attesa PayPal'}
-              </span>
-            </div>
-            <p class="text-sm font-extrabold text-white mt-1">${escapeHtml(o.product_title || 'Prodotto')}</p>
-          </div>
+      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
+        <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
+        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
+          <button onclick="confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
+            <i class="fa-solid fa-trash-can text-sm"></i>
+            <span>Elimina</span>
+          </button>
         </div>
 
-        <div class="flex items-center justify-between md:justify-end gap-5 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-brand-border">
-          <div class="text-right">
-            <p class="text-xs font-bold text-slate-400 uppercase">Importo Rimborso</p>
-            <p class="text-xl font-extrabold ${isReimbursed ? 'text-emerald-400' : 'text-amber-300'}">€${refundAmt}</p>
+        <!-- Contenuto Card Rimborso -->
+        <div class="swipe-card-content glass-card rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border relative z-10 bg-brand-surface ${isReimbursed ? 'border-emerald-500/30' : 'border-blue-500/30'}">
+          <div class="flex items-center gap-4">
+            <!-- Thumbnail Prodotto Zoomabile -->
+            <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Rimborso €${refundAmt}')" class="cursor-pointer relative w-14 h-14 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group">
+              <img src="${prodImg}" alt="Foto" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
+              <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-xs">
+                <i class="fa-solid fa-magnifying-glass-plus"></i>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono text-slate-300 font-bold">${o.order_number || ''}</span>
+                <span class="text-[11px] px-2.5 py-0.5 rounded-md ${isReimbursed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} font-extrabold uppercase">
+                  ${isReimbursed ? '✓ Rimborso Saldato' : '⏳ In Attesa PayPal'}
+                </span>
+                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" title="Elimina rimborso (o fai swipe a sinistra)" class="ml-2 text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                  <i class="fa-solid fa-trash-can text-xs"></i>
+                </button>
+              </div>
+              <p class="text-sm font-extrabold text-white mt-1">${escapeHtml(o.product_title || 'Prodotto')}</p>
+            </div>
           </div>
 
-          ${isReimbursed
-            ? `<span class="px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-300 text-xs font-extrabold flex items-center gap-1.5 border border-emerald-500/30">
-                <i class="fa-solid fa-check"></i> Accreditato
-              </span>`
-            : `<button onclick="markRefunded(${o.id})" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/30 flex items-center gap-1.5 transition-all">
-                <i class="fa-solid fa-check"></i> Segna Ricevuto
-              </button>`
-          }
+          <div class="flex items-center justify-between md:justify-end gap-5 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-brand-border">
+            <div class="text-right">
+              <p class="text-xs font-bold text-slate-400 uppercase">Importo Rimborso</p>
+              <p class="text-xl font-extrabold ${isReimbursed ? 'text-emerald-400' : 'text-amber-300'}">€${refundAmt}</p>
+            </div>
+
+            ${isReimbursed
+              ? `<span class="px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-300 text-xs font-extrabold flex items-center gap-1.5 border border-emerald-500/30">
+                  <i class="fa-solid fa-check"></i> Accreditato
+                </span>`
+              : `<button onclick="markRefunded(${o.id})" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/30 flex items-center gap-1.5 transition-all">
+                  <i class="fa-solid fa-check"></i> Segna Ricevuto
+                </button>`
+            }
+          </div>
         </div>
       </div>
     `;
   }).join('');
+
+  initSwipeToDelete('refunds-list');
+}
+
+// ----------------- SWIPE-TO-DELETE GESTURE ENGINE (iOS & PC) -----------------
+
+function initSwipeToDelete(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const wrappers = container.querySelectorAll('.swipe-item-wrapper');
+  wrappers.forEach(wrapper => {
+    if (wrapper._swipeInitialized) return;
+    wrapper._swipeInitialized = true;
+
+    const content = wrapper.querySelector('.swipe-card-content');
+    if (!content) return;
+
+    let startX = 0;
+    let startY = 0;
+    let currentX = 0;
+    let isTracking = false;
+    let isHorizontalSwipe = false;
+
+    function onTouchStart(e) {
+      if (e.target.closest('button') || e.target.closest('input') || e.target.closest('a')) {
+        return;
+      }
+      const touch = e.touches ? e.touches[0] : e;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      currentX = 0;
+      isTracking = true;
+      isHorizontalSwipe = false;
+      content.style.transition = 'none';
+    }
+
+    function onTouchMove(e) {
+      if (!isTracking) return;
+      const touch = e.touches ? e.touches[0] : e;
+      const diffX = touch.clientX - startX;
+      const diffY = touch.clientY - startY;
+
+      if (!isHorizontalSwipe) {
+        if (Math.abs(diffX) > 10 && Math.abs(diffX) > Math.abs(diffY)) {
+          isHorizontalSwipe = true;
+        } else if (Math.abs(diffY) > 10) {
+          isTracking = false;
+          return;
+        }
+      }
+
+      if (isHorizontalSwipe) {
+        if (e.cancelable && e.preventDefault) e.preventDefault();
+        
+        if (diffX < 0) {
+          if (diffX < -120) {
+            currentX = -120 + (diffX + 120) * 0.2;
+          } else {
+            currentX = diffX;
+          }
+          content.style.transform = `translateX(${currentX}px)`;
+        } else {
+          currentX = Math.min(diffX * 0.2, 20);
+          content.style.transform = `translateX(${currentX}px)`;
+        }
+      }
+    }
+
+    function onTouchEnd() {
+      if (!isTracking) return;
+      isTracking = false;
+      content.style.transition = 'transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)';
+      
+      if (currentX < -65) {
+        content.style.transform = 'translateX(-100px)';
+      } else {
+        content.style.transform = 'translateX(0px)';
+      }
+    }
+
+    content.addEventListener('touchstart', onTouchStart, { passive: true });
+    content.addEventListener('touchmove', onTouchMove, { passive: false });
+    content.addEventListener('touchend', onTouchEnd);
+    content.addEventListener('touchcancel', onTouchEnd);
+
+    // Supporto trascinamento mouse per PC
+    content.addEventListener('mousedown', onTouchStart);
+    window.addEventListener('mousemove', (e) => { if (isTracking) onTouchMove(e); });
+    window.addEventListener('mouseup', () => { if (isTracking) onTouchEnd(); });
+  });
+}
+
+async function confirmAndDeleteOrder(orderId, itemTitle, wrapperElement) {
+  const displayTitle = itemTitle ? `"${itemTitle}"` : 'questa pratica';
+  if (!confirm(`Vuoi davvero eliminare definitivamente ${displayTitle}?`)) {
+    if (wrapperElement) {
+      const content = wrapperElement.querySelector('.swipe-card-content');
+      if (content) content.style.transform = 'translateX(0px)';
+    }
+    return;
+  }
+
+  // Animazione fluida di uscita
+  if (wrapperElement) {
+    wrapperElement.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    wrapperElement.style.transform = 'translateX(-100%)';
+    wrapperElement.style.opacity = '0';
+    wrapperElement.style.maxHeight = wrapperElement.offsetHeight + 'px';
+    setTimeout(() => {
+      wrapperElement.style.maxHeight = '0px';
+      wrapperElement.style.margin = '0px';
+      wrapperElement.style.padding = '0px';
+    }, 150);
+  }
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Pratica eliminata con successo');
+      setTimeout(() => loadOrders(), 350);
+    } else {
+      showToast(data.detail || 'Errore durante l\'eliminazione', true);
+      loadOrders();
+    }
+  } catch (err) {
+    showToast('Errore di connessione durante l\'eliminazione', true);
+    loadOrders();
+  }
 }
 
 // ----------------- LOGS RENDERING -----------------

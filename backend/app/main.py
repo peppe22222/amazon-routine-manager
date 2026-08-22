@@ -696,8 +696,26 @@ def mark_order_refunded(order_id: int, db: Session = Depends(get_db)):
         details=f"Ordine {order.order_number} ({order.product_title}) saldato con successo!"
     )
     db.add(log)
+@app.delete("/api/orders/{order_id}")
+def delete_order(order_id: int, db: Session = Depends(get_db)):
+    """Elimina definitivamente una pratica/ordine (recensione o rimborso)"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    
+    prod_title = order.product_title
+    order_num = order.order_number
+    
+    # Registra nel log attività
+    log = ActivityLog(
+        action_type="ORDER_DELETED",
+        title=f"Pratica Eliminata: {order_num or prod_title}",
+        details=f"L'ordine per '{prod_title}' è stato rimosso dalla gestione."
+    )
+    db.add(log)
+    db.delete(order)
     db.commit()
-    return {"success": True}
+    return {"success": True, "message": f"Pratica '{prod_title}' eliminata con successo!"}
 
 @app.get("/api/orders/{order_id}/regenerate-review")
 def regenerate_order_review(order_id: int, db: Session = Depends(get_db)):
