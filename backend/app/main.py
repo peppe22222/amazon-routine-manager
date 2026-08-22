@@ -405,6 +405,17 @@ def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db
                 Offer.title == "Prodotto in Promozione"
             )
         ).delete(synchronize_session=False)
+
+        # Deduplica offerte con titolo identico (mantiene solo la più recente)
+        all_new = db.query(Offer).filter(Offer.status == "new").order_by(desc(Offer.created_at), desc(Offer.id)).all()
+        seen_titles = set()
+        for o in all_new:
+            clean_t = o.title.strip().lower()
+            if clean_t in seen_titles:
+                db.delete(o)
+            else:
+                seen_titles.add(clean_t)
+
         db.commit()
     except Exception as e:
         db.rollback()
