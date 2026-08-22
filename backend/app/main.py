@@ -406,10 +406,10 @@ def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db
             )
         ).delete(synchronize_session=False)
 
-        # Deduplica offerte con titolo identico (mantiene solo la più recente)
-        all_new = db.query(Offer).filter(Offer.status == "new").order_by(desc(Offer.created_at), desc(Offer.id)).all()
+        # Deduplica globale tra tutte le offerte attive (sia 'new' che 'requested')
+        all_active = db.query(Offer).filter(Offer.status.in_(["new", "requested"])).order_by(desc(Offer.created_at), desc(Offer.id)).all()
         seen_titles = set()
-        for o in all_new:
+        for o in all_active:
             clean_t = o.title.strip().lower()
             if clean_t in seen_titles:
                 db.delete(o)

@@ -9,6 +9,7 @@ from collections import OrderedDict
 from PIL import Image
 from telethon import TelegramClient, events
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from app.database import Setting, ActivityLog, Order, Offer
 
 def create_album_collage(image_paths: list, output_path: str):
@@ -445,6 +446,17 @@ class TelegramManager:
                 taxes_covered = False
 
             msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
+
+            # Evita duplicati se l'articolo è già presente (in stato new o requested)
+            existing_offer = db.query(Offer).filter(
+                Offer.status.in_(["new", "requested"]),
+                or_(
+                    Offer.message_id == str(primary_msg.id),
+                    Offer.title == title
+                )
+            ).first()
+            if existing_offer:
+                continue
 
             off = Offer(
                 title=title,
