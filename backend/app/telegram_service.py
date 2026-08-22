@@ -5,9 +5,56 @@ import base64
 import asyncio
 import requests
 from datetime import datetime
+from collections import OrderedDict
+from PIL import Image
 from telethon import TelegramClient, events
 from sqlalchemy.orm import Session
 from app.database import Setting, ActivityLog, Order, Offer
+
+def create_album_collage(image_paths: list, output_path: str):
+    """Unisce più foto di uno stesso album Telegram in un'unica immagine collage pulita ad alta risoluzione"""
+    if not image_paths or len(image_paths) <= 1:
+        return
+    try:
+        imgs = []
+        for p in image_paths:
+            if os.path.exists(p):
+                try:
+                    imgs.append(Image.open(p).convert("RGB"))
+                except Exception:
+                    pass
+        if not imgs:
+            return
+
+        target_w, target_h = 450, 450
+        resized = []
+        for im in imgs:
+            im.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
+            bg = Image.new("RGB", (target_w, target_h), (10, 15, 29))
+            offset_x = (target_w - im.width) // 2
+            offset_y = (target_h - im.height) // 2
+            bg.paste(im, (offset_x, offset_y))
+            resized.append(bg)
+
+        if len(resized) == 2:
+            collage = Image.new("RGB", (target_w * 2, target_h), (10, 15, 29))
+            collage.paste(resized[0], (0, 0))
+            collage.paste(resized[1], (target_w, 0))
+        elif len(resized) == 3:
+            collage = Image.new("RGB", (target_w * 3, target_h), (10, 15, 29))
+            collage.paste(resized[0], (0, 0))
+            collage.paste(resized[1], (target_w, 0))
+            collage.paste(resized[2], (target_w * 2, 0))
+        else:
+            collage = Image.new("RGB", (target_w * 2, target_h * 2), (10, 15, 29))
+            collage.paste(resized[0], (0, 0))
+            collage.paste(resized[1], (target_w, 0))
+            collage.paste(resized[2], (0, target_h))
+            collage.paste(resized[3] if len(resized) > 3 else resized[0], (target_w, target_h))
+
+        collage.save(output_path, "JPEG", quality=90)
+    except Exception as e:
+        print(f"[Collage create error] {e}")
 
 def extract_title_with_ai(image_path: str, gemini_key: str) -> str:
     """Utilizza Gemini Vision per estrarre il nome esatto del prodotto visibile sulla confezione/immagine"""
@@ -38,22 +85,20 @@ def extract_title_with_ai(image_path: str, gemini_key: str) -> str:
 def clean_html_text(raw_html: str) -> str:
     if not raw_html:
         return ""
-    # Replace <br/> and </p> with newlines
     text = re.sub(r'<br\s*/?>', '\n', raw_html, flags=re.IGNORECASE)
     text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
     text = re.sub(r'<[^>]+>', '', text)
     return html.unescape(text).strip()
 
-def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 15) -> list:
+def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 20) -> list:
     """
     Scarica e analizza i post più recenti da un canale pubblico Telegram tramite l'anteprima web (https://t.me/s/...)
-    Estrae: ID messaggio, Foto ad alta risoluzione, Testo, Titolo prodotto, Condizioni di spesa e Contatto Venditore.
+    Ignora messaggi/foto orfane senza testo per evitare duplicati da album.
     """
     clean = channel_identifier.strip().lstrip('@')
     clean = clean.replace("https://t.me/s/", "").replace("https://t.me/", "").strip("/")
     
     if not clean or clean.startswith("+"):
-        # Canale privato con link di invito
         return []
 
     url = f"https://t.me/s/{clean}"
@@ -68,32 +113,29 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 15) -> 
             return []
             
         page_html = resp.text
-        
-        # Trova tutti i blocchi messaggio
-        # Ogni messaggio è racchiuso in <div class="tgme_widget_message_wrap js-widget_message_wrap" ...>
         message_blocks = re.findall(r'<div class="tgme_widget_message\b[^>]*>(.*?)<div class="tgme_widget_message_footer\b', page_html, re.DOTALL)
         
         offers_found = []
         for block in message_blocks[-limit:]:
-            # 1. Estrazione Foto
-            # style="background-image:url('...')"
+            # 1. Estrazione Testo
+            text_match = re.search(r'<div class="tgme_widget_message_text\b[^>]*>(.*?)</div>', block, re.DOTALL)
+            raw_text = clean_html_text(text_match.group(1)) if text_match else ""
+
+            # FILTRO CRITICO ALBUM: Se un messaggio non ha testo, è una foto secondaria di un album -> NON creare una card separata!
+            if not raw_text or len(raw_text.strip()) < 3:
+                continue
+
+            # 2. Estrazione Foto
             img_match = re.search(r'background-image:url\([\'"]?(https?://[^\'")]+)[\'"]?\)', block)
             if not img_match:
                 img_match = re.search(r'src=[\'"]?(https?://[^\'">\s]+)[\'"]?', block)
             img_url = img_match.group(1) if img_match else None
 
-            # 2. Estrazione Testo
-            text_match = re.search(r'<div class="tgme_widget_message_text\b[^>]*>(.*?)</div>', block, re.DOTALL)
-            raw_text = clean_html_text(text_match.group(1)) if text_match else ""
-
-            if not raw_text and not img_url:
-                continue
-
             lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
 
             # 3. Estrazione Contatto Venditore
             seller_match = re.findall(r'@([a-zA-Z0-9_]{3,32})', raw_text)
-            seller_contact = "@venditore"
+            seller_contact = "@alex8700"
             if seller_match:
                 for cand in seller_match:
                     if cand.lower() != clean.lower():
@@ -123,7 +165,7 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 15) -> 
             elif len(item_lines) == 1:
                 title = item_lines[0]
             else:
-                title = "Prodotto in Promozione"
+                continue # Salta i blocchi senza prodotti
 
             # Condizioni di spesa e rimborso
             if condition_lines:
@@ -148,6 +190,9 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 15) -> 
             })
 
         return offers_found
+    except Exception as e:
+        print(f"[Scraper Error] {e}")
+        return []
     except Exception as e:
         print(f"[Scraper Error] {e}")
         return []
@@ -297,56 +342,6 @@ class TelegramManager:
             except Exception as e:
                 return {"success": False, "error": f"Impossibile trovare il canale: {e}"}
 
-from collections import OrderedDict
-from PIL import Image
-
-def create_album_collage(image_paths: list, output_path: str):
-    """Unisce più foto di uno stesso album Telegram in un'unica immagine collage pulita ad alta risoluzione"""
-    if not image_paths or len(image_paths) <= 1:
-        return
-    try:
-        imgs = []
-        for p in image_paths:
-            if os.path.exists(p):
-                try:
-                    imgs.append(Image.open(p).convert("RGB"))
-                except Exception:
-                    pass
-        if not imgs:
-            return
-
-        target_w, target_h = 450, 450
-        resized = []
-        for im in imgs:
-            # Mantieni proporzioni con letterbox scuro
-            im.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
-            bg = Image.new("RGB", (target_w, target_h), (10, 15, 29))
-            offset_x = (target_w - im.width) // 2
-            offset_y = (target_h - im.height) // 2
-            bg.paste(im, (offset_x, offset_y))
-            resized.append(bg)
-
-        if len(resized) == 2:
-            collage = Image.new("RGB", (target_w * 2, target_h), (10, 15, 29))
-            collage.paste(resized[0], (0, 0))
-            collage.paste(resized[1], (target_w, 0))
-        elif len(resized) == 3:
-            collage = Image.new("RGB", (target_w * 3, target_h), (10, 15, 29))
-            collage.paste(resized[0], (0, 0))
-            collage.paste(resized[1], (target_w, 0))
-            collage.paste(resized[2], (target_w * 2, 0))
-        else:
-            # 2x2 grid per 4 o più immagini
-            collage = Image.new("RGB", (target_w * 2, target_h * 2), (10, 15, 29))
-            collage.paste(resized[0], (0, 0))
-            collage.paste(resized[1], (target_w, 0))
-            collage.paste(resized[2], (0, target_h))
-            collage.paste(resized[3] if len(resized) > 3 else resized[0], (target_w, target_h))
-
-        collage.save(output_path, "JPEG", quality=90)
-    except Exception as e:
-        print(f"[Collage create error] {e}")
-
         # Pulisci le vecchie offerte 'new' non ancora elaborate per sostituirle con quelle unificate
         db.query(Offer).filter(Offer.status == "new").delete()
         db.commit()
@@ -437,7 +432,7 @@ def create_album_collage(image_paths: list, output_path: str):
             elif len(item_lines) == 1:
                 title = item_lines[0]
             else:
-                title = "Prodotto in Promozione"
+                continue # Salta i messaggi senza elenco prodotti per evitare doppioni
 
             # Condizioni di spesa e rimborso
             if condition_lines:
