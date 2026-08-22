@@ -23,6 +23,8 @@ function loadAllData() {
   loadSettings();
   loadActiveChannel();
   loadTelegramStatus();
+  // Auto-sync live Telegram channel in background
+  syncActiveChannel(true);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -35,7 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Timer live per conto alla rovescia recensioni (aggiorna ogni secondo)
   setInterval(updateReviewLiveTimers, 1000);
 
-  // Auto refresh ogni 15 secondi se autenticato
+  // Auto refresh dati locali ogni 15 secondi se autenticato
   setInterval(async () => {
     const token = localStorage.getItem('amz_auth_token');
     if (!token) return;
@@ -44,6 +46,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentTab === 'confirmations' || currentTab === 'reviews' || currentTab === 'refunds') loadOrders();
     if (currentTab === 'logs') loadLogs();
   }, 15000);
+
+  // Auto-sync Telegram channel live in background ogni 45 secondi
+  setInterval(async () => {
+    const token = localStorage.getItem('amz_auth_token');
+    if (!token) return;
+    if (currentTab === 'offers') {
+      syncActiveChannel(true);
+    }
+  }, 45000);
 });
 
 // ----------------- AUTHENTICATION & ACCESS CONTROL -----------------
@@ -205,7 +216,10 @@ function switchTab(tabId) {
   });
 
   // Carica i dati specifici
-  if (tabId === 'offers') loadOffers();
+  if (tabId === 'offers') {
+    loadOffers();
+    syncActiveChannel(true);
+  }
   else if (tabId === 'confirmations' || tabId === 'reviews' || tabId === 'refunds') loadOrders();
   else if (tabId === 'logs') loadLogs();
 }
@@ -2369,9 +2383,16 @@ async function submitParsedPost() {
   }
 }
 
-async function syncActiveChannel() {
+let isSyncingChannel = false;
+
+async function syncActiveChannel(isSilent = false) {
+  if (isSyncingChannel) return;
+  isSyncingChannel = true;
+
   const btn = document.getElementById('btn-sync-channel');
-  if (btn) {
+  const syncBadge = document.getElementById('last-sync-time-badge');
+
+  if (!isSilent && btn) {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Download offerte live...';
     btn.disabled = true;
   }
@@ -2379,20 +2400,36 @@ async function syncActiveChannel() {
   try {
     const res = await fetch('/api/telegram/sync-channel', { method: 'POST' });
     const data = await res.json();
+    
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (syncBadge) {
+      syncBadge.innerText = `Sinc: ${nowTime}`;
+      syncBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+    }
+
     if (res.ok && data.success) {
-      showToast(data.message || 'Sincronizzazione completata!');
+      if (!isSilent) {
+        showToast(data.message || 'Sincronizzazione completata!');
+      }
       loadOffers();
       loadStats();
       loadLogs();
     } else if (data.auth_required) {
-      showToast(data.message || data.error || 'Collega il tuo account Telegram per scaricare dal canale', true);
-      openTelegramAuthModal();
+      if (!isSilent) {
+        showToast(data.message || data.error || 'Collega il tuo account Telegram per scaricare dal canale', true);
+        openTelegramAuthModal();
+      }
     } else {
-      showToast(data.message || data.error || 'Nessun post scaricato. Usa "Incolla Post"', true);
+      if (!isSilent) {
+        showToast(data.message || data.error || 'Nessun post scaricato. Usa "Incolla Post"', true);
+      }
     }
   } catch (err) {
-    showToast('Errore di sincronizzazione canale', true);
+    if (!isSilent) {
+      showToast('Errore di sincronizzazione canale', true);
+    }
   } finally {
+    isSyncingChannel = false;
     if (btn) {
       btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Sincronizza Canale Live';
       btn.disabled = false;
