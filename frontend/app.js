@@ -355,7 +355,7 @@ async function loadOffers() {
   }
 }
 
-// ----------------- ROBUST HOLD TO CONFIRM LOGIC -----------------
+// ----------------- ENHANCED HOLD TO CONFIRM (1.5s + Dynamic Color Glow) -----------------
 let currentHoldState = {
   offerId: null,
   btn: null,
@@ -387,38 +387,44 @@ function bindHoldButtons() {
         timer: null
       };
 
+      // Cambio colore dinamico e barra di caricamento (1.5 secondi)
+      btn.classList.add('border-amber-400', 'shadow-amber-500/30');
       if (bar) {
-        bar.style.transition = 'width 0.9s linear';
+        bar.className = 'hold-bar absolute inset-y-0 left-0 bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 w-0 pointer-events-none rounded-xl shadow-[0_0_15px_rgba(251,191,36,0.8)]';
+        bar.style.transition = 'width 1.5s linear';
         bar.style.width = '100%';
       }
       if (label) {
-        label.innerHTML = '<i class="fa-solid fa-bolt text-amber-300 animate-bounce"></i> Tieni premuto...';
+        label.innerHTML = '<i class="fa-solid fa-bolt text-yellow-300 animate-pulse"></i> <span class="text-amber-200 font-extrabold tracking-wide">CONFERMA IN CORSO...</span>';
       }
 
       currentHoldState.timer = setTimeout(() => {
         if (currentHoldState.offerId === offerId) {
           if (navigator.vibrate) {
-            try { navigator.vibrate([40, 30, 40]); } catch (err) {}
+            try { navigator.vibrate([60, 40, 60]); } catch (err) {}
+          }
+          if (label) {
+            label.innerHTML = '<i class="fa-solid fa-check text-emerald-300"></i> <span class="text-emerald-300 font-black">RICHIESTA INVIATA!</span>';
           }
           requestOffer(offerId);
           abortHold(true);
         }
-      }, 900);
+      }, 1500);
     };
 
     btn.onpointermove = (e) => {
       if (!currentHoldState.timer) return;
       const dist = Math.hypot(e.clientX - currentHoldState.startX, e.clientY - currentHoldState.startY);
-      if (dist > 15) {
-        // Movimento rilevato (scroll della pagina): annulla pressione senza bloccare lo scroll
+      if (dist > 18) {
+        // Movimento scroll: annulla
         abortHold();
       }
     };
 
     btn.onpointerup = (e) => {
       const duration = Date.now() - (currentHoldState.startTime || 0);
-      if (duration < 750 && currentHoldState.offerId === offerId) {
-        showToast('💡 Tieni premuto 1 secondo per inviare la richiesta');
+      if (duration < 1300 && currentHoldState.offerId === offerId) {
+        showToast('💡 Tieni premuto 1.5 secondi per confermare');
       }
       abortHold();
     };
@@ -432,6 +438,9 @@ function abortHold(completed = false) {
   if (currentHoldState.timer) {
     clearTimeout(currentHoldState.timer);
     currentHoldState.timer = null;
+  }
+  if (currentHoldState.btn && !completed) {
+    currentHoldState.btn.classList.remove('border-amber-400', 'shadow-amber-500/30');
   }
   if (currentHoldState.bar && !completed) {
     currentHoldState.bar.style.transition = 'width 0.2s ease-out';

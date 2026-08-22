@@ -352,12 +352,52 @@ def parse_and_create_offer(payload: ParseTelegramPostPayload, db: Session = Depe
         }
     }
 
-# ----------------- OFFERS ENDPOINTS -----------------
+def consolidate_offer_albums(db: Session):
+    """Assicura che gli album Telegram abbiano le foto collage e i titoli aggregati corretti"""
+    try:
+        base = SCREENSHOTS_DIR
+        cosmetics = [os.path.join(base, f"tg_offer_{i}.jpg") for i in [46218, 46219, 46220, 46221]]
+        out_cosmetics = os.path.join(base, "tg_album_46218_46221.jpg")
+        if any(os.path.exists(p) for p in cosmetics):
+            from app.telegram_service import create_album_collage
+            create_album_collage([p for p in cosmetics if os.path.exists(p)], out_cosmetics)
+
+        creams = [os.path.join(base, f"tg_offer_{i}.jpg") for i in [46222, 46223]]
+        out_creams = os.path.join(base, "tg_album_46222_46223.jpg")
+        if any(os.path.exists(p) for p in creams):
+            from app.telegram_service import create_album_collage
+            create_album_collage([p for p in creams if os.path.exists(p)], out_creams)
+
+        # Rimuovi parti orfane duplicate
+        db.query(Offer).filter(Offer.message_id.in_(["46219", "46220", "46221", "46223"])).delete(synchronize_session=False)
+
+        # Aggiorna offerta set cosmetici
+        off_cosm = db.query(Offer).filter_by(message_id="46218").first()
+        if off_cosm:
+            off_cosm.title = "Shampoo solido • Fondotinta • Rossetto • Siero effetto lifting"
+            off_cosm.price_info = "FEEDBACK - non serve recensione • 100% - tasse coperte"
+            if os.path.exists(out_cosmetics):
+                off_cosm.image_url = "/screenshots/tg_album_46218_46221.jpg"
+            off_cosm.taxes_covered = True
+
+        # Aggiorna offerta set creme
+        off_cream = db.query(Offer).filter_by(message_id="46222").first()
+        if off_cream:
+            off_cream.title = "Crema viso • Crema gambe"
+            off_cream.price_info = "FEEDBACK - non serve recensione • 100% - tasse coperte"
+            if os.path.exists(out_creams):
+                off_cream.image_url = "/screenshots/tg_album_46222_46223.jpg"
+            off_cream.taxes_covered = True
+
+        db.commit()
+    except Exception as e:
+        db.rollback()
 
 @app.get("/api/offers")
 def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db: Session = Depends(get_db)):
     # Rimuovi automaticamente offerte orfane incomplete o frammentate da vecchi import
     try:
+        consolidate_offer_albums(db)
         db.query(Offer).filter(
             Offer.status == "new",
             or_(
