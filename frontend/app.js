@@ -1863,9 +1863,6 @@ function triggerIPhoneCamera() {
   }
   camInput.click();
 }
-  }
-  camInput.click();
-}
 
 function focusIPhonePasteBox() {
   const input = document.getElementById('iphone-hidden-paste-input');
@@ -1932,7 +1929,6 @@ window.addEventListener('paste', async (e) => {
               } else {
                 showToast(data.message || `📋 Screenshot incollato con successo all'ordine!`);
               }
-            }
             }
           } else {
             showToast('📋 Screenshot copiato negli appunti! Seleziona una pratica per associarlo.');
