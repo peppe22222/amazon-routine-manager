@@ -494,7 +494,7 @@ async function loadOrders() {
 
 function renderConfirmations(orders) {
   const container = document.getElementById('confirmations-list');
-  const pendingOrders = orders.filter(o => o.status === 'pending_confirmation');
+  const pendingOrders = (orders || []).filter(o => o.status === 'pending_confirmation');
 
   if (pendingOrders.length === 0) {
     container.innerHTML = `
@@ -503,7 +503,7 @@ function renderConfirmations(orders) {
           <i class="fa-solid fa-camera"></i>
         </div>
         <h3 class="text-base font-bold text-white">Nessuna schermata ordine in attesa di conferma</h3>
-        <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto">Non appena acquisti su Amazon, il sistema genera in automatico lo screenshot e preleva il numero d'ordine, che comparirà qui pronto per essere inviato con un solo tocco.</p>
+        <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto">Non appena invii una richiesta ad Alex, la scheda comparirà qui pronta per collegare la ricevuta dell'ordine fatto su Amazon.</p>
         <button onclick="simulateOrder('Comodino Moderno Cilindrico', 8.00, '@venditore_arredo')" class="mt-4 px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold inline-flex items-center gap-2">
           <i class="fa-solid fa-cart-shopping"></i> Crea Ordine di Prova
         </button>
@@ -514,6 +514,8 @@ function renderConfirmations(orders) {
 
   container.innerHTML = pendingOrders.map(o => {
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80';
+    const pricePaid = (o.price_paid != null ? Number(o.price_paid) : 0).toFixed(2);
+    const screenUrl = o.confirmation_screen_url || '';
     
     return `
       <div class="glass-card rounded-2xl p-5 border-amber-500/40 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg">
@@ -521,7 +523,7 @@ function renderConfirmations(orders) {
         <!-- Sinistra: Foto Prodotto + Dati Ordine -->
         <div class="flex items-start gap-4 flex-1">
           <!-- Thumbnail Prodotto Zoomabile -->
-          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title)}', 'Numero Ordine: ${o.order_number}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
+          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Numero Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
             <img src="${prodImg}" alt="Foto Prodotto" class="max-w-full max-h-full object-contain p-1 group-hover:scale-110 transition-transform">
             <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
               <i class="fa-solid fa-magnifying-glass-plus text-base"></i>
@@ -533,17 +535,19 @@ function renderConfirmations(orders) {
           <div class="flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                ${o.order_number}
+                ${o.order_number || 'In attesa N° Ordine'}
               </span>
-              <button onclick="copyToClipboard('${o.order_number}', 'N° Ordine copiato!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1">
-                <i class="fa-regular fa-copy"></i> Copia N°
-              </button>
+              ${o.order_number ? `
+                <button onclick="copyToClipboard('${o.order_number}', 'N° Ordine copiato!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1">
+                  <i class="fa-regular fa-copy"></i> Copia N°
+                </button>
+              ` : ''}
             </div>
 
-            <h3 class="text-sm md:text-base font-extrabold text-white mt-2 leading-snug">${escapeHtml(o.product_title)}</h3>
+            <h3 class="text-sm md:text-base font-extrabold text-white mt-2 leading-snug">${escapeHtml(o.product_title || 'Articolo in promozione')}</h3>
             
             <div class="mt-2 flex flex-wrap items-center gap-3 text-xs">
-              <span class="text-slate-300">Spesa: <strong class="text-white font-bold">€${o.price_paid.toFixed(2)}</strong></span>
+              <span class="text-slate-300">Spesa: <strong class="text-white font-bold">€${pricePaid}</strong></span>
               <span class="text-slate-500">•</span>
               <span class="text-emerald-400 font-bold">Rimborso: 100%</span>
             </div>
@@ -556,9 +560,15 @@ function renderConfirmations(orders) {
             <i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone / Incolla
           </button>
 
-          <button onclick="showScreenshot('${o.confirmation_screen_url}', '${o.order_number}')" class="px-3 py-2.5 rounded-xl bg-brand-surface hover:bg-brand-card border border-brand-border text-slate-200 text-xs font-bold flex items-center gap-1.5 shadow-md">
-            <i class="fa-solid fa-receipt text-amber-400"></i> Ricevuta
-          </button>
+          ${screenUrl ? `
+            <button onclick="showScreenshot('${screenUrl}', '${o.order_number || ''}')" class="px-3 py-2.5 rounded-xl bg-brand-surface hover:bg-brand-card border border-brand-border text-slate-200 text-xs font-bold flex items-center gap-1.5 shadow-md">
+              <i class="fa-solid fa-receipt text-amber-400"></i> Ricevuta
+            </button>
+          ` : `
+            <button onclick="openIPhoneUploadModal(${o.id})" class="px-3 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-md">
+              <i class="fa-solid fa-plus text-amber-400"></i> Aggiungi Screen
+            </button>
+          `}
           
           <button onclick="confirmAndSendOrder(${o.id})" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/40 flex items-center gap-1.5 transition-all">
             <i class="fa-solid fa-paper-plane"></i> Conferma e Invia
@@ -572,7 +582,7 @@ function renderConfirmations(orders) {
 
 function renderReviews(orders) {
   const container = document.getElementById('reviews-list');
-  const reviewOrders = orders.filter(o => o.status !== 'cancelled' && o.status !== 'pending_confirmation');
+  const reviewOrders = (orders || []).filter(o => o.status !== 'cancelled' && o.status !== 'pending_confirmation');
 
   if (reviewOrders.length === 0) {
     container.innerHTML = `
@@ -589,7 +599,7 @@ function renderReviews(orders) {
 
   container.innerHTML = reviewOrders.map(o => {
     const isReady = o.days_until_review === 0;
-    const progressPct = Math.min(100, Math.max(0, ((10 - o.days_until_review) / 10) * 100));
+    const progressPct = Math.min(100, Math.max(0, ((10 - (o.days_until_review || 0)) / 10) * 100));
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80';
 
     return `
@@ -598,20 +608,20 @@ function renderReviews(orders) {
           <!-- Header Card con Immagine & Timer -->
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-center gap-3">
-              <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title)}', 'Ordine: ${o.order_number}')" class="cursor-pointer relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
+              <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
                 <img src="${prodImg}" alt="Foto" class="max-w-full max-h-full object-contain p-0.5 group-hover:scale-110 transition-transform">
                 <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-[10px]">
                   <i class="fa-solid fa-magnifying-glass-plus"></i>
                 </div>
               </div>
               <div>
-                <span class="text-xs font-mono text-slate-400 font-bold">${o.order_number}</span>
-                <h3 class="text-sm font-extrabold text-white line-clamp-1 mt-0.5">${escapeHtml(o.product_title)}</h3>
+                <span class="text-xs font-mono text-slate-400 font-bold">${o.order_number || ''}</span>
+                <h3 class="text-sm font-extrabold text-white line-clamp-1 mt-0.5">${escapeHtml(o.product_title || 'Prodotto')}</h3>
               </div>
             </div>
             
             <span class="text-xs font-extrabold px-2.5 py-1 rounded-lg ${isReady ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'} shrink-0">
-              ${isReady ? '⭐ RECENSIONE PRONTA!' : `Giorno ${10 - o.days_until_review}/10`}
+              ${isReady ? '⭐ RECENSIONE PRONTA!' : `Giorno ${10 - (o.days_until_review || 0)}/10`}
             </span>
           </div>
 
@@ -620,7 +630,7 @@ function renderReviews(orders) {
             <div class="flex justify-between text-xs text-slate-300 mb-1.5 font-bold">
               <span>Conto alla Rovescia Recensione (10gg)</span>
               <span class="${isReady ? 'text-emerald-400 font-extrabold' : 'text-purple-300'}">
-                ${isReady ? 'Scadenza raggiunta: pubblica ora!' : `${o.days_until_review} giorni rimanenti`}
+                ${isReady ? 'Scadenza raggiunta: pubblica ora!' : `${o.days_until_review || 0} giorni rimanenti`}
               </span>
             </div>
             <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
@@ -654,7 +664,7 @@ function renderReviews(orders) {
               <i class="fa-solid fa-mobile-screen-button"></i> Screen iPhone / Incolla
             </button>
           ` : `
-            <button disabled class="py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed" title="Disponibile allo scadere dei 10 giorni (Giorno ${10 - o.days_until_review}/10)">
+            <button disabled class="py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed" title="Disponibile allo scadere dei 10 giorni (Giorno ${10 - (o.days_until_review || 0)}/10)">
               <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
             </button>
           `}
@@ -677,7 +687,7 @@ function renderReviews(orders) {
 
 function renderRefunds(orders) {
   const container = document.getElementById('refunds-list');
-  const eligibleOrders = orders.filter(o => o.status !== 'cancelled' && o.status !== 'pending_confirmation');
+  const eligibleOrders = (orders || []).filter(o => o.status !== 'cancelled' && o.status !== 'pending_confirmation');
 
   if (eligibleOrders.length === 0) {
     container.innerHTML = `
@@ -695,13 +705,14 @@ function renderRefunds(orders) {
   container.innerHTML = eligibleOrders.map(o => {
     const isReimbursed = o.status === 'reimbursed';
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=800&q=80';
+    const refundAmt = (o.refund_amount != null ? Number(o.refund_amount) : 0).toFixed(2);
 
     return `
       <div class="glass-card rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border ${isReimbursed ? 'border-emerald-500/30' : 'border-blue-500/30'}">
         
         <div class="flex items-center gap-4">
           <!-- Thumbnail Prodotto Zoomabile -->
-          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title)}', 'Rimborso €${o.refund_amount.toFixed(2)}')" class="cursor-pointer relative w-14 h-14 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group">
+          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Rimborso €${refundAmt}')" class="cursor-pointer relative w-14 h-14 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group">
             <img src="${prodImg}" alt="Foto" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
             <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-xs">
               <i class="fa-solid fa-magnifying-glass-plus"></i>
@@ -710,19 +721,19 @@ function renderRefunds(orders) {
 
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-xs font-mono text-slate-300 font-bold">${o.order_number}</span>
+              <span class="text-xs font-mono text-slate-300 font-bold">${o.order_number || ''}</span>
               <span class="text-[11px] px-2.5 py-0.5 rounded-md ${isReimbursed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} font-extrabold uppercase">
                 ${isReimbursed ? '✓ Rimborso Saldato' : '⏳ In Attesa PayPal'}
               </span>
             </div>
-            <p class="text-sm font-extrabold text-white mt-1">${escapeHtml(o.product_title)}</p>
+            <p class="text-sm font-extrabold text-white mt-1">${escapeHtml(o.product_title || 'Prodotto')}</p>
           </div>
         </div>
 
         <div class="flex items-center justify-between md:justify-end gap-5 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-brand-border">
           <div class="text-right">
             <p class="text-xs font-bold text-slate-400 uppercase">Importo Rimborso</p>
-            <p class="text-xl font-extrabold ${isReimbursed ? 'text-emerald-400' : 'text-amber-300'}">€${o.refund_amount.toFixed(2)}</p>
+            <p class="text-xl font-extrabold ${isReimbursed ? 'text-emerald-400' : 'text-amber-300'}">€${refundAmt}</p>
           </div>
 
           ${isReimbursed
