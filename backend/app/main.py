@@ -639,7 +639,13 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     if payload.order_number is not None and payload.order_number.strip():
-        order.order_number = payload.order_number.strip()
+        clean_num = payload.order_number.strip()
+        # Se esiste già un altro ordine con questo numero, evadiamo il conflitto UNIQUE
+        existing = db.query(Order).filter(Order.order_number == clean_num, Order.id != order_id).first()
+        if existing:
+            existing.order_number = f"{clean_num}_old_{existing.id}"
+            db.commit()
+        order.order_number = clean_num
     if payload.price_paid is not None:
         order.price_paid = payload.price_paid
         order.refund_amount = payload.price_paid

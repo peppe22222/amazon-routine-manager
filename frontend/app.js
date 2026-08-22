@@ -1401,7 +1401,8 @@ async function editOrderNumber(orderId, currentNum) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ order_number: clean })
     });
-    const data = await res.json();
+    let data = {};
+    try { data = await res.json(); } catch(e) {}
     if (res.ok) {
       showToast('Numero ordine Amazon aggiornato!');
       loadOrders();
@@ -1409,7 +1410,7 @@ async function editOrderNumber(orderId, currentNum) {
       showToast(data.detail || 'Errore durante l\'aggiornamento', true);
     }
   } catch (err) {
-    showToast('Errore di connessione', true);
+    showToast('Errore di connessione o server in riavvio. Riprova tra qualche istante.', true);
   }
 }
 
@@ -1492,12 +1493,14 @@ async function confirmAndSendOrder(orderId) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_number: cleanNum })
       });
+      let saveData = {};
+      try { saveData = await saveRes.json(); } catch(e) {}
       if (!saveRes.ok) {
-        showToast('Errore nel salvataggio del numero ordine', true);
+        showToast(saveData.detail || 'Errore nel salvataggio del numero ordine', true);
         return;
       }
     } catch (e) {
-      showToast('Errore di connessione', true);
+      showToast('Errore di connessione durante il salvataggio. Riprova tra qualche istante.', true);
       return;
     }
   }
@@ -1508,7 +1511,8 @@ async function confirmAndSendOrder(orderId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
     });
-    const data = await res.json();
+    let data = {};
+    try { data = await res.json(); } catch(e) {}
     if (res.ok) {
       showToast('Screenshot e Numero Ordine inviati al venditore!');
       loadOrders();
@@ -1517,7 +1521,7 @@ async function confirmAndSendOrder(orderId) {
       showToast(data.detail || "Errore durante l'invio", true);
     }
   } catch (err) {
-    showToast('Errore di connessione', true);
+    showToast('Errore di connessione. Riprova tra qualche istante.', true);
   }
 }
 
