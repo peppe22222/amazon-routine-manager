@@ -525,6 +525,7 @@ function renderConfirmations(orders) {
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80';
     const pricePaid = (o.price_paid != null ? Number(o.price_paid) : 0).toFixed(2);
     const screenUrl = o.confirmation_screen_url || '';
+    const isRealOrderNumber = o.order_number && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending');
     
     return `
       <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
@@ -552,13 +553,13 @@ function renderConfirmations(orders) {
             <!-- Dettagli Ordine & Venditore -->
             <div class="flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-pointer" onclick="editOrderNumber(${o.id}, '${escapeHtml(o.order_number || '')}')" title="Clicca per inserire o modificare il tuo vero numero d'ordine Amazon">
-                  ${o.order_number || 'In attesa N° Ordine'}
+                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg ${isRealOrderNumber ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400 border border-slate-700'} cursor-pointer" onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeHtml(o.order_number) : ''}')" title="Clicca per inserire o modificare il tuo vero numero d'ordine Amazon">
+                  ${isRealOrderNumber ? o.order_number : 'In attesa N° Ordine'}
                 </span>
-                <button onclick="editOrderNumber(${o.id}, '${escapeHtml(o.order_number || '')}')" title="Modifica Numero Ordine Amazon" class="px-2 py-1 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold flex items-center gap-1 border border-amber-500/30">
-                  <i class="fa-solid fa-pen-to-square text-[10px]"></i> Modifica N°
+                <button onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeHtml(o.order_number) : ''}')" title="Modifica Numero Ordine Amazon" class="px-2 py-1 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold flex items-center gap-1 border border-amber-500/30">
+                  <i class="fa-solid fa-pen-to-square text-[10px]"></i> ${isRealOrderNumber ? 'Modifica N°' : 'Inserisci N°'}
                 </button>
-                ${o.order_number ? `
+                ${isRealOrderNumber ? `
                   <button onclick="copyToClipboard('${o.order_number}', 'N° Ordine copiato!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1">
                     <i class="fa-regular fa-copy"></i> Copia N°
                   </button>
@@ -660,7 +661,7 @@ function renderReviews(orders) {
                   </div>
                 </div>
                 <div>
-                  <span class="text-xs font-mono text-slate-400 font-bold">${o.order_number || ''}</span>
+                  <span class="text-xs font-mono text-slate-400 font-bold">${(o.order_number && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending')) ? o.order_number : ''}</span>
                   <h3 class="text-sm font-extrabold text-white line-clamp-1 mt-0.5">${escapeHtml(o.product_title || 'Prodotto')}</h3>
                 </div>
               </div>
@@ -940,7 +941,7 @@ function renderRefunds(orders) {
 
             <div>
               <div class="flex items-center gap-2">
-                <span class="text-xs font-mono text-slate-300 font-bold">${o.order_number || ''}</span>
+                <span class="text-xs font-mono text-slate-300 font-bold">${(o.order_number && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending')) ? o.order_number : ''}</span>
                 <span class="text-[11px] px-2.5 py-0.5 rounded-md ${isReimbursed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} font-extrabold uppercase">
                   ${isReimbursed ? '✓ Rimborso Saldato' : '⏳ In Attesa PayPal'}
                 </span>
