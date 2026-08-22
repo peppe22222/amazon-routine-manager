@@ -1700,97 +1700,6 @@ async function pasteFromIPhoneClipboard() {
   }
 }
 
-async function analyzeImageClientOCR(imageSource) {
-  try {
-    if (typeof Tesseract === 'undefined') return { order_number: null, price: null };
-    
-    // Mostra toast di avanzamento
-    showToast('🔍 Analisi OCR in corso (lettura N° Ordine)...');
-
-    // Funzione interna con timeout di 4 secondi per non bloccare mai l'upload
-    const ocrPromise = new Promise(async (resolve) => {
-      try {
-        // Ridimensiona immagine con canvas per rendere l'OCR istantaneo (max 1200px)
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = async () => {
-          try {
-            const canvas = document.createElement('canvas');
-            const maxDim = 1200;
-            let w = img.width;
-            let h = img.height;
-            if (w > maxDim || h > maxDim) {
-              if (w > h) {
-                h = Math.round((h * maxDim) / w);
-                w = maxDim;
-              } else {
-                w = Math.round((w * maxDim) / h);
-                h = maxDim;
-              }
-            }
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, w, h);
-            const scaledDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-            // Esegui riconoscimento 'eng' (contiene tutte le cifre e simboli, carica in 0.5s)
-            const res = await Tesseract.recognize(scaledDataUrl, 'eng', {
-              logger: () => {}
-            });
-            const text = (res && res.data && res.data.text) ? res.data.text : '';
-            
-            let order_number = null;
-            // 1. Cerca numero ordine Amazon (es. 404-1867984-8717122 o 408-1234567-8901234)
-            const orderMatch = text.match(/\b([0-9]{3}-[0-9]{7}-[0-9]{7})\b/);
-            if (orderMatch) {
-              order_number = orderMatch[1];
-            } else {
-              const looseMatch = text.match(/\b([0-9]{3})\s*[-–—\s]\s*([0-9]{7})\s*[-–—\s]\s*([0-9]{7})\b/);
-              if (looseMatch) {
-                order_number = `${looseMatch[1]}-${looseMatch[2]}-${looseMatch[3]}`;
-              }
-            }
-
-            // 2. Cerca prezzo pagato (es. 22,99 € o € 100,00)
-            let price = null;
-            const pricePatterns = [
-              /(?:totale|importo|pagato|totale ordine|total)[\s:]*(?:€|eur|\$)?\s*([0-9]+(?:[.,][0-9]{2}))/i,
-              /(?:€|eur|\$)\s*([0-9]+(?:[.,][0-9]{2}))/i,
-              /([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur|\$)\b/i
-            ];
-            for (let p of pricePatterns) {
-              const pm = text.match(p);
-              if (pm) {
-                const val = parseFloat(pm[1].replace(',', '.'));
-                if (val > 0) {
-                  price = val;
-                  break;
-                }
-              }
-            }
-
-            resolve({ order_number, price, text });
-          } catch (innerErr) {
-            console.warn('[OCR Canvas Process Error]', innerErr);
-            resolve({ order_number: null, price: null });
-          }
-        };
-        img.onerror = () => resolve({ order_number: null, price: null });
-        img.src = imageSource;
-      } catch (err) {
-        resolve({ order_number: null, price: null });
-      }
-    });
-
-    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ order_number: null, price: null }), 4500));
-    return await Promise.race([ocrPromise, timeoutPromise]);
-  } catch (err) {
-    console.error('[Client OCR Error]', err);
-    return { order_number: null, price: null };
-  }
-}
-
 function triggerIPhonePhotoLibrary() {
   let fileInput = document.getElementById('iphone-photo-input');
   if (!fileInput) {
@@ -1808,30 +1717,45 @@ function triggerIPhonePhotoLibrary() {
         ? `/api/orders/${currentUploadOrderId}/upload-review-screenshot` 
         : `/api/orders/${currentUploadOrderId}/upload-screenshot`;
 
+      showToast('📤 Caricamento screenshot in corso...');
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target.result;
-        let ocrRes = { order_number: null, price: null };
-        if (currentUploadType !== 'review') {
-          ocrRes = await analyzeImageClientOCR(base64);
-        }
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_base64: base64 })
+          });
+          let data = {};
+          try { data = await res.json(); } catch(e) {}
+          if (res.ok) {
+            closeModal('modal-iphone-upload');
+            loadOrders();
+            loadStats();
 
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            image_base64: base64,
-            recognized_order_number: ocrRes.order_number,
-            recognized_price: ocrRes.price
-          })
-        });
-        let data = {};
-        try { data = await res.json(); } catch(e) {}
-        if (res.ok) {
-          showToast(data.message || (currentUploadType === 'review' ? '⭐ Screenshot Recensione caricato!' : '📦 Screenshot Ordine caricato!'));
-          closeModal('modal-iphone-upload');
-          loadOrders();
-          loadStats();
+            const isRealOrderNum = data.order_number && !data.order_number.toLowerCase().includes('in attesa') && !data.order_number.toLowerCase().includes('pending');
+            if (!isRealOrderNum && currentUploadType !== 'review') {
+              const enteredNum = prompt('✅ Screenshot collegato!\nInserisci il numero d\'ordine Amazon (es. 404-1867984-8717122):');
+              if (enteredNum && enteredNum.trim()) {
+                await fetch(`/api/orders/${currentUploadOrderId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ order_number: enteredNum.trim() })
+                });
+                loadOrders();
+                showToast(`N° Ordine ${enteredNum.trim()} impostato con successo!`);
+              } else {
+                showToast('Screenshot salvato! Puoi inserire il N° Ordine in qualsiasi momento cliccando "Inserisci N°"');
+              }
+            } else {
+              showToast(data.message || '📦 Screenshot caricato con successo!');
+            }
+          } else {
+            showToast(data.detail || 'Errore nel caricamento dello screenshot', true);
+          }
+        } catch (err) {
+          showToast('Errore di connessione durante l\'upload', true);
         }
       };
       reader.readAsDataURL(file);
@@ -1859,35 +1783,53 @@ function triggerIPhoneCamera() {
         ? `/api/orders/${currentUploadOrderId}/upload-review-screenshot` 
         : `/api/orders/${currentUploadOrderId}/upload-screenshot`;
 
+      showToast('📤 Caricamento foto in corso...');
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target.result;
-        let ocrRes = { order_number: null, price: null };
-        if (currentUploadType !== 'review') {
-          ocrRes = await analyzeImageClientOCR(base64);
-        }
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_base64: base64 })
+          });
+          let data = {};
+          try { data = await res.json(); } catch(e) {}
+          if (res.ok) {
+            closeModal('modal-iphone-upload');
+            loadOrders();
+            loadStats();
 
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            image_base64: base64,
-            recognized_order_number: ocrRes.order_number,
-            recognized_price: ocrRes.price
-          })
-        });
-        let data = {};
-        try { data = await res.json(); } catch(e) {}
-        if (res.ok) {
-          showToast(data.message || '📷 Foto scattata e collegata con successo!');
-          closeModal('modal-iphone-upload');
-          loadOrders();
-          loadStats();
+            const isRealOrderNum = data.order_number && !data.order_number.toLowerCase().includes('in attesa') && !data.order_number.toLowerCase().includes('pending');
+            if (!isRealOrderNum && currentUploadType !== 'review') {
+              const enteredNum = prompt('✅ Foto collegata!\nInserisci il numero d\'ordine Amazon (es. 404-1867984-8717122):');
+              if (enteredNum && enteredNum.trim()) {
+                await fetch(`/api/orders/${currentUploadOrderId}`, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ order_number: enteredNum.trim() })
+                });
+                loadOrders();
+                showToast(`N° Ordine ${enteredNum.trim()} impostato!`);
+              } else {
+                showToast('Foto salvata!');
+              }
+            } else {
+              showToast(data.message || '📷 Foto salvata con successo!');
+            }
+          } else {
+            showToast(data.detail || 'Errore nel salvataggio della foto', true);
+          }
+        } catch (err) {
+          showToast('Errore di connessione', true);
         }
       };
       reader.readAsDataURL(file);
       camInput.value = '';
     });
+  }
+  camInput.click();
+}
   }
   camInput.click();
 }
@@ -1930,22 +1872,34 @@ window.addEventListener('paste', async (e) => {
           const targetOrder = orders.find(o => o.status === 'pending_confirmation');
 
           if (targetOrder) {
-            const ocrRes = await analyzeImageClientOCR(base64);
             const res = await fetch(`/api/orders/${targetOrder.id}/upload-screenshot`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                image_base64: base64,
-                recognized_order_number: ocrRes.order_number,
-                recognized_price: ocrRes.price
-              })
+              body: JSON.stringify({ image_base64: base64 })
             });
             let data = {};
             try { data = await res.json(); } catch(e) {}
             if (res.ok) {
-              showToast(data.message || `📋 Screenshot incollato con successo all'ordine!`);
               loadOrders();
               loadStats();
+              const isRealOrderNum = data.order_number && !data.order_number.toLowerCase().includes('in attesa') && !data.order_number.toLowerCase().includes('pending');
+              if (!isRealOrderNum) {
+                const enteredNum = prompt('📋 Screenshot incollato!\nInserisci il numero d\'ordine Amazon (es. 404-1867984-8717122):');
+                if (enteredNum && enteredNum.trim()) {
+                  await fetch(`/api/orders/${targetOrder.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ order_number: enteredNum.trim() })
+                  });
+                  loadOrders();
+                  showToast(`N° Ordine ${enteredNum.trim()} impostato con successo!`);
+                } else {
+                  showToast('Screenshot salvato!');
+                }
+              } else {
+                showToast(data.message || `📋 Screenshot incollato con successo all'ordine!`);
+              }
+            }
             }
           } else {
             showToast('📋 Screenshot copiato negli appunti! Seleziona una pratica per associarlo.');
