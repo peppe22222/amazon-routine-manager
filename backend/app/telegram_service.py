@@ -4,20 +4,7 @@ import html
 import base64
 import asyncio
 import requests
-from datetime import datetime
-from collections import OrderedDict
-from PIL import Image
-from telethon import TelegramClient, events
-from sqlalchemy.orm import Session
-from sqlalchemy import or_
-from app.database import Setting, ActivityLog, Order, Offer
-
-import os
-import re
-import html
-import base64
-import asyncio
-import requests
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from collections import OrderedDict
 from PIL import Image

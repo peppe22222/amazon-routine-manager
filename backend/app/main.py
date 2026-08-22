@@ -712,17 +712,27 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
         
     db.commit()
     
-    # Invia screenshot a venditore via Telegram
+    # Invia screenshot ai Messaggi Salvati via Telegram
+    tele_res = {}
     try:
-        await telegram_service.send_order_confirmation(
+        tele_res = await telegram_service.send_order_confirmation(
             db=db,
             order=order,
-            recipient=target_contact
+            recipient="me"
         )
     except Exception as e:
         print(f"[Telegram Send Screen Error] {e}")
+        tele_res = {"success": False, "error": str(e)}
     
-    return {"success": True, "message": "Screenshot e Numero Ordine inviati! Ordine spostato in Recensioni 5★."}
+    if not tele_res.get("success"):
+        err_msg = tele_res.get("error", "Verifica il collegamento Telegram in Impostazioni.")
+        return {
+            "success": True, 
+            "warning": True, 
+            "message": f"Pratica salvata! Avviso Telegram: {err_msg}"
+        }
+    
+    return {"success": True, "message": "Screenshot e Numero Ordine inviati ai tuoi Messaggi Salvati! Ordine spostato in Recensioni 5★."}
 
 @app.post("/api/orders/{order_id}/send-review")
 async def send_review_confirmation(order_id: int, db: Session = Depends(get_db)):
