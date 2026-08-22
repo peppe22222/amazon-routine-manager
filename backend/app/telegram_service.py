@@ -495,7 +495,7 @@ class TelegramManager:
         # BLOCCO DI SICUREZZA: Invia SOLO ed esclusivamente a 'me' (Messaggi Salvati dell'utente)
         target_contact = "me"
         
-        message_text = f"Ciao! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\n(Destinatario originale: {offer.seller_contact or '@venditore'})\nGrazie!"
+        message_text = f"Ciao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
 
         try:
             client = await self._ensure_connected_client(db)
@@ -515,12 +515,12 @@ class TelegramManager:
             log = ActivityLog(
                 action_type="MESSAGE_SENT",
                 title=f"Richiesta con foto inviata ai tuoi Messaggi Salvati",
-                details=f"Articolo: {offer.title[:40]} | Venditore originale: {offer.seller_contact}"
+                details=f"Articolo: {offer.title[:40]}"
             )
             db.add(log)
             offer.status = "requested"
             db.commit()
-            return {"success": True, "mode": "safe_simulation", "message": "Richiesta con foto inviata ai tuoi Messaggi Salvati su Telegram (Venditori reali disattivati)."}
+            return {"success": True, "mode": "safe_simulation", "message": "Richiesta con foto inviata ai tuoi Messaggi Salvati su Telegram."}
         except Exception as e:
             print(f"[Telegram Send Error] {e}")
             return {"success": False, "error": str(e)}
@@ -532,7 +532,7 @@ class TelegramManager:
         # BLOCCO DI SICUREZZA: Invia SOLO ed esclusivamente a 'me' (Messaggi Salvati dell'utente)
         target_contact = "me"
         
-        caption_text = f"Ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\n(Destinatario originale: {order.seller_contact or '@venditore'})"
+        caption_text = f"Ciao Alex, ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\nGrazie!"
 
         try:
             client = await self._ensure_connected_client(db)
@@ -551,14 +551,14 @@ class TelegramManager:
 
             log = ActivityLog(
                 action_type="SCREEN_SENT",
-                title=f"Screenshot di test inviato ai tuoi Messaggi Salvati",
-                details=f"Ordine: {order.order_number} | Venditore originale: {order.seller_contact}"
+                title=f"Screenshot inviato ai tuoi Messaggi Salvati",
+                details=f"Ordine: {order.order_number}"
             )
             db.add(log)
             order.status = "waiting_review"
             order.confirmation_sent_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "mode": "safe_simulation", "message": "Screenshot inviato ai tuoi Messaggi Salvati su Telegram (Venditori reali disattivati)."}
+            return {"success": True, "mode": "safe_simulation", "message": "Screenshot inviato ai tuoi Messaggi Salvati su Telegram."}
         except Exception as e:
             print(f"[Telegram Screen Send Error] {e}")
             return {"success": False, "error": str(e)}
@@ -568,7 +568,7 @@ class TelegramManager:
         Invia la conferma della recensione pubblicata con immagine screenshot (BLOCCATO IN SICUREZZA SU 'me' / Messaggi Salvati).
         """
         target_contact = "me"
-        caption_text = f"Ciao! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!\n(Destinatario originale: {order.seller_contact or '@venditore'})"
+        caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
 
         try:
             client = await self._ensure_connected_client(db)
