@@ -529,6 +529,8 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
             "is_test": o.is_test
         })
+    return res
+
 class OfferUpdatePayload(BaseModel):
     title: Optional[str] = None
     price_info: Optional[str] = None
