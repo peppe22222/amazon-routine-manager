@@ -479,15 +479,40 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     # Crea l'ordine in 'Da Confermare' pronto per inserire il numero reale e la ricevuta Amazon
     existing_order = db.query(Order).filter_by(product_title=offer.title).first()
     if not existing_order:
-        # Estrai eventuale prezzo dal testo dell'offerta
+        combined_text = f"{offer.title or ''} {offer.price_info or ''} {offer.description or ''}".lower()
+        
+        # 1. Estrazione del prezzo esplicito (es. "si paga 20 euro", "8,00€", "costo 45€")
+        patterns = [
+            r'(?:si paga|paga|paghi|prezzo|costo|valore|spesa|totale)[\s:]*([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:€|euro|\$)',
+            r'([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:€|euro)\b',
+            r'(?:€|euro|\$)\s*([0-9]+(?:[.,][0-9]{1,2})?)',
+            r'(?:si paga|paga|paghi|costo|prezzo)[\s:]*([0-9]+(?:[.,][0-9]{1,2})?)'
+        ]
         parsed_price = 0.0
-        if offer.price_info:
-            price_match = re.search(r'(\d+(?:[.,]\d{1,2})?)\s*(?:€|euro)', offer.price_info, re.IGNORECASE)
-            if price_match:
+        for p in patterns:
+            m = re.search(p, combined_text)
+            if m:
                 try:
-                    parsed_price = float(price_match.group(1).replace(',', '.'))
+                    val = float(m.group(1).replace(',', '.'))
+                    if val > 0:
+                        parsed_price = val
+                        break
                 except ValueError:
-                    parsed_price = 0.0
+                    pass
+
+        # 2. Percentuale rimborso (default 100%)
+        pct = 100.0
+        pct_match = re.search(r'(?:rimborso\s*[:\s]*([0-9]{1,3})\s*%)|(?:\b([0-9]{1,3})\s*%\s*rimborso)', combined_text)
+        if pct_match:
+            val_str = pct_match.group(1) or pct_match.group(2)
+            try:
+                p_val = float(val_str)
+                if 0 <= p_val <= 100:
+                    pct = p_val
+            except ValueError:
+                pct = 100.0
+
+        refund_amt = round(parsed_price * (pct / 100.0), 2) if parsed_price > 0 else 0.0
 
         order_date = datetime.utcnow()
         rev_data = generate_review(offer.title, gemini_api_key=get_gemini_api_key(db))
@@ -497,7 +522,7 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             product_image=offer.image_url,
             seller_contact=offer.seller_contact or "@alex8700",
             price_paid=parsed_price,
-            refund_amount=parsed_price,
+            refund_amount=refund_amt,
             status="pending_confirmation",
             order_date=order_date,
             review_target_date=order_date + timedelta(days=10),
