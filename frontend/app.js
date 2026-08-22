@@ -1777,6 +1777,14 @@ async function loadTelegramStatus() {
       if (modalPhoneStep) modalPhoneStep.classList.add('hidden');
       if (modalCodeStep) modalCodeStep.classList.add('hidden');
 
+      const sessionBox = document.getElementById('tg-session-string-box');
+      if (data.session_string) {
+        window._tg_session_string = data.session_string;
+        if (sessionBox) sessionBox.classList.remove('hidden');
+      } else {
+        if (sessionBox) sessionBox.classList.add('hidden');
+      }
+
     } else {
       if (topBadge) {
         topBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1';
@@ -1797,9 +1805,20 @@ async function loadTelegramStatus() {
       if (modalDisconnectBtn) modalDisconnectBtn.classList.add('hidden');
       if (modalPhoneStep) modalPhoneStep.classList.remove('hidden');
       if (modalCodeStep) modalCodeStep.classList.add('hidden');
+
+      const sessionBox = document.getElementById('tg-session-string-box');
+      if (sessionBox) sessionBox.classList.add('hidden');
     }
   } catch (err) {
     console.error('Errore stato telegram:', err);
+  }
+}
+
+function copyTelegramSessionString() {
+  if (window._tg_session_string) {
+    copyToClipboard(window._tg_session_string, 'Chiave di Sessione Permanente copiata negli appunti!');
+  } else {
+    showToast('Nessuna chiave di sessione attiva', true);
   }
 }
 

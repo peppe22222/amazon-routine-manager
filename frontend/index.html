@@ -903,6 +903,19 @@
         </button>
       </div>
 
+      <!-- Box Chiave Sessione Permanente (Evita Login Continuo su Render) -->
+      <div id="tg-session-string-box" class="hidden p-3.5 rounded-xl bg-purple-500/15 border border-purple-500/40 text-xs space-y-2">
+        <div class="flex items-center justify-between text-purple-300 font-bold text-[11px]">
+          <span class="flex items-center gap-1.5"><i class="fa-solid fa-key text-amber-400"></i> Chiave Sessione Permanente</span>
+          <button type="button" onclick="copyTelegramSessionString()" class="text-xs bg-purple-600/40 hover:bg-purple-600 text-purple-200 px-2.5 py-1 rounded-lg border border-purple-400/40 font-bold transition-all flex items-center gap-1">
+            <i class="fa-regular fa-copy"></i> Copia Chiave
+          </button>
+        </div>
+        <p class="text-[11px] text-slate-300 leading-relaxed">
+          💡 <strong>Come evitare il login per sempre:</strong> Incolla questa chiave su <em>dashboard.render.com &gt; Environment Variables</em> con la chiave <code>TELEGRAM_SESSION_STRING</code>. Il server non ti chiederà mai più l'accesso!
+        </p>
+      </div>
+
       <!-- Step 1: Inserisci Telefono e Invia Codice -->
       <div id="tg-step-phone" class="space-y-3">
         <div>

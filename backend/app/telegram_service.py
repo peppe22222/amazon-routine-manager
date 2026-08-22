@@ -211,6 +211,8 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 20) -> 
         print(f"[Scraper Error] {e}")
         return []
 
+from telethon.sessions import StringSession
+
 _global_telethon_client = None
 
 class TelegramManager:
@@ -233,23 +235,9 @@ class TelegramManager:
         s = db.query(Setting).filter_by(key=key).first()
         return s.value if s and s.value else default
 
-    def _get_session_path(self) -> str:
-        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        data_dir = os.path.join(base_dir, "data")
-        os.makedirs(data_dir, exist_ok=True)
-        return os.path.join(data_dir, "telegram_user_session")
-
-    def _cleanup_session(self):
+    def _cleanup_session(self, db: Session = None):
         global _global_telethon_client
         if _global_telethon_client:
-            try:
-                if hasattr(_global_telethon_client, 'session'):
-                    if hasattr(_global_telethon_client.session, '_conn') and _global_telethon_client.session._conn:
-                        _global_telethon_client.session._conn.close()
-                    if hasattr(_global_telethon_client.session, 'close'):
-                        _global_telethon_client.session.close()
-            except Exception:
-                pass
             try:
                 if _global_telethon_client.is_connected():
                     _global_telethon_client.disconnect()
@@ -257,14 +245,11 @@ class TelegramManager:
                 pass
         _global_telethon_client = None
         self.is_connected = False
-        sp = self._get_session_path()
-        for ext in [".session", ".session-journal"]:
-            f = sp + ext
-            if os.path.exists(f):
-                try:
-                    os.remove(f)
-                except Exception as e:
-                    print(f"[Session remove warning] {e}")
+        if db:
+            s = db.query(Setting).filter_by(key="telegram_session_string").first()
+            if s:
+                s.value = ""
+                db.commit()
 
     async def _ensure_connected_client(self, db: Session):
         global _global_telethon_client
@@ -272,17 +257,22 @@ class TelegramManager:
         api_id = int(api_id_raw) if api_id_raw and str(api_id_raw).strip().isdigit() else 31327962
         api_hash = self.get_setting(db, "telegram_api_hash") or "aa62f6773d556234f4b5812a1f7208d1"
         
-        session_path = self._get_session_path()
+        # Recupera la sessione permanente salvata (da Env o da Database)
+        env_session = os.getenv("TELEGRAM_SESSION_STRING", "").strip()
+        db_session = self.get_setting(db, "telegram_session_string", "").strip()
+        session_str = env_session or db_session or ""
+        
         if _global_telethon_client is None:
-            _global_telethon_client = TelegramClient(session_path, api_id, api_hash)
+            string_session = StringSession(session_str)
+            _global_telethon_client = TelegramClient(string_session, api_id, api_hash)
             
         if not _global_telethon_client.is_connected():
             try:
                 await _global_telethon_client.connect()
             except (errors.AuthKeyDuplicatedError, errors.AuthKeyUnregisteredError, errors.SessionRevokedError) as e:
-                print(f"[Telethon Session Error] {e} - Pulizia sessione revocata.")
-                self._cleanup_session()
-                _global_telethon_client = TelegramClient(session_path, api_id, api_hash)
+                print(f"[Telethon Session Error] {e} - Reset sessione non valida.")
+                self._cleanup_session(db)
+                _global_telethon_client = TelegramClient(StringSession(""), api_id, api_hash)
                 await _global_telethon_client.connect()
         return _global_telethon_client
 
@@ -313,10 +303,26 @@ class TelegramManager:
                 phone = getattr(me, 'phone', '') or self.get_setting(db, 'telegram_phone', '')
                 first_name = getattr(me, 'first_name', '') or ''
                 username = getattr(me, 'username', '') or ''
+                
+                # Assicura che la stringa sia salvata nel db
+                saved_str = self.get_setting(db, 'telegram_session_string', '')
+                if not saved_str:
+                    try:
+                        saved_str = client.session.save()
+                        s = db.query(Setting).filter_by(key="telegram_session_string").first()
+                        if s:
+                            s.value = saved_str
+                        else:
+                            db.add(Setting(key="telegram_session_string", value=saved_str))
+                        db.commit()
+                    except Exception:
+                        pass
+
                 return {
                     "success": True,
                     "is_authorized": True,
                     "status": "connected",
+                    "session_string": saved_str,
                     "user": {
                         "first_name": first_name,
                         "username": f"@{username}" if username else "",
@@ -391,12 +397,27 @@ class TelegramManager:
                     raise e
 
             self.is_connected = True
+            
+            # Salva la chiave di sessione permanente nel database
+            try:
+                saved_str = client.session.save()
+                s = db.query(Setting).filter_by(key="telegram_session_string").first()
+                if s:
+                    s.value = saved_str
+                else:
+                    db.add(Setting(key="telegram_session_string", value=saved_str))
+                db.commit()
+                print(f"[Telegram Service] StringSession permanente salvata con successo!")
+            except Exception as se:
+                print(f"[Telegram Session Save Error] {se}")
+
             me = await client.get_me()
             name = getattr(me, 'first_name', '')
             user_handle = f"@{me.username}" if getattr(me, 'username', '') else phone
             return {
                 "success": True,
                 "message": f"Accesso Telegram completato con successo! Connesso come {name} ({user_handle}).",
+                "session_string": saved_str if 'saved_str' in locals() else "",
                 "user": {"name": name, "handle": user_handle}
             }
         except Exception as e:
