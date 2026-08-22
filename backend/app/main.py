@@ -1203,10 +1203,8 @@ def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db
     """Elimina tutte le pratiche (ordini, recensioni, rimborsi) o filtrate per categoria"""
     query = db.query(Order)
     if status:
-        if status == "reviews":
-            query = query.filter(Order.status.in_(["waiting_review", "review_ready"]))
-        elif status == "refunds":
-            query = query.filter(Order.status.in_(["review_submitted", "reimbursed"]))
+        if status in ["reviews", "refunds"]:
+            query = query.filter(Order.status.in_(["waiting_review", "review_ready", "review_submitted", "reimbursed"]))
         elif status == "confirmations":
             query = query.filter(Order.status == "pending_confirmation")
         else:

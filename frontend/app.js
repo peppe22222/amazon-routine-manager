@@ -539,7 +539,7 @@ function renderConfirmations(orders) {
       <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
         <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
         <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
-          <button onclick="confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
+          <button onclick="confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
             <i class="fa-solid fa-trash-can text-sm"></i>
             <span>Elimina</span>
           </button>
@@ -572,7 +572,7 @@ function renderConfirmations(orders) {
                     <i class="fa-regular fa-copy"></i> Copia N°
                   </button>
                 ` : ''}
-                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" title="Elimina pratica (o fai swipe a sinistra)" class="ml-auto text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina pratica (o fai swipe a sinistra)" class="ml-auto text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
                   <i class="fa-solid fa-trash-can text-xs"></i>
                 </button>
               </div>
@@ -642,7 +642,7 @@ function renderReviews(orders) {
       <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
         <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
         <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
-          <button onclick="confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
+          <button onclick="confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
             <i class="fa-solid fa-trash-can text-sm"></i>
             <span>Elimina</span>
           </button>
@@ -674,7 +674,7 @@ function renderReviews(orders) {
                 <span class="review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 ${isSubmitted ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
                   ${isSubmitted ? '✓ RECENSIONE PUBBLICATA' : 'Calcolo in corso...'}
                 </span>
-                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" title="Elimina recensione (o fai swipe a sinistra)" class="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina recensione (o fai swipe a sinistra)" class="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
                   <i class="fa-solid fa-trash-can text-xs"></i>
                 </button>
               </div>
@@ -926,7 +926,7 @@ function renderRefunds(orders) {
       <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
         <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
         <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
-          <button onclick="confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
+          <button onclick="confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
             <i class="fa-solid fa-trash-can text-sm"></i>
             <span>Elimina</span>
           </button>
@@ -949,7 +949,7 @@ function renderRefunds(orders) {
                 <span class="text-[11px] px-2.5 py-0.5 rounded-md ${isReimbursed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} font-extrabold uppercase">
                   ${isReimbursed ? '✓ Rimborso Saldato' : '⏳ In Attesa PayPal'}
                 </span>
-                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, '${escapeHtml(o.product_title || '')}', this.closest('.swipe-item-wrapper'))" title="Elimina rimborso (o fai swipe a sinistra)" class="ml-2 text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina rimborso (o fai swipe a sinistra)" class="ml-2 text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
                   <i class="fa-solid fa-trash-can text-xs"></i>
                 </button>
               </div>
@@ -1069,9 +1069,8 @@ function initSwipeToDelete(containerId) {
   });
 }
 
-async function confirmAndDeleteOrder(orderId, itemTitle, wrapperElement) {
-  const displayTitle = itemTitle ? `"${itemTitle}"` : 'questa pratica';
-  if (!confirm(`Vuoi davvero eliminare definitivamente ${displayTitle}?`)) {
+async function confirmAndDeleteOrder(orderId, wrapperElement) {
+  if (!confirm('Vuoi davvero eliminare definitivamente questa pratica?')) {
     if (wrapperElement) {
       const content = wrapperElement.querySelector('.swipe-card-content');
       if (content) content.style.transform = 'translateX(0px)';
@@ -1086,7 +1085,7 @@ async function confirmAndDeleteOrder(orderId, itemTitle, wrapperElement) {
     wrapperElement.style.opacity = '0';
     wrapperElement.style.maxHeight = wrapperElement.offsetHeight + 'px';
     setTimeout(() => {
-      wrapperElement.remove();
+      try { wrapperElement.remove(); } catch(e) {}
     }, 200);
   }
 
@@ -1167,7 +1166,7 @@ async function loadLogs() {
       <div class="swipe-item-wrapper relative overflow-hidden rounded-xl select-none group" data-log-id="${l.id}">
         <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
         <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-4 rounded-xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
-          <button onclick="confirmAndDeleteLog(${l.id}, '${escapeHtml(l.title || '')}', this.closest('.swipe-item-wrapper'))" class="flex items-center gap-1.5 bg-red-800/90 hover:bg-red-900 px-3 py-2 rounded-lg border border-red-400/50 shadow-md text-white text-xs font-bold">
+          <button onclick="confirmAndDeleteLog(${l.id}, this.closest('.swipe-item-wrapper'))" class="flex items-center gap-1.5 bg-red-800/90 hover:bg-red-900 px-3 py-2 rounded-lg border border-red-400/50 shadow-md text-white text-xs font-bold">
             <i class="fa-solid fa-trash-can"></i>
             <span>Elimina</span>
           </button>
@@ -1184,7 +1183,7 @@ async function loadLogs() {
           </div>
           <div class="flex items-center gap-2 shrink-0">
             <span class="text-[10px] text-slate-400 font-mono">${formatDate(l.timestamp || l.created_at)}</span>
-            <button onclick="event.stopPropagation(); confirmAndDeleteLog(${l.id}, '${escapeHtml(l.title || '')}', this.closest('.swipe-item-wrapper'))" title="Elimina questa voce" class="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors">
+            <button onclick="event.stopPropagation(); confirmAndDeleteLog(${l.id}, this.closest('.swipe-item-wrapper'))" title="Elimina questa voce" class="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors">
               <i class="fa-solid fa-trash-can text-xs"></i>
             </button>
           </div>
@@ -1198,17 +1197,15 @@ async function loadLogs() {
   }
 }
 
-async function confirmAndDeleteLog(logId, logTitle, wrapperElement) {
+async function confirmAndDeleteLog(logId, wrapperElement) {
   if (wrapperElement) {
     wrapperElement.style.transition = 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)';
     wrapperElement.style.transform = 'translateX(-100%)';
     wrapperElement.style.opacity = '0';
     wrapperElement.style.maxHeight = wrapperElement.offsetHeight + 'px';
     setTimeout(() => {
-      wrapperElement.style.maxHeight = '0px';
-      wrapperElement.style.margin = '0px';
-      wrapperElement.style.padding = '0px';
-    }, 120);
+      try { wrapperElement.remove(); } catch(e) {}
+    }, 150);
   }
 
   try {
