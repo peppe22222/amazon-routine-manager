@@ -23,8 +23,9 @@ Automatizzare e assistere la routine quotidiana di gestione delle offerte di pro
   - L'utente deve solo premere **"Conferma e Invia Screen a Venditore"** dalla dashboard per far recapitare tutto su Telegram.
   - Questo approccio evita blocchi di sicurezza Amazon (CAPTCHA, 2FA, OTP).
 
-- **Generatore Recensioni 5 Stelle Pronto all'Uso**:
-  - Il sistema genera automaticamente per ogni articolo un **Titolo a 5 stelle** e un **Testo dettagliato in italiano** (che valorizza imballaggio, spedizione e qualità).
+- **Generatore Recensioni 5 Stelle Ultra-Specializzato (DIVIETO ASSOLUTO DI TESTI GENERICI)**:
+  - Tassativamente ogni recensione generata analizza la **tipologia specifica dell'articolo** (es. tiralatte, comodino, scanner OBD2 auto, friggitrice ad aria, siero viso, trapano a batteria, auricolari bluetooth, ecc.).
+  - Esalta specificamente i dettagli tecnici e d'uso reale: coppe e silenziosità (tiralatte), mandrino e coppia di serraggio (trapano), montaggio e stabilità (mobili), texture e assorbimento (skincare), serbatoi e aspirazione (lavapavimenti).
   - Include pulsante rapido **"Copia"** con 1 tocco e collegamento diretto ad Amazon.
 
 - **Gestione Codice e Hosting (PC, iPhone & Render.com)**:
