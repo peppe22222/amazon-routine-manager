@@ -503,7 +503,7 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
         await telegram_service.send_availability_request(
             db=db,
             offer=offer,
-            recipient="me"
+            recipient=offer.seller_contact or "@alex8700"
         )
     except Exception as e:
         print(f"[Telegram Send Request Error] {e}")
@@ -717,7 +717,7 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
         await telegram_service.send_order_confirmation(
             db=db,
             order=order,
-            recipient="me"
+            recipient=target_contact
         )
     except Exception as e:
         print(f"[Telegram Send Screen Error] {e}")
