@@ -240,6 +240,14 @@ class TelegramManager:
 
     async def _ensure_connected_client(self, db: Session):
         global _global_telethon_client
+        current_loop = asyncio.get_running_loop()
+        
+        # Se il client globale appartiene a un loop asyncio precedente o chiuso, resettalo
+        if _global_telethon_client is not None:
+            client_loop = getattr(_global_telethon_client, '_loop', None) or getattr(_global_telethon_client, 'loop', None)
+            if client_loop != current_loop or (client_loop and client_loop.is_closed()):
+                _global_telethon_client = None
+
         api_id_raw = self.get_setting(db, "telegram_api_id")
         api_id = int(api_id_raw) if api_id_raw and str(api_id_raw).strip().isdigit() else 31327962
         api_hash = self.get_setting(db, "telegram_api_hash") or "aa62f6773d556234f4b5812a1f7208d1"
@@ -251,7 +259,7 @@ class TelegramManager:
         
         if _global_telethon_client is None:
             string_session = StringSession(session_str)
-            _global_telethon_client = TelegramClient(string_session, api_id, api_hash)
+            _global_telethon_client = TelegramClient(string_session, api_id, api_hash, loop=current_loop)
             
         if not _global_telethon_client.is_connected():
             try:
@@ -259,7 +267,7 @@ class TelegramManager:
             except (errors.AuthKeyDuplicatedError, errors.AuthKeyUnregisteredError, errors.SessionRevokedError) as e:
                 print(f"[Telethon Session Error] {e} - Reset sessione non valida.")
                 self._cleanup_session(db)
-                _global_telethon_client = TelegramClient(StringSession(""), api_id, api_hash)
+                _global_telethon_client = TelegramClient(StringSession(""), api_id, api_hash, loop=current_loop)
                 await _global_telethon_client.connect()
         return _global_telethon_client
 
