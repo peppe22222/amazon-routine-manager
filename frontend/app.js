@@ -1471,6 +1471,37 @@ async function dismissOffer(offerId) {
 }
 
 async function confirmAndSendOrder(orderId) {
+  // Controlla se la scheda ha un numero d'ordine reale
+  const wrapper = document.querySelector(`.swipe-item-wrapper[data-order-id="${orderId}"]`);
+  let orderNumberBadge = wrapper ? wrapper.querySelector('.font-mono') : null;
+  let currentNum = orderNumberBadge ? orderNumberBadge.innerText.trim() : '';
+
+  if (!currentNum || currentNum.toLowerCase().includes('in attesa')) {
+    const enteredNum = prompt('⚠️ Tassativo: Inserisci il tuo Numero d\'Ordine Amazon reale (es. 404-1867984-8717122):');
+    if (enteredNum === null) return; // Annullato dall'utente
+    const cleanNum = enteredNum.trim();
+    if (!cleanNum) {
+      showToast('❌ Invio annullato: Devi inserire il Numero d\'Ordine Amazon reale!', true);
+      return;
+    }
+
+    // Salva il numero d'ordine prima di procedere
+    try {
+      const saveRes = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_number: cleanNum })
+      });
+      if (!saveRes.ok) {
+        showToast('Errore nel salvataggio del numero ordine', true);
+        return;
+      }
+    } catch (e) {
+      showToast('Errore di connessione', true);
+      return;
+    }
+  }
+
   try {
     const res = await fetch(`/api/orders/${orderId}/confirm-and-send`, {
       method: 'POST',

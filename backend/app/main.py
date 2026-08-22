@@ -476,14 +476,13 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     
     offer.status = "requested"
     
-    # Crea SEMPRE l'ordine in 'Da Confermare' pronto per inserire la ricevuta Amazon
+    # Crea l'ordine in 'Da Confermare' pronto per inserire il numero reale e la ricevuta Amazon
     existing_order = db.query(Order).filter_by(product_title=offer.title).first()
     if not existing_order:
-        new_order_num = f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
         order_date = datetime.utcnow()
         rev_data = generate_review(offer.title, gemini_api_key=get_gemini_api_key(db))
         new_order = Order(
-            order_number=new_order_num,
+            order_number="",
             product_title=offer.title,
             product_image=offer.image_url,
             seller_contact=offer.seller_contact or "@alex8700",
@@ -657,10 +656,18 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
     IL TASTO DI CONFERMA:
     Invia lo screenshot dell'ordine e il numero al venditore Telegram e sposta l'ordine
     nello stato 'waiting_review' attivando il timer di 10 giorni.
+    Blocca categoricamente l'invio se il numero d'ordine reale Amazon non è stato inserito.
     """
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
+
+    clean_order_num = (order.order_number or "").strip()
+    if not clean_order_num or clean_order_num.lower() in ["in attesa n° ordine", "in attesa", "none", ""]:
+        raise HTTPException(
+            status_code=400, 
+            detail="Tassativo: Devi inserire il tuo Numero d'Ordine Amazon reale (es. 404-1867984-8717122) prima di inviare lo screenshot!"
+        )
         
     target_contact = payload.recipient_override or order.seller_contact or "@venditore_telegram"
     
