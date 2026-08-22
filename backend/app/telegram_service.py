@@ -664,115 +664,99 @@ class TelegramManager:
             "message": f"Sincronizzazione completata: {imported_count} nuove offerte importate da {channel_title}!"
         }
 
-    def _get_target_seller(self, db: Session, preferred: str = None) -> str:
-        """Determina il contatto venditore reale Telegram a cui inviare i messaggi"""
-        if preferred and preferred.strip() and preferred.strip() not in ["me", "@venditore_telegram", "@venditore_arredo", "@venditore_cucina"]:
-            c = preferred.strip()
-            return c if c.startswith("@") or c.startswith("+") or c.isdigit() else f"@{c}"
-        
-        saved = self.get_setting(db, "telegram_seller_contact") or self.get_setting(db, "seller_contact")
-        if saved and saved.strip():
-            c = saved.strip()
-            return c if c.startswith("@") or c.startswith("+") or c.isdigit() else f"@{c}"
-            
-        return "@alex8700"
+    def _find_screenshot_file(self, screen_url_or_path: str) -> Optional[str]:
+        if not screen_url_or_path:
+            return None
+        filename = os.path.basename(screen_url_or_path)
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        candidates = [
+            os.path.join(base_dir, "data", "screenshots", filename),
+            os.path.join(base_dir, "backend", "data", "screenshots", filename),
+            os.path.join(os.getcwd(), "data", "screenshots", filename),
+            os.path.join(os.getcwd(), "backend", "data", "screenshots", filename),
+            screen_url_or_path
+        ]
+        for c in candidates:
+            if os.path.exists(c) and os.path.isfile(c):
+                return c
+        return None
 
     async def send_availability_request(self, db: Session, offer: Offer, recipient: str = None) -> dict:
         """
-        Invia la richiesta di disponibilità per un prodotto al venditore Telegram.
+        Invia la richiesta di disponibilità per un prodotto ai tuoi Messaggi Salvati ('me') per test.
         """
-        target_seller = self._get_target_seller(db, recipient or offer.seller_contact)
-        message_text = f"Ciao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
+        target_contact = "me"
+        message_text = f"🧪 [TEST RICHIESTA VENDITORE]\n\nCiao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
 
         try:
             client = await self._ensure_connected_client(db)
             if not await client.is_user_authorized():
-                return {"success": False, "error": "Account Telegram non autorizzato."}
+                return {"success": False, "auth_required": True, "error": "Account Telegram non autorizzato. Collega il tuo numero in Impostazioni."}
 
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            filename = os.path.basename(offer.image_url or "")
-            file_path = os.path.join(base_dir, "data", "screenshots", filename)
+            file_path = self._find_screenshot_file(offer.image_url)
 
-            # Invia direttamente al venditore reale
-            try:
-                if os.path.exists(file_path) and os.path.isfile(file_path):
-                    await client.send_file(target_seller, file_path, caption=message_text)
-                else:
-                    await client.send_message(target_seller, message_text)
-            except Exception as e_seller:
-                print(f"[Send to seller {target_seller} fallback to 'me']: {e_seller}")
-                if os.path.exists(file_path) and os.path.isfile(file_path):
-                    await client.send_file("me", file_path, caption=message_text)
-                else:
-                    await client.send_message("me", message_text)
+            if file_path:
+                await client.send_file(target_contact, file_path, caption=message_text)
+            else:
+                await client.send_message(target_contact, message_text)
             
             log = ActivityLog(
                 action_type="MESSAGE_SENT",
-                title=f"Richiesta inviata a {target_seller}",
+                title=f"Richiesta inviata ai tuoi Messaggi Salvati",
                 details=f"Articolo: {offer.title[:40]}"
             )
             db.add(log)
             offer.status = "requested"
             db.commit()
-            return {"success": True, "message": f"Richiesta inviata con successo a {target_seller}!"}
+            return {"success": True, "message": "Richiesta inviata ai tuoi Messaggi Salvati su Telegram!"}
         except Exception as e:
             print(f"[Telegram Send Error] {e}")
             return {"success": False, "error": str(e)}
 
     async def send_order_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
         """
-        Invia lo screenshot di conferma ordine e il numero d'ordine al venditore Telegram.
+        Invia lo screenshot di conferma ordine e il numero d'ordine ai tuoi Messaggi Salvati ('me') per test.
         """
-        target_seller = self._get_target_seller(db, recipient or order.seller_contact)
-        caption_text = f"Ciao Alex, ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\nGrazie!"
+        target_contact = "me"
+        caption_text = f"🧪 [TEST SCREENSHOT RICEVUTA ACQUISTO]\n\nCiao Alex, ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\nGrazie!"
 
         try:
             client = await self._ensure_connected_client(db)
             if not await client.is_user_authorized():
-                return {"success": False, "error": "Account Telegram non autorizzato."}
+                return {"success": False, "auth_required": True, "error": "Account Telegram non autorizzato. Collega il tuo numero in Impostazioni."}
 
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            filename = os.path.basename(order.confirmation_screen_url or "")
-            file_path = os.path.join(base_dir, "data", "screenshots", filename)
+            file_path = self._find_screenshot_file(order.confirmation_screen_url)
 
-            # Invia direttamente al venditore reale
-            try:
-                if os.path.exists(file_path) and os.path.isfile(file_path):
-                    await client.send_file(target_seller, file_path, caption=caption_text)
-                else:
-                    await client.send_message(target_seller, caption_text)
-            except Exception as e_seller:
-                print(f"[Send to seller {target_seller} fallback to 'me']: {e_seller}")
-                if os.path.exists(file_path) and os.path.isfile(file_path):
-                    await client.send_file("me", file_path, caption=caption_text)
-                else:
-                    await client.send_message("me", caption_text)
+            if file_path:
+                await client.send_file(target_contact, file_path, caption=caption_text)
+            else:
+                await client.send_message(target_contact, caption_text)
 
             log = ActivityLog(
                 action_type="SCREEN_SENT",
-                title=f"Screenshot ordine inviato a {target_seller}",
+                title=f"Screenshot inviato ai tuoi Messaggi Salvati",
                 details=f"Ordine: {order.order_number}"
             )
             db.add(log)
             order.status = "waiting_review"
             order.confirmation_sent_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": f"Screenshot ordine inviato a {target_seller}!"}
+            return {"success": True, "message": "Screenshot inviato ai tuoi Messaggi Salvati su Telegram!"}
         except Exception as e:
             print(f"[Telegram Screen Send Error] {e}")
             return {"success": False, "error": str(e)}
 
     async def send_review_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
         """
-        Invia la conferma della recensione pubblicata con screenshot al venditore Telegram.
+        Invia la conferma della recensione pubblicata con screenshot ai tuoi Messaggi Salvati ('me') per test.
         """
-        target_seller = self._get_target_seller(db, recipient or order.seller_contact)
-        caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
+        target_contact = "me"
+        caption_text = f"🧪 [TEST SCREENSHOT RECENSIONE 5★]\n\nCiao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
 
         try:
             client = await self._ensure_connected_client(db)
             if not await client.is_user_authorized():
-                return {"success": False, "error": "Account Telegram non autorizzato."}
+                return {"success": False, "auth_required": True, "error": "Account Telegram non autorizzato. Collega il tuo numero in Impostazioni."}
 
             from app.screenshot_service import generate_amazon_review_screenshot
             review_url = order.review_screen_url
@@ -786,33 +770,23 @@ class TelegramManager:
                 order.review_screen_url = review_url
                 db.commit()
 
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            filename = os.path.basename(review_url or "")
-            file_path = os.path.join(base_dir, "data", "screenshots", filename)
+            file_path = self._find_screenshot_file(review_url)
 
-            # Invia direttamente al venditore reale
-            try:
-                if os.path.exists(file_path) and os.path.isfile(file_path):
-                    await client.send_file(target_seller, file_path, caption=caption_text)
-                else:
-                    await client.send_message(target_seller, caption_text)
-            except Exception as e_seller:
-                print(f"[Send review to {target_seller} fallback to 'me']: {e_seller}")
-                if os.path.exists(file_path) and os.path.isfile(file_path):
-                    await client.send_file("me", file_path, caption=caption_text)
-                else:
-                    await client.send_message("me", caption_text)
+            if file_path:
+                await client.send_file(target_contact, file_path, caption=caption_text)
+            else:
+                await client.send_message(target_contact, caption_text)
             
             log = ActivityLog(
                 action_type="REVIEW_READY",
-                title=f"Screenshot recensione inviato a {target_seller}",
+                title=f"Screenshot recensione inviato ai tuoi Messaggi Salvati",
                 details=f"Ordine: {order.order_number} | Prodotto: {order.product_title[:40]}"
             )
             db.add(log)
             order.status = "review_submitted"
             order.review_sent_to_seller_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": f"Screenshot recensione inviato a {target_seller}!"}
+            return {"success": True, "message": "Screenshot recensione inviato ai tuoi Messaggi Salvati!"}
         except Exception as e:
             print(f"[Telegram Review Send Error] {e}")
             return {"success": False, "error": str(e)}
