@@ -735,6 +735,16 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
             detail="Tassativo: Devi inserire il tuo Numero d'Ordine Amazon reale (es. 404-1867984-8717122) prima di inviare lo screenshot!"
         )
         
+    if not order.price_paid or order.price_paid <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Tassativo: L'importo di spesa Amazon non può essere €0.00. Inserisci l'importo reale di acquisto che sarà rimborsato al 100% su PayPal!"
+        )
+        
+    # Assicura che l'importo di rimborso sia impostato (default 100% rimborso PayPal)
+    if not order.refund_amount or order.refund_amount <= 0:
+        order.refund_amount = order.price_paid
+
     target_contact = payload.recipient_override or order.seller_contact or "@venditore_telegram"
     
     now = datetime.utcnow()

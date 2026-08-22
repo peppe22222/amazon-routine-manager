@@ -1505,7 +1505,7 @@ async function dismissOffer(offerId) {
 }
 
 async function confirmAndSendOrder(orderId) {
-  // Controlla se la scheda ha un numero d'ordine reale
+  // 1. Controlla se la scheda ha un numero d'ordine reale
   const wrapper = document.querySelector(`.swipe-item-wrapper[data-order-id="${orderId}"]`);
   let orderNumberBadge = wrapper ? wrapper.querySelector('.font-mono') : null;
   let currentNum = orderNumberBadge ? orderNumberBadge.innerText.trim() : '';
@@ -1538,6 +1538,44 @@ async function confirmAndSendOrder(orderId) {
     }
   }
 
+  // 2. Controlla se l'importo di spesa è a 0 o mancante
+  let pricePaid = 0;
+  if (wrapper) {
+    const priceEl = wrapper.querySelector('strong');
+    if (priceEl) {
+      const priceText = priceEl.innerText.replace('€', '').trim();
+      pricePaid = parseFloat(priceText.replace(',', '.')) || 0;
+    }
+  }
+
+  if (pricePaid <= 0) {
+    const enteredPrice = prompt('⚠️ Tassativo: Inserisci l\'importo di acquisto Amazon (€) che sarà rimborsato al 100% da PayPal:');
+    if (enteredPrice === null) return; // Annullato dall'utente
+    const cleanPrice = parseFloat(enteredPrice.replace(',', '.').trim());
+    if (isNaN(cleanPrice) || cleanPrice <= 0) {
+      showToast('❌ Invio bloccato: Inserisci l\'importo speso su Amazon per il rimborso 100%!', true);
+      return;
+    }
+
+    // Salva l'importo prima di procedere
+    try {
+      const savePriceRes = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ price_paid: cleanPrice, refund_amount: cleanPrice })
+      });
+      let savePriceData = {};
+      try { savePriceData = await savePriceRes.json(); } catch(e) {}
+      if (!savePriceRes.ok) {
+        showToast(savePriceData.detail || 'Errore nel salvataggio dell\'importo', true);
+        return;
+      }
+    } catch (e) {
+      showToast('Errore di connessione durante il salvataggio del prezzo.', true);
+      return;
+    }
+  }
+
   try {
     const res = await fetch(`/api/orders/${orderId}/confirm-and-send`, {
       method: 'POST',
@@ -1547,7 +1585,7 @@ async function confirmAndSendOrder(orderId) {
     let data = {};
     try { data = await res.json(); } catch(e) {}
     if (res.ok) {
-      showToast('Screenshot e Numero Ordine inviati al venditore!');
+      showToast(data.message || 'Screenshot e Numero Ordine inviati ai tuoi Messaggi Salvati!');
       loadOrders();
       loadStats();
     } else {
