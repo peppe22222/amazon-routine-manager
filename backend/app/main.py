@@ -627,7 +627,29 @@ def update_offer(offer_id: int, payload: OfferUpdatePayload, db: Session = Depen
     if payload.price_info is not None and payload.price_info.strip():
         offer.price_info = payload.price_info.strip()
     db.commit()
-    return {"success": True, "title": offer.title, "price_info": offer.price_info}
+class OrderUpdatePayload(BaseModel):
+    order_number: Optional[str] = None
+    price_paid: Optional[float] = None
+    seller_contact: Optional[str] = None
+    product_title: Optional[str] = None
+
+@app.put("/api/orders/{order_id}")
+def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session = Depends(get_db)):
+    """Permette di modificare il numero d'ordine reale Amazon, il prezzo o il contatto venditore"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    if payload.order_number is not None and payload.order_number.strip():
+        order.order_number = payload.order_number.strip()
+    if payload.price_paid is not None:
+        order.price_paid = payload.price_paid
+        order.refund_amount = payload.price_paid
+    if payload.seller_contact is not None and payload.seller_contact.strip():
+        order.seller_contact = payload.seller_contact.strip()
+    if payload.product_title is not None and payload.product_title.strip():
+        order.product_title = payload.product_title.strip()
+    db.commit()
+    return {"success": True, "order_number": order.order_number, "message": "Dati ordine aggiornati con successo!"}
 
 @app.post("/api/orders/{order_id}/confirm-and-send")
 async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = ConfirmOrderPayload(), db: Session = Depends(get_db)):

@@ -547,9 +547,12 @@ function renderConfirmations(orders) {
             <!-- Dettagli Ordine & Venditore -->
             <div class="flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 cursor-pointer" onclick="editOrderNumber(${o.id}, '${escapeHtml(o.order_number || '')}')" title="Clicca per inserire o modificare il tuo vero numero d'ordine Amazon">
                   ${o.order_number || 'In attesa N° Ordine'}
                 </span>
+                <button onclick="editOrderNumber(${o.id}, '${escapeHtml(o.order_number || '')}')" title="Modifica Numero Ordine Amazon" class="px-2 py-1 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold flex items-center gap-1 border border-amber-500/30">
+                  <i class="fa-solid fa-pen-to-square text-[10px]"></i> Modifica N°
+                </button>
                 ${o.order_number ? `
                   <button onclick="copyToClipboard('${o.order_number}', 'N° Ordine copiato!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1">
                     <i class="fa-regular fa-copy"></i> Copia N°
@@ -1345,6 +1348,33 @@ function openLightboxImageOriginal() {
 }
 
 // ----------------- ACTIONS & HANDLERS -----------------
+
+async function editOrderNumber(orderId, currentNum) {
+  const newNum = prompt('Inserisci il tuo vero Numero Ordine Amazon (es. 408-1234567-8901234):', currentNum || '');
+  if (newNum === null) return;
+  const clean = newNum.trim();
+  if (!clean) {
+    showToast('Numero ordine non valido', true);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_number: clean })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Numero ordine Amazon aggiornato!');
+      loadOrders();
+    } else {
+      showToast(data.detail || 'Errore durante l\'aggiornamento', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
+  }
+}
 
 async function requestOffer(offerId) {
   try {
