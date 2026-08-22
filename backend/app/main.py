@@ -433,6 +433,23 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     )
     
     if res.get("success"):
+        # Crea automaticamente l'ordine in 'Da Confermare' pronto per inserire lo screenshot dell'acquisto
+        existing_order = db.query(Order).filter_by(product_title=offer.title).first()
+        if not existing_order:
+            new_order_num = f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
+            new_order = Order(
+                order_number=new_order_num,
+                product_title=offer.title,
+                product_image=offer.image_url,
+                seller_contact=offer.seller_contact or "@alex8700",
+                price_paid=0.00,
+                refund_amount=0.00,
+                status="pending_confirmation",
+                order_date=datetime.utcnow(),
+                is_test=False
+            )
+            db.add(new_order)
+            db.commit()
         return res
     else:
         raise HTTPException(status_code=500, detail=f"Errore Telegram: {res.get('error', 'Invio fallito')}")

@@ -927,8 +927,9 @@ async function requestOffer(offerId) {
     const res = await fetch(`/api/offers/${offerId}/request`, { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
-      showToast('Richiesta inviata al venditore Telegram!');
+      showToast('Richiesta inviata ad Alex! Scheda pronta in Da Confermare');
       loadOffers();
+      loadOrders();
       loadStats();
     } else {
       showToast(data.detail || 'Errore durante la richiesta', true);
