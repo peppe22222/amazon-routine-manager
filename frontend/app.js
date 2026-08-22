@@ -575,7 +575,9 @@ function renderConfirmations(orders) {
                   Spesa: <strong class="text-white font-bold underline decoration-dotted">€${pricePaid}</strong> ✏️
                 </span>
                 <span class="text-slate-500">•</span>
-                <span class="text-emerald-400 font-bold">Rimborso: 100%</span>
+                <span class="text-emerald-400 font-bold">
+                  Rimborso PayPal: €${(o.refund_amount !== undefined && o.refund_amount !== null ? o.refund_amount : o.price_paid || 0).toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
@@ -1431,12 +1433,13 @@ async function editOrderPrice(orderId, currentPrice) {
     const res = await fetch(`/api/orders/${orderId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ price_paid: cleanPrice, refund_amount: cleanPrice })
+      body: JSON.stringify({ price_paid: cleanPrice })
     });
     let data = {};
     try { data = await res.json(); } catch(e) {}
     if (res.ok) {
-      showToast(`Importo aggiornato a €${cleanPrice.toFixed(2)}!`);
+      const refAmt = (data.refund_amount !== undefined && data.refund_amount !== null) ? data.refund_amount.toFixed(2) : cleanPrice.toFixed(2);
+      showToast(`Spesa: €${cleanPrice.toFixed(2)} (Rimborso PayPal: €${refAmt})`);
       loadOrders();
       loadStats();
     } else {
@@ -1549,11 +1552,11 @@ async function confirmAndSendOrder(orderId) {
   }
 
   if (pricePaid <= 0) {
-    const enteredPrice = prompt('⚠️ Tassativo: Inserisci l\'importo di acquisto Amazon (€) che sarà rimborsato al 100% da PayPal:');
+    const enteredPrice = prompt('⚠️ Tassativo: Inserisci l\'importo di acquisto pagato su Amazon (€):');
     if (enteredPrice === null) return; // Annullato dall'utente
     const cleanPrice = parseFloat(enteredPrice.replace(',', '.').trim());
     if (isNaN(cleanPrice) || cleanPrice <= 0) {
-      showToast('❌ Invio bloccato: Inserisci l\'importo speso su Amazon per il rimborso 100%!', true);
+      showToast('❌ Invio bloccato: Inserisci l\'importo speso su Amazon!', true);
       return;
     }
 
@@ -1562,7 +1565,7 @@ async function confirmAndSendOrder(orderId) {
       const savePriceRes = await fetch(`/api/orders/${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ price_paid: cleanPrice, refund_amount: cleanPrice })
+        body: JSON.stringify({ price_paid: cleanPrice })
       });
       let savePriceData = {};
       try { savePriceData = await savePriceRes.json(); } catch(e) {}

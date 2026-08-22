@@ -470,6 +470,46 @@ def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db
     query = query.order_by(desc(Offer.created_at), desc(Offer.id))
     return query.all()
 
+def compute_order_refund(price_paid: float, product_title: str, db: Session) -> float:
+    """
+    Calcola con precisione l'importo del rimborso PayPal:
+    - Se l'offerta dice 'si paga 20 euro' e l'articolo costa 100€ -> Rimborso = 100 - 20 = 80€
+    - Se dice 'si paga 8 euro' e l'articolo costa 30€ -> Rimborso = 30 - 8 = 22€
+    - Se dice '100% rimborso' -> Rimborso = 100€ (100%)
+    """
+    if not price_paid or price_paid <= 0:
+        return 0.0
+
+    matching_offer = db.query(Offer).filter(Offer.title == product_title).order_by(desc(Offer.id)).first()
+    cond_text = ""
+    if matching_offer:
+        cond_text = f"{matching_offer.price_info or ''} {matching_offer.title or ''} {matching_offer.description or ''}".lower()
+    else:
+        cond_text = (product_title or "").lower()
+
+    # 1. Quota a carico acquirente ('si paga X euro')
+    cost_match = re.search(r'(?:si paga|paga|paghi|costo per te|a tuo carico)[\s:]*([0-9]+(?:[.,][0-9]{1,2})?)', cond_text)
+    if cost_match:
+        try:
+            buyer_cost = float(cost_match.group(1).replace(',', '.'))
+            if buyer_cost > 0:
+                return max(0.0, round(price_paid - buyer_cost, 2))
+        except ValueError:
+            pass
+
+    # 2. Percentuale diversa dal 100% (es. rimborso 80%)
+    pct_match = re.search(r'(?:rimborso\s*[:\s]*([0-9]{1,3})\s*%)|(?:\b([0-9]{1,3})\s*%\s*rimborso)', cond_text)
+    if pct_match:
+        val_str = pct_match.group(1) or pct_match.group(2)
+        try:
+            pct = float(val_str)
+            if 0 <= pct <= 100:
+                return round(price_paid * (pct / 100.0), 2)
+        except ValueError:
+            pass
+
+    return round(price_paid, 2)
+
 @app.post("/api/offers/{offer_id}/request")
 async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOfferPayload(), db: Session = Depends(get_db)):
     offer = db.query(Offer).filter_by(id=offer_id).first()
@@ -481,50 +521,16 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     # Crea l'ordine in 'Da Confermare' pronto per inserire il numero reale e la ricevuta Amazon
     existing_order = db.query(Order).filter_by(product_title=offer.title).first()
     if not existing_order:
-        combined_text = f"{offer.title or ''} {offer.price_info or ''} {offer.description or ''}".lower()
-        
-        # 1. Estrazione del prezzo esplicito (es. "si paga 20 euro", "8,00€", "costo 45€")
-        patterns = [
-            r'(?:si paga|paga|paghi|prezzo|costo|valore|spesa|totale)[\s:]*([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:€|euro|\$)',
-            r'([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:€|euro)\b',
-            r'(?:€|euro|\$)\s*([0-9]+(?:[.,][0-9]{1,2})?)',
-            r'(?:si paga|paga|paghi|costo|prezzo)[\s:]*([0-9]+(?:[.,][0-9]{1,2})?)'
-        ]
-        parsed_price = 0.0
-        for p in patterns:
-            m = re.search(p, combined_text)
-            if m:
-                try:
-                    val = float(m.group(1).replace(',', '.'))
-                    if val > 0:
-                        parsed_price = val
-                        break
-                except ValueError:
-                    pass
-
-        # 2. Percentuale rimborso (default 100%)
-        pct = 100.0
-        pct_match = re.search(r'(?:rimborso\s*[:\s]*([0-9]{1,3})\s*%)|(?:\b([0-9]{1,3})\s*%\s*rimborso)', combined_text)
-        if pct_match:
-            val_str = pct_match.group(1) or pct_match.group(2)
-            try:
-                p_val = float(val_str)
-                if 0 <= p_val <= 100:
-                    pct = p_val
-            except ValueError:
-                pct = 100.0
-
-        refund_amt = round(parsed_price * (pct / 100.0), 2) if parsed_price > 0 else 0.0
-
         order_date = datetime.utcnow()
         rev_data = generate_review(offer.title, gemini_api_key=get_gemini_api_key(db))
+        temp_order_num = f"In attesa #{offer.id}_{int(order_date.timestamp())}"
         new_order = Order(
-            order_number="",
+            order_number=temp_order_num,
             product_title=offer.title,
             product_image=offer.image_url,
             seller_contact=offer.seller_contact or "@alex8700",
-            price_paid=parsed_price,
-            refund_amount=refund_amt,
+            price_paid=0.0,
+            refund_amount=0.0,
             status="pending_confirmation",
             order_date=order_date,
             review_target_date=order_date + timedelta(days=10),
@@ -666,6 +672,7 @@ def update_offer(offer_id: int, payload: OfferUpdatePayload, db: Session = Depen
 class OrderUpdatePayload(BaseModel):
     order_number: Optional[str] = None
     price_paid: Optional[float] = None
+    refund_amount: Optional[float] = None
     seller_contact: Optional[str] = None
     product_title: Optional[str] = None
 
@@ -706,13 +713,17 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
 
     if payload.price_paid is not None:
         order.price_paid = payload.price_paid
-        order.refund_amount = payload.price_paid
+        if payload.refund_amount is not None:
+            order.refund_amount = payload.refund_amount
+        else:
+            order.refund_amount = compute_order_refund(order.price_paid, order.product_title, db)
+            
     if payload.seller_contact is not None and payload.seller_contact.strip():
         order.seller_contact = payload.seller_contact.strip()
     if payload.product_title is not None and payload.product_title.strip():
         order.product_title = payload.product_title.strip()
     db.commit()
-    return {"success": True, "order_number": order.order_number, "order_id": order.id, "message": "Dati ordine aggiornati con successo!"}
+    return {"success": True, "order_number": order.order_number, "order_id": order.id, "refund_amount": order.refund_amount, "message": "Dati ordine aggiornati con successo!"}
 
 @app.post("/api/orders/{order_id}/confirm-and-send")
 async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = ConfirmOrderPayload(), db: Session = Depends(get_db)):
@@ -738,12 +749,11 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
     if not order.price_paid or order.price_paid <= 0:
         raise HTTPException(
             status_code=400,
-            detail="Tassativo: L'importo di spesa Amazon non può essere €0.00. Inserisci l'importo reale di acquisto che sarà rimborsato al 100% su PayPal!"
+            detail="Tassativo: L'importo di spesa Amazon non può essere €0.00. Inserisci l'importo reale di acquisto che sarà rimborsato su PayPal!"
         )
         
-    # Assicura che l'importo di rimborso sia impostato (default 100% rimborso PayPal)
-    if not order.refund_amount or order.refund_amount <= 0:
-        order.refund_amount = order.price_paid
+    # Calcola l'importo di rimborso netto tenendo conto dell'offerta (es. 100€ spesa - 20€ quota acquirente = 80€ rimborso)
+    order.refund_amount = compute_order_refund(order.price_paid, order.product_title, db)
 
     target_contact = payload.recipient_override or order.seller_contact or "@venditore_telegram"
     
