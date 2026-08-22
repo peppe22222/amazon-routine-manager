@@ -571,7 +571,9 @@ function renderConfirmations(orders) {
               <h3 class="text-sm md:text-base font-extrabold text-white mt-2 leading-snug">${escapeHtml(o.product_title || 'Articolo in promozione')}</h3>
               
               <div class="mt-2 flex flex-wrap items-center gap-3 text-xs">
-                <span class="text-slate-300">Spesa: <strong class="text-white font-bold">€${pricePaid}</strong></span>
+                <span class="text-slate-300 cursor-pointer hover:text-white" onclick="editOrderPrice(${o.id}, '${pricePaid}')" title="Clicca per modificare l'importo speso">
+                  Spesa: <strong class="text-white font-bold underline decoration-dotted">€${pricePaid}</strong> ✏️
+                </span>
                 <span class="text-slate-500">•</span>
                 <span class="text-emerald-400 font-bold">Rimborso: 100%</span>
               </div>
@@ -949,9 +951,11 @@ function renderRefunds(orders) {
           </div>
 
           <div class="flex items-center justify-between md:justify-end gap-5 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-brand-border">
-            <div class="text-right">
-              <p class="text-xs font-bold text-slate-400 uppercase">Importo Rimborso</p>
-              <p class="text-xl font-extrabold ${isReimbursed ? 'text-emerald-400' : 'text-amber-300'}">€${refundAmt}</p>
+            <div class="text-right cursor-pointer group" onclick="editOrderPrice(${o.id}, '${refundAmt}')" title="Clicca per modificare l'importo rimborso">
+              <p class="text-xs font-bold text-slate-400 uppercase flex items-center justify-end gap-1">
+                Importo Rimborso <i class="fa-solid fa-pen text-[10px] text-amber-400"></i>
+              </p>
+              <p class="text-xl font-extrabold ${isReimbursed ? 'text-emerald-400' : 'text-amber-300'} underline decoration-dotted">€${refundAmt}</p>
             </div>
 
             ${isReimbursed
@@ -1411,6 +1415,35 @@ async function editOrderNumber(orderId, currentNum) {
     }
   } catch (err) {
     showToast('Errore di connessione o server in riavvio. Riprova tra qualche istante.', true);
+  }
+}
+
+async function editOrderPrice(orderId, currentPrice) {
+  const enteredPrice = prompt('Inserisci l\'importo reale pagato su Amazon / da rimborsare (€):', currentPrice || '0.00');
+  if (enteredPrice === null) return;
+  const cleanPrice = parseFloat(enteredPrice.replace(',', '.').trim());
+  if (isNaN(cleanPrice) || cleanPrice < 0) {
+    showToast('Importo non valido', true);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ price_paid: cleanPrice, refund_amount: cleanPrice })
+    });
+    let data = {};
+    try { data = await res.json(); } catch(e) {}
+    if (res.ok) {
+      showToast(`Importo aggiornato a €${cleanPrice.toFixed(2)}!`);
+      loadOrders();
+      loadStats();
+    } else {
+      showToast(data.detail || 'Errore durante l\'aggiornamento dell\'importo', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
   }
 }
 

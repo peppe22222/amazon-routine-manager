@@ -479,6 +479,16 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     # Crea l'ordine in 'Da Confermare' pronto per inserire il numero reale e la ricevuta Amazon
     existing_order = db.query(Order).filter_by(product_title=offer.title).first()
     if not existing_order:
+        # Estrai eventuale prezzo dal testo dell'offerta
+        parsed_price = 0.0
+        if offer.price_info:
+            price_match = re.search(r'(\d+(?:[.,]\d{1,2})?)\s*(?:€|euro)', offer.price_info, re.IGNORECASE)
+            if price_match:
+                try:
+                    parsed_price = float(price_match.group(1).replace(',', '.'))
+                except ValueError:
+                    parsed_price = 0.0
+
         order_date = datetime.utcnow()
         rev_data = generate_review(offer.title, gemini_api_key=get_gemini_api_key(db))
         new_order = Order(
@@ -486,8 +496,8 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             product_title=offer.title,
             product_image=offer.image_url,
             seller_contact=offer.seller_contact or "@alex8700",
-            price_paid=0.00,
-            refund_amount=0.00,
+            price_paid=parsed_price,
+            refund_amount=parsed_price,
             status="pending_confirmation",
             order_date=order_date,
             review_target_date=order_date + timedelta(days=10),
