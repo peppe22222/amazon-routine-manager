@@ -124,6 +124,30 @@ CATEGORIES = {
             "Efficiente, silenziosa e robusta. Pienamente soddisfatto dell'acquisto!"
         ]
     },
+    "barattoli_contenitori_caffe": {
+        "keywords": ["barattolo per caffè", "barattolo caffè", "contenitore caffè", "barattolo ermetico", "contenitore ermetico", "valvola co2", "valvola rilascio co2", "barattolo acciaio inox", "chicchi di caffè", "barattolo chicchi", "contenitore ermetico per caffè", "barattolo"],
+        "titles": [
+            "Barattolo ermetico eccezionale: acciaio inox robusto, valvola CO2 perfetta e aroma sempre al top!",
+            "La miglior soluzione per conservare il caffè: tenuta stagna al 100%, ghiera datario e cucchiaio comodissimo",
+            "Qualità costruttiva impeccabile: valvola di sfiato unidirezionale e guarnizione in silicone a tenuta perfetta",
+            "Capiente (1.2L), elegante e utilissimo: mantiene i chicchi fragranti e freschi come appena tostati"
+        ],
+        "openings": [
+            "Da appassionato di caffè cercavo un contenitore ermetico che preservasse davvero la fragranza e gli oli essenziali dei chicchi.",
+            "Arrivato perfettamente imballato, senza il minimo graffio, con il cucchiaio dosatore in acciaio inox e le valvole di ricambio incluse.",
+            "Fin dal primo contatto si percepisce la solidità dell'acciaio inossidabile alimentare di alto spessore, igienico e facile da pulire."
+        ],
+        "bodies": [
+            "La valvola di rilascio unidirezionale per la CO2 funziona in modo impeccabile: permette ai gas naturali della tostatura di fuoriuscire evitando che l'ossigeno e l'umidità entrino a contatto con i chicchi o il macinato, mantenendo intatto l'aroma.",
+            "La chiusura a leva in metallo esercita una pressione costante sulla guarnizione in silicone alimentare, garantendo un isolamento ermetico a tenuta stagna. Molto utile la ghiera con datario integrata sul coperchio per impostare il giorno del riempimento o della scadenza.",
+            "La capienza da 1.2 Litri è ideale per ospitare comodamente un pacco standard di caffè in grani o polvere. Il cucchiaio dosatore agganciato lateralmente è praticissimo e permette di dosare con precisione senza sporcare."
+        ],
+        "closings": [
+            "Un accessorio indispensabile per la cucina di chi ama il buon caffè e la freschezza degli alimenti. 5 stelle strameritate!",
+            "Rapporto qualità-prezzo eccellente per finiture e tenuta ermetica. Consiglio l'acquisto senza riserve!",
+            "Elegante sul piano di lavoro e funzionale al 100%. Pienamente soddisfatto!"
+        ]
+    },
     "friggitrice_cucina_elettro": {
         "keywords": ["friggitrice ad aria", "friggitrice", "air fryer", "frullatore", "robot da cucina", "macchina caffe", "macchina caffè", "caffè", "caffettiera", "bollitore", "tostapane", "forno", "fornetto", "impastatrice", "microonde", "slow cooker"],
         "titles": [
