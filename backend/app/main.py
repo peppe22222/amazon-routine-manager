@@ -739,13 +739,6 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     if not db.query(Setting).filter_by(key="demo_initialized").first():
         db.add(Setting(key="demo_initialized", value="true"))
 
-    # Registra nel log attività
-    log = ActivityLog(
-        action_type="ORDER_DELETED",
-        title=f"Pratica Eliminata: {order_num or prod_title}",
-        details=f"L'ordine per '{prod_title}' è stato rimosso definitivamente dalla gestione."
-    )
-    db.add(log)
     db.delete(order)
     db.commit()
     return {"success": True, "message": f"Pratica '{prod_title}' eliminata definitivamente!"}
