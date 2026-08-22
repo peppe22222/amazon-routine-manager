@@ -637,15 +637,36 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
     """Permette di modificare il numero d'ordine reale Amazon, il prezzo o il contatto venditore"""
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
-        raise HTTPException(status_code=404, detail="Ordine non trovato")
+        clean_num = (payload.order_number or "").strip()
+        if clean_num:
+            order = db.query(Order).filter_by(order_number=clean_num).first()
+        if not order:
+            order = db.query(Order).filter_by(status="pending_confirmation").order_by(desc(Order.id)).first()
+            
+    if not order:
+        # Crea nuovo ordine al volo
+        clean_num = (payload.order_number or "").strip() or f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
+        order = Order(
+            order_number=clean_num,
+            product_title=payload.product_title or "Articolo Amazon",
+            price_paid=payload.price_paid or 0.0,
+            refund_amount=payload.price_paid or 0.0,
+            seller_contact=payload.seller_contact or "@alex8700",
+            status="pending_confirmation",
+            order_date=datetime.utcnow()
+        )
+        db.add(order)
+        db.commit()
+        db.refresh(order)
+
     if payload.order_number is not None and payload.order_number.strip():
         clean_num = payload.order_number.strip()
-        # Se esiste già un altro ordine con questo numero, evadiamo il conflitto UNIQUE
-        existing = db.query(Order).filter(Order.order_number == clean_num, Order.id != order_id).first()
+        existing = db.query(Order).filter(Order.order_number == clean_num, Order.id != order.id).first()
         if existing:
             existing.order_number = f"{clean_num}_old_{existing.id}"
             db.commit()
         order.order_number = clean_num
+
     if payload.price_paid is not None:
         order.price_paid = payload.price_paid
         order.refund_amount = payload.price_paid
@@ -654,7 +675,7 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
     if payload.product_title is not None and payload.product_title.strip():
         order.product_title = payload.product_title.strip()
     db.commit()
-    return {"success": True, "order_number": order.order_number, "message": "Dati ordine aggiornati con successo!"}
+    return {"success": True, "order_number": order.order_number, "order_id": order.id, "message": "Dati ordine aggiornati con successo!"}
 
 @app.post("/api/orders/{order_id}/confirm-and-send")
 async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = ConfirmOrderPayload(), db: Session = Depends(get_db)):
@@ -666,7 +687,9 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
     """
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
-        raise HTTPException(status_code=404, detail="Ordine non trovato")
+        order = db.query(Order).filter_by(status="pending_confirmation").order_by(desc(Order.id)).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Pratica non trovata. Ricarica la pagina.")
 
     clean_order_num = (order.order_number or "").strip()
     if not clean_order_num or clean_order_num.lower() in ["in attesa n° ordine", "in attesa", "none", ""]:
