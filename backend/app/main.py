@@ -564,11 +564,19 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             o.review_target_date = base_date + timedelta(days=10)
             updated_db = True
             
-        # Rigenera se mancante o se era rimasta la vecchia recensione generica identica
-        if not o.review_title or not o.review_body or o.review_title == "Ottimo prodotto, spedizione impeccabile" or "Arrivato puntuale, ben imballato. Qualità dei materiali ottima e facilissimo da utilizzare." in (o.review_body or ""):
+        # Rigenera automaticamente se mancante o se era una vecchia recensione generica
+        is_old_generic = (
+            not o.review_title 
+            or not o.review_body
+            or o.review_title in ["Ottimo prodotto, spedizione impeccabile", "Ottimo acquisto, qualità eccellente!"]
+            or "Arrivato puntuale, ben imballato" in (o.review_body or "")
+            or "Prodotto eccellente e spedizione rapida" in (o.review_body or "")
+            or "I materiali impiegati sono resistenti e piacevoli al tatto" in (o.review_body or "")
+        )
+        if is_old_generic:
             rev_data = generate_review(o.product_title, gemini_api_key=gemini_key)
-            o.review_title = rev_data.get("title", "Ottimo acquisto, qualità eccellente!")
-            o.review_body = rev_data.get("body", "Prodotto eccellente e spedizione rapida. Consigliatissimo!")
+            o.review_title = rev_data["title"]
+            o.review_body = rev_data["body"]
             updated_db = True
             
         remaining_seconds = (o.review_target_date - now).total_seconds()
