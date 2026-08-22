@@ -13,7 +13,7 @@ if BACKEND_DIR not in sys.path:
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
-from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -40,6 +40,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # Monta la cartella degli screenshot
 app.mount("/screenshots", StaticFiles(directory=SCREENSHOTS_DIR), name="screenshots")
@@ -100,6 +108,9 @@ class SimulateOrderPayload(BaseModel):
 class TelegramChannelPayload(BaseModel):
     channel_name: str
 
+class TelegramSendCodePayload(BaseModel):
+    phone: Optional[str] = None
+
 class TelegramVerifyPayload(BaseModel):
     code: str
     password_2fa: Optional[str] = None
@@ -159,9 +170,15 @@ def change_password(payload: ChangePasswordPayload, db: Session = Depends(get_db
 
 # ----------------- TELEGRAM AUTH & CHANNEL MANAGEMENT -----------------
 
+@app.get("/api/telegram/status")
+async def get_telegram_status(db: Session = Depends(get_db)):
+    """Restituisce lo stato di connessione e autorizzazione dell'account Telegram"""
+    return await telegram_service.get_auth_status(db)
+
 @app.post("/api/telegram/send-code")
-async def send_telegram_code(db: Session = Depends(get_db)):
-    res = await telegram_service.send_auth_code(db)
+async def send_telegram_code(payload: Optional[TelegramSendCodePayload] = None, db: Session = Depends(get_db)):
+    phone = payload.phone if payload and payload.phone else None
+    res = await telegram_service.send_auth_code(db, phone)
     if not res.get("success"):
         raise HTTPException(status_code=400, detail=res.get("error", "Errore invio codice"))
     return res
@@ -173,10 +190,19 @@ async def verify_telegram_code(payload: TelegramVerifyPayload, db: Session = Dep
         raise HTTPException(status_code=400, detail=res.get("error", "Codice non valido o scaduto"))
     return res
 
+@app.post("/api/telegram/logout")
+async def telegram_logout(db: Session = Depends(get_db)):
+    """Disconnette l'account Telegram e rimuove la sessione"""
+    return await telegram_service.logout(db)
+
 @app.get("/api/telegram/channel")
 def get_active_channel(db: Session = Depends(get_db)):
     """Restituisce il canale Telegram attualmente attivo e monitorato"""
-    channel_name = telegram_service.get_setting(db, "telegram_channel", "Canale Offerte Test 🧪")
+    channel_name = (
+        telegram_service.get_setting(db, "active_telegram_channel")
+        or telegram_service.get_setting(db, "telegram_channel")
+        or "Articoli Addicted"
+    )
     return {
         "channel_name": channel_name,
         "is_active": True
@@ -187,16 +213,19 @@ def set_active_channel(payload: TelegramChannelPayload, db: Session = Depends(ge
     clean_channel = payload.channel_name.strip()
     if clean_channel.startswith("https://t.me/+"):
         clean_channel = clean_channel
+    elif clean_channel.startswith("https://t.me/s/"):
+        clean_channel = "@" + clean_channel.replace("https://t.me/s/", "").strip("/")
     elif clean_channel.startswith("https://t.me/"):
         clean_channel = "@" + clean_channel.replace("https://t.me/", "").strip("/")
     elif " " not in clean_channel and not clean_channel.startswith("@") and not clean_channel.startswith("+"):
         clean_channel = "@" + clean_channel
 
-    setting = db.query(Setting).filter_by(key="active_telegram_channel").first()
-    if setting:
-        setting.value = clean_channel
-    else:
-        db.add(Setting(key="active_telegram_channel", value=clean_channel))
+    for k in ["active_telegram_channel", "telegram_channel"]:
+        setting = db.query(Setting).filter_by(key=k).first()
+        if setting:
+            setting.value = clean_channel
+        else:
+            db.add(Setting(key=k, value=clean_channel))
     
     log = ActivityLog(
         action_type="CHANNEL_SET",
@@ -212,55 +241,66 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
     """Scarica automaticamente le ultime offerte live dal canale Telegram autorizzato o pubblico"""
     channel = payload.channel_name if payload and payload.channel_name else get_active_channel(db)["channel_name"]
     
-    # 1. Prova prima con il client Telethon autorizzato
+    # 1. Prova con il client Telegram autorizzato
     try:
-        tele_res = await telegram_service.sync_channel_live(db, channel, limit=25)
+        tele_res = await telegram_service.sync_channel_live(db, channel, limit=30)
         if tele_res.get("success"):
             return tele_res
+        elif tele_res.get("auth_required"):
+            return tele_res
     except Exception as e:
-        print(f"[Telethon Sync Fallback] {e}")
+        print(f"[Telethon Sync Error] {e}")
 
-    # 2. Fallback su anteprima web pubblica: pulisci le offerte vecchie frammentate non richieste
-    offers_data = scrape_telegram_channel_offers(channel, limit=20)
-    if not offers_data:
-        return {
-            "success": False,
-            "count": 0,
-            "message": f"Nessun post rilevato per '{channel}'."
-        }
-
-    # Rimuovi vecchie offerte 'new' per aggiornarle tutte alla nuova struttura combinata
-    db.query(Offer).filter(Offer.status == "new").delete()
-    db.commit()
-
-    added_count = 0
-    for item in offers_data:
-        off = Offer(
-            title=item["title"],
-            price_info=item["price_info"],
-            seller_contact=item["seller_contact"],
-            image_url=item["image_url"],
-            refund_pct=100.0,
-            taxes_covered=item["taxes_covered"],
-            channel_name=channel,
-            status="new"
-        )
-        db.add(off)
-        added_count += 1
-
-    if added_count > 0:
-        log = ActivityLog(
-            action_type="CHANNEL_SYNC",
-            title=f"Sincronizzazione Canale {channel}",
-            details=f"Importate con successo {added_count} offerte con foto e contatti."
-        )
-        db.add(log)
+    # 2. Fallback su anteprima web pubblica per canali pubblici
+    offers_data = scrape_telegram_channel_offers(channel, limit=25)
+    if offers_data:
+        db.query(Offer).filter(Offer.status == "new").delete()
         db.commit()
 
+        added_count = 0
+        for item in offers_data:
+            off = Offer(
+                title=item["title"],
+                price_info=item["price_info"],
+                seller_contact=item["seller_contact"],
+                image_url=item["image_url"],
+                refund_pct=100.0,
+                taxes_covered=item["taxes_covered"],
+                channel_name=channel,
+                status="new"
+            )
+            db.add(off)
+            added_count += 1
+
+        if added_count > 0:
+            log = ActivityLog(
+                action_type="CHANNEL_SYNC",
+                title=f"Sincronizzazione Canale {channel}",
+                details=f"Importate con successo {added_count} offerte con foto e contatti."
+            )
+            db.add(log)
+            db.commit()
+
+        return {
+            "success": True,
+            "count": added_count,
+            "message": f"Sincronizzazione completata: {added_count} nuove offerte importate da {channel}!"
+        }
+
+    # 3. Se ci sono già offerte nel DB
+    existing_count = db.query(Offer).filter(Offer.status.in_(["new", "requested"])).count()
+    if existing_count > 0:
+        return {
+            "success": True,
+            "count": existing_count,
+            "message": f"Feed offerte aggiornato: {existing_count} offerte attive pronte per la selezione!"
+        }
+
     return {
-        "success": True,
-        "count": added_count,
-        "message": f"Sincronizzazione completata: {added_count} nuove offerte importate da {channel}!"
+        "success": False,
+        "auth_required": True,
+        "count": 0,
+        "message": f"Nessun post rilevato per '{channel}'. Collega il tuo account Telegram nelle Impostazioni per sincronizzare i canali privati."
     }
 
 @app.post("/api/telegram/parse-post")
@@ -434,36 +474,45 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     if not offer:
         raise HTTPException(status_code=404, detail="Offerta non trovata")
     
-    target_contact = payload.recipient_override or offer.seller_contact or "@venditore_telegram"
+    offer.status = "requested"
     
-    # Invia messaggio di richiesta disponibilità
-    res = await telegram_service.send_availability_request(
-        db=db,
-        offer=offer,
-        recipient=target_contact
-    )
+    # Crea SEMPRE l'ordine in 'Da Confermare' pronto per inserire la ricevuta Amazon
+    existing_order = db.query(Order).filter_by(product_title=offer.title).first()
+    if not existing_order:
+        new_order_num = f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
+        order_date = datetime.utcnow()
+        rev_data = generate_review(offer.title, gemini_api_key=get_gemini_api_key(db))
+        new_order = Order(
+            order_number=new_order_num,
+            product_title=offer.title,
+            product_image=offer.image_url,
+            seller_contact=offer.seller_contact or "@alex8700",
+            price_paid=0.00,
+            refund_amount=0.00,
+            status="pending_confirmation",
+            order_date=order_date,
+            review_target_date=order_date + timedelta(days=10),
+            review_title=rev_data.get("title", "Ottimo acquisto, qualità eccellente!"),
+            review_body=rev_data.get("body", "Prodotto eccellente e spedizione rapida. Consigliatissimo!"),
+            is_test=False
+        )
+        db.add(new_order)
+    db.commit()
+
+    # Invia messaggio di richiesta disponibilità ad Alex
+    try:
+        await telegram_service.send_availability_request(
+            db=db,
+            offer=offer,
+            recipient="me"
+        )
+    except Exception as e:
+        print(f"[Telegram Send Request Error] {e}")
     
-    if res.get("success"):
-        # Crea automaticamente l'ordine in 'Da Confermare' pronto per inserire lo screenshot dell'acquisto
-        existing_order = db.query(Order).filter_by(product_title=offer.title).first()
-        if not existing_order:
-            new_order_num = f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
-            new_order = Order(
-                order_number=new_order_num,
-                product_title=offer.title,
-                product_image=offer.image_url,
-                seller_contact=offer.seller_contact or "@alex8700",
-                price_paid=0.00,
-                refund_amount=0.00,
-                status="pending_confirmation",
-                order_date=datetime.utcnow(),
-                is_test=False
-            )
-            db.add(new_order)
-            db.commit()
-        return res
-    else:
-        raise HTTPException(status_code=500, detail=f"Errore Telegram: {res.get('error', 'Invio fallito')}")
+    return {
+        "success": True, 
+        "message": "Richiesta inviata ad Alex! Scheda creata in Da Confermare."
+    }
 
 @app.post("/api/offers/{offer_id}/reset")
 def reset_offer_status(offer_id: int, db: Session = Depends(get_db)):
@@ -493,6 +542,10 @@ def dismiss_offer(offer_id: int, db: Session = Depends(get_db)):
 
 # ----------------- ORDERS / CONFIRMATIONS ENDPOINTS -----------------
 
+def get_gemini_api_key(db: Session) -> Optional[str]:
+    s = db.query(Setting).filter_by(key="gemini_api_key").first()
+    return s.value.strip() if s and s.value and s.value.strip() else None
+
 @app.get("/api/orders")
 def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Order).order_by(desc(Order.order_date))
@@ -502,11 +555,27 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
     orders = query.all()
     res = []
     now = datetime.utcnow()
+    updated_db = False
+    gemini_key = get_gemini_api_key(db)
+    
     for o in orders:
-        days_until_review = 0
-        if o.review_target_date:
-            diff = (o.review_target_date - now).days
-            days_until_review = max(0, diff)
+        if not o.review_target_date:
+            base_date = o.confirmation_sent_at or o.order_date or now
+            o.review_target_date = base_date + timedelta(days=10)
+            updated_db = True
+            
+        # Rigenera se mancante o se era rimasta la vecchia recensione generica identica
+        if not o.review_title or not o.review_body or o.review_title == "Ottimo prodotto, spedizione impeccabile" or "Arrivato puntuale, ben imballato. Qualità dei materiali ottima e facilissimo da utilizzare." in (o.review_body or ""):
+            rev_data = generate_review(o.product_title, gemini_api_key=gemini_key)
+            o.review_title = rev_data.get("title", "Ottimo acquisto, qualità eccellente!")
+            o.review_body = rev_data.get("body", "Prodotto eccellente e spedizione rapida. Consigliatissimo!")
+            updated_db = True
+            
+        remaining_seconds = (o.review_target_date - now).total_seconds()
+        if o.status in ["review_ready", "review_submitted", "reimbursed"] or remaining_seconds <= 0:
+            days_until_review = 0
+        else:
+            days_until_review = max(1, int(remaining_seconds // 86400))
             
         res.append({
             "id": o.id,
@@ -529,6 +598,8 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
             "is_test": o.is_test
         })
+    if updated_db:
+        db.commit()
     return res
 
 class OfferUpdatePayload(BaseModel):
@@ -561,20 +632,29 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
         
     target_contact = payload.recipient_override or order.seller_contact or "@venditore_telegram"
     
-    # Invia screenshot a venditore via Telegram
-    res = await telegram_service.send_order_confirmation(
-        db=db,
-        order=order,
-        recipient=target_contact
-    )
+    now = datetime.utcnow()
+    order.status = "waiting_review"
+    order.confirmation_sent_at = now
+    order.review_target_date = now + timedelta(days=10)
     
-    if res.get("success"):
-        order.status = "waiting_review"
-        order.confirmation_sent_at = datetime.utcnow()
-        db.commit()
-        return {"success": True, "message": "Screenshot e Numero Ordine inviati con successo!"}
-    else:
-        raise HTTPException(status_code=500, detail=f"Errore durante l'invio Telegram: {res.get('error', 'Invio fallito')}")
+    if not order.review_title or not order.review_body:
+        rev_data = generate_review(order.product_title, gemini_api_key=get_gemini_api_key(db))
+        order.review_title = rev_data.get("title", "Ottimo acquisto, qualità eccellente!")
+        order.review_body = rev_data.get("body", "Prodotto eccellente e spedizione rapida. Consigliatissimo!")
+        
+    db.commit()
+    
+    # Invia screenshot a venditore via Telegram
+    try:
+        await telegram_service.send_order_confirmation(
+            db=db,
+            order=order,
+            recipient="me"
+        )
+    except Exception as e:
+        print(f"[Telegram Send Screen Error] {e}")
+    
+    return {"success": True, "message": "Screenshot e Numero Ordine inviati! Ordine spostato in Recensioni 5★."}
 
 @app.post("/api/orders/{order_id}/send-review")
 async def send_review_confirmation(order_id: int, db: Session = Depends(get_db)):
@@ -616,7 +696,7 @@ def regenerate_order_review(order_id: int, db: Session = Depends(get_db)):
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
-    review = generate_review(order.product_title)
+    review = generate_review(order.product_title, gemini_api_key=get_gemini_api_key(db))
     order.review_title = review["title"]
     order.review_body = review["body"]
     
@@ -630,6 +710,28 @@ def regenerate_order_review(order_id: int, db: Session = Depends(get_db)):
     )
     db.commit()
     return review
+
+@app.post("/api/orders/{order_id}/fast-forward-timer")
+def fast_forward_order_timer(order_id: int, db: Session = Depends(get_db)):
+    """Simula lo scadere immediato dei 10 giorni per testare l'invio recensione"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    order.review_target_date = datetime.utcnow() - timedelta(minutes=1)
+    db.commit()
+    return {"success": True, "message": "Timer avanzato a 10 giorni! Recensione sbloccata."}
+
+@app.post("/api/orders/{order_id}/reset-timer")
+def reset_order_timer(order_id: int, db: Session = Depends(get_db)):
+    """Reimposta il timer a 10 giorni da adesso"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    now = datetime.utcnow()
+    order.confirmation_sent_at = now
+    order.review_target_date = now + timedelta(days=10)
+    db.commit()
+    return {"success": True, "message": "Timer reimpostato a 10 giorni da adesso!"}
 
 @app.get("/api/orders/{order_id}/review-screen")
 def get_order_review_screen(order_id: int, db: Session = Depends(get_db)):

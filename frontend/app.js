@@ -22,6 +22,7 @@ function loadAllData() {
   loadLogs();
   loadSettings();
   loadActiveChannel();
+  loadTelegramStatus();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -31,6 +32,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAllData();
   }
   
+  // Timer live per conto alla rovescia recensioni (aggiorna ogni secondo)
+  setInterval(updateReviewLiveTimers, 1000);
+
   // Auto refresh ogni 15 secondi se autenticato
   setInterval(async () => {
     const token = localStorage.getItem('amz_auth_token');
@@ -598,14 +602,19 @@ function renderReviews(orders) {
   }
 
   container.innerHTML = reviewOrders.map(o => {
-    const isReady = o.days_until_review === 0;
-    const progressPct = Math.min(100, Math.max(0, ((10 - (o.days_until_review || 0)) / 10) * 100));
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80';
+    const targetIso = o.review_target_date || (o.confirmation_sent_at ? new Date(new Date(o.confirmation_sent_at).getTime() + 10*86400000).toISOString() : new Date(new Date(o.order_date).getTime() + 10*86400000).toISOString());
+    const startIso = o.confirmation_sent_at || o.order_date || new Date().toISOString();
+    const isSubmitted = o.status === 'review_submitted' || o.status === 'reimbursed';
 
     return `
-      <div class="glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-lg">
+      <div class="review-timer-card glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-lg"
+           data-review-order-id="${o.id}"
+           data-target-date="${targetIso}"
+           data-start-date="${startIso}"
+           data-status="${o.status}">
         <div>
-          <!-- Header Card con Immagine & Timer -->
+          <!-- Header Card con Immagine & Timer Badge -->
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-center gap-3">
               <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
@@ -620,21 +629,37 @@ function renderReviews(orders) {
               </div>
             </div>
             
-            <span class="text-xs font-extrabold px-2.5 py-1 rounded-lg ${isReady ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'} shrink-0">
-              ${isReady ? '⭐ RECENSIONE PRONTA!' : `Giorno ${10 - (o.days_until_review || 0)}/10`}
-            </span>
+            <div class="flex flex-col items-end gap-1">
+              <span class="review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 ${isSubmitted ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
+                ${isSubmitted ? '✓ RECENSIONE PUBBLICATA' : 'Calcolo in corso...'}
+              </span>
+            </div>
           </div>
 
-          <!-- Barra di Progresso Timer 10 Giorni -->
+          <!-- Barra di Progresso Timer 10 Giorni in Tempo Reale -->
           <div class="mt-4 p-3 rounded-xl bg-brand-bg border border-brand-border">
-            <div class="flex justify-between text-xs text-slate-300 mb-1.5 font-bold">
-              <span>Conto alla Rovescia Recensione (10gg)</span>
-              <span class="${isReady ? 'text-emerald-400 font-extrabold' : 'text-purple-300'}">
-                ${isReady ? 'Scadenza raggiunta: pubblica ora!' : `${o.days_until_review || 0} giorni rimanenti`}
+            <div class="flex items-center justify-between text-xs text-slate-300 mb-1.5 font-bold">
+              <span class="flex items-center gap-1.5">
+                <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> Conto alla Rovescia (10gg)
+              </span>
+              <span class="review-countdown-text font-extrabold text-purple-300 font-mono">
+                Calcolo...
               </span>
             </div>
             <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
-              <div class="h-full ${isReady ? 'bg-emerald-500' : 'bg-gradient-to-r from-purple-500 to-indigo-500'} transition-all duration-500" style="width: ${progressPct}%"></div>
+              <div class="review-progress-bar h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300" style="width: 10%"></div>
+            </div>
+            <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+              <span class="review-progress-pct font-bold">0% completato</span>
+              <div class="flex items-center gap-2">
+                <button onclick="fastForwardOrderTimer(${o.id})" title="Avanza timer per testare l'invio della recensione" class="text-[10px] text-purple-400 hover:text-purple-200 underline font-semibold transition-colors">
+                  ⏩ Salta 10gg (Test)
+                </button>
+                <span class="text-slate-600">•</span>
+                <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer a 10 giorni da adesso" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
+                  🔄 Reset 10gg
+                </button>
+              </div>
             </div>
           </div>
 
@@ -658,31 +683,175 @@ function renderReviews(orders) {
             <i class="fa-solid fa-copy"></i> Testo Recensione
           </button>
           
-          <!-- Tasto Screen iPhone: Attivo SOLO al 10° giorno -->
-          ${isReady ? `
-            <button onclick="openIPhoneUploadModal(${o.id}, 'review')" class="py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border border-purple-400 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-purple-900/30 transition-all animate-pulse" title="Incolla o carica screenshot della recensione pubblicata">
-              <i class="fa-solid fa-mobile-screen-button"></i> Screen iPhone / Incolla
-            </button>
-          ` : `
-            <button disabled class="py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed" title="Disponibile allo scadere dei 10 giorni (Giorno ${10 - (o.days_until_review || 0)}/10)">
-              <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
-            </button>
-          `}
+          <!-- Tasto Screen iPhone: Sbloccato solo a scadenza raggiunta -->
+          <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+                  onclick="openIPhoneUploadModal(${o.id}, 'review')"
+                  disabled>
+            <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
+          </button>
           
-          <!-- Tasto Invia a Venditore: Attivo SOLO al 10° giorno -->
-          ${isReady ? `
-            <button onclick="sendReviewToSeller(${o.id})" class="py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-lg shadow-emerald-900/40" title="Invia conferma screen recensione al venditore Telegram">
-              <i class="fa-solid fa-paper-plane"></i> Invia a Venditore
-            </button>
-          ` : `
-            <button disabled class="py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed" title="Invio bloccato: attendi la scadenza dei 10 giorni per pubblicare la recensione">
-              <i class="fa-solid fa-lock text-[10px]"></i> Invia a Venditore
-            </button>
-          `}
+          <!-- Tasto Invia a Venditore: Sbloccato solo a scadenza raggiunta -->
+          <button class="review-btn-send py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+                  onclick="sendReviewToSeller(${o.id})"
+                  disabled>
+            <i class="fa-solid fa-lock text-[10px]"></i> Invia a Venditore
+          </button>
         </div>
       </div>
     `;
   }).join('');
+
+  // Aggiorna subito i valori del timer
+  updateReviewLiveTimers();
+}
+
+// ----------------- REAL-TIME LIVE COUNTDOWN TIMER ENGINE -----------------
+
+function updateReviewLiveTimers() {
+  const cards = document.querySelectorAll('.review-timer-card');
+  if (cards.length === 0) return;
+
+  const now = Date.now();
+
+  cards.forEach(card => {
+    const targetIso = card.dataset.targetDate;
+    const startIso = card.dataset.startDate;
+    const status = card.dataset.status;
+
+    const targetMs = targetIso ? new Date(targetIso).getTime() : now + 10 * 86400000;
+    const startMs = startIso ? new Date(startIso).getTime() : targetMs - 10 * 86400000;
+    const totalDurationMs = Math.max(1000, targetMs - startMs);
+
+    const diffMs = targetMs - now;
+    const elapsedMs = Math.max(0, now - startMs);
+
+    const badgeEl = card.querySelector('.review-badge');
+    const countdownEl = card.querySelector('.review-countdown-text');
+    const progressBarEl = card.querySelector('.review-progress-bar');
+    const progressPctEl = card.querySelector('.review-progress-pct');
+    const btnScreen = card.querySelector('.review-btn-screen');
+    const btnSend = card.querySelector('.review-btn-send');
+
+    const isSubmitted = status === 'review_submitted' || status === 'reimbursed';
+    const isReady = diffMs <= 0 || status === 'review_ready' || isSubmitted;
+
+    if (isSubmitted) {
+      if (badgeEl) {
+        badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-blue-500/20 text-blue-300 border border-blue-500/40';
+        badgeEl.innerText = '✓ RECENSIONE INVIATA';
+      }
+      if (countdownEl) {
+        countdownEl.className = 'review-countdown-text font-extrabold text-blue-400';
+        countdownEl.innerText = 'Inviata al venditore';
+      }
+      if (progressBarEl) {
+        progressBarEl.className = 'review-progress-bar h-full bg-blue-500';
+        progressBarEl.style.width = '100%';
+      }
+      if (progressPctEl) progressPctEl.innerText = '100% completato';
+
+      if (btnScreen) {
+        btnScreen.disabled = false;
+        btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer';
+        btnScreen.innerHTML = '<i class="fa-solid fa-image"></i> Screen Recensione';
+      }
+      if (btnSend) {
+        btnSend.disabled = true;
+        btnSend.className = 'review-btn-send py-2.5 px-4 rounded-xl bg-blue-600/20 text-blue-300 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 cursor-default';
+        btnSend.innerHTML = '<i class="fa-solid fa-check"></i> Inviata';
+      }
+      return;
+    }
+
+    if (isReady) {
+      if (badgeEl) {
+        badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
+        badgeEl.innerText = '⭐ RECENSIONE PRONTA!';
+      }
+      if (countdownEl) {
+        countdownEl.className = 'review-countdown-text font-extrabold text-emerald-400';
+        countdownEl.innerText = 'Scadenza raggiunta: pubblica ora!';
+      }
+      if (progressBarEl) {
+        progressBarEl.className = 'review-progress-bar h-full bg-emerald-500 transition-all duration-300';
+        progressBarEl.style.width = '100%';
+      }
+      if (progressPctEl) progressPctEl.innerText = '100% (10 giorni trascorsi)';
+
+      if (btnScreen) {
+        btnScreen.disabled = false;
+        btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border border-purple-400 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-purple-900/30 transition-all animate-pulse cursor-pointer';
+        btnScreen.innerHTML = '<i class="fa-solid fa-mobile-screen-button"></i> Screen iPhone / Incolla';
+      }
+      if (btnSend) {
+        btnSend.disabled = false;
+        btnSend.className = 'review-btn-send py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-lg shadow-emerald-900/40 cursor-pointer';
+        btnSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Invia a Venditore';
+      }
+    } else {
+      const totalSec = Math.floor(diffMs / 1000);
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const minutes = Math.floor((totalSec % 3600) / 60);
+      const seconds = totalSec % 60;
+
+      const currentDay = Math.min(10, Math.max(1, Math.floor(elapsedMs / 86400000) + 1));
+      const progressPct = Math.min(99.9, Math.max(2, (elapsedMs / totalDurationMs) * 100)).toFixed(1);
+
+      if (badgeEl) {
+        badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-purple-500/20 text-purple-300 border border-purple-500/40';
+        badgeEl.innerText = `Giorno ${currentDay}/10`;
+      }
+      if (countdownEl) {
+        countdownEl.className = 'review-countdown-text font-extrabold text-purple-300 font-mono tracking-tight';
+        countdownEl.innerText = `${days}g ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+      }
+      if (progressBarEl) {
+        progressBarEl.className = 'review-progress-bar h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300';
+        progressBarEl.style.width = `${progressPct}%`;
+      }
+      if (progressPctEl) {
+        progressPctEl.innerText = `${progressPct}% trascorso (${days} giorni e ${hours}h rimasti)`;
+      }
+
+      if (btnScreen) {
+        btnScreen.disabled = true;
+        btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
+        btnScreen.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Screen (Giorno ${currentDay}/10)`;
+      }
+      if (btnSend) {
+        btnSend.disabled = true;
+        btnSend.className = 'review-btn-send py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
+        btnSend.innerHTML = '<i class="fa-solid fa-lock text-[10px]"></i> Invia a Venditore';
+      }
+    }
+  });
+}
+
+async function fastForwardOrderTimer(orderId) {
+  try {
+    const res = await fetch(`/api/orders/${orderId}/fast-forward-timer`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Timer avanzato! Recensione pronta.');
+      loadOrders();
+    }
+  } catch (err) {
+    showToast('Errore durante l\'avanzamento timer', true);
+  }
+}
+
+async function resetOrderTimer(orderId) {
+  try {
+    const res = await fetch(`/api/orders/${orderId}/reset-timer`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Timer reimpostato a 10 giorni!');
+      loadOrders();
+    }
+  } catch (err) {
+    showToast('Errore durante il reset timer', true);
+  }
 }
 
 function renderRefunds(orders) {
@@ -1386,6 +1555,263 @@ async function simulateOrder(title, price, contact, imgUrl) {
 
 // ----------------- SETTINGS & UTILS -----------------
 
+async function loadTelegramStatus() {
+  try {
+    const res = await fetch('/api/telegram/status');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const topBadge = document.getElementById('telegram-connection-status-badge');
+    const topDesc = document.getElementById('telegram-channel-status-desc');
+    const setTag = document.getElementById('set-tg-status-tag');
+    const setConnectedBox = document.getElementById('set-tg-connected-box');
+    const setLoginBox = document.getElementById('set-tg-login-box');
+    const setUserName = document.getElementById('set-tg-user-name');
+    const setUserPhone = document.getElementById('set-tg-user-phone');
+
+    // Modal Status elements
+    const modalDot = document.getElementById('tg-auth-status-dot');
+    const modalText = document.getElementById('tg-auth-status-text');
+    const modalDisconnectBtn = document.getElementById('tg-btn-disconnect');
+    const modalPhoneStep = document.getElementById('tg-step-phone');
+    const modalCodeStep = document.getElementById('tg-step-code');
+
+    if (data.is_authorized) {
+      const u = data.user || {};
+      const displayName = u.first_name || u.username || 'Account Telegram';
+      const handle = u.username ? `(${u.username})` : (u.phone ? `(${u.phone})` : '');
+
+      if (topBadge) {
+        topBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1';
+        topBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connesso';
+      }
+      if (topDesc) {
+        topDesc.innerText = `Connesso come ${displayName} ${handle} • Canale sincronizzato.`;
+      }
+      if (setTag) {
+        setTag.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+        setTag.innerText = '🟢 Connesso';
+      }
+      if (setConnectedBox) {
+        setConnectedBox.classList.remove('hidden');
+        if (setUserName) setUserName.innerText = `Connesso come: ${displayName}`;
+        if (setUserPhone) setUserPhone.innerText = `${u.phone || ''} ${u.username || ''}`;
+      }
+      if (setLoginBox) setLoginBox.classList.add('hidden');
+
+      if (modalDot) modalDot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+      if (modalText) modalText.innerText = `Connesso come ${displayName} ${handle}`;
+      if (modalDisconnectBtn) modalDisconnectBtn.classList.remove('hidden');
+      if (modalPhoneStep) modalPhoneStep.classList.add('hidden');
+      if (modalCodeStep) modalCodeStep.classList.add('hidden');
+
+    } else {
+      if (topBadge) {
+        topBadge.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1';
+        topBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Login Richiesto';
+      }
+      if (topDesc) {
+        topDesc.innerText = 'Collega il tuo account Telegram per scaricare automaticamente le offerte con foto HD.';
+      }
+      if (setTag) {
+        setTag.className = 'text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700';
+        setTag.innerText = 'Non Connesso';
+      }
+      if (setConnectedBox) setConnectedBox.classList.add('hidden');
+      if (setLoginBox) setLoginBox.classList.remove('hidden');
+
+      if (modalDot) modalDot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse';
+      if (modalText) modalText.innerText = 'Nessun account Telegram collegato';
+      if (modalDisconnectBtn) modalDisconnectBtn.classList.add('hidden');
+      if (modalPhoneStep) modalPhoneStep.classList.remove('hidden');
+      if (modalCodeStep) modalCodeStep.classList.add('hidden');
+    }
+  } catch (err) {
+    console.error('Errore stato telegram:', err);
+  }
+}
+
+function openTelegramAuthModal() {
+  loadTelegramStatus();
+  document.getElementById('modal-telegram-login').classList.remove('hidden');
+}
+
+function resetTelegramAuthStep() {
+  const stepPhone = document.getElementById('tg-step-phone');
+  const stepCode = document.getElementById('tg-step-code');
+  if (stepPhone) stepPhone.classList.remove('hidden');
+  if (stepCode) stepCode.classList.add('hidden');
+}
+
+async function sendTelegramAuthCode() {
+  const input = document.getElementById('tg-input-phone');
+  const phone = input ? input.value.trim() : '';
+  const btn = document.getElementById('tg-btn-send-code');
+
+  if (!phone) {
+    showToast('Inserisci il tuo numero di telefono Telegram (es. +39...)', true);
+    return;
+  }
+
+  if (btn) {
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Invio in corso...';
+    btn.disabled = true;
+  }
+
+  try {
+    const res = await fetch('/api/telegram/send-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(data.message || 'Codice inviato!');
+      const stepPhone = document.getElementById('tg-step-phone');
+      const stepCode = document.getElementById('tg-step-code');
+      if (stepPhone) stepPhone.classList.add('hidden');
+      if (stepCode) {
+        stepCode.classList.remove('hidden');
+        const codeInput = document.getElementById('tg-input-code');
+        if (codeInput) codeInput.focus();
+      }
+    } else {
+      showToast(data.detail || data.error || 'Errore invio codice Telegram', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione con il server', true);
+  } finally {
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Invia Codice di Verifica';
+      btn.disabled = false;
+    }
+  }
+}
+
+async function sendTelegramAuthCodeFromSettings() {
+  const input = document.getElementById('set_telegram_phone');
+  const phone = input ? input.value.trim() : '';
+  const btn = document.getElementById('btn-set-send-code');
+
+  if (!phone) {
+    showToast('Inserisci il tuo numero di telefono Telegram', true);
+    return;
+  }
+
+  if (btn) {
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+  }
+
+  try {
+    const res = await fetch('/api/telegram/send-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone: phone })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(data.message || 'Codice inviato!');
+      const codeBox = document.getElementById('set-tg-code-box');
+      if (codeBox) codeBox.classList.remove('hidden');
+    } else {
+      showToast(data.detail || data.error || 'Errore invio codice', true);
+    }
+  } catch (err) {
+    showToast('Errore di rete', true);
+  } finally {
+    if (btn) {
+      btn.innerHTML = 'Invia Codice';
+      btn.disabled = false;
+    }
+  }
+}
+
+async function verifyTelegramAuthCode() {
+  const codeInput = document.getElementById('tg-input-code');
+  const faInput = document.getElementById('tg-input-2fa');
+  const code = codeInput ? codeInput.value.trim() : '';
+  const password2fa = faInput ? faInput.value.trim() : null;
+  const btn = document.getElementById('tg-btn-verify-code');
+
+  if (!code) {
+    showToast('Inserisci il codice di verifica ricevuto', true);
+    return;
+  }
+
+  if (btn) {
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verifica in corso...';
+    btn.disabled = true;
+  }
+
+  try {
+    const res = await fetch('/api/telegram/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, password_2fa: password2fa || null })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(data.message || 'Account Telegram collegato con successo!');
+      closeModal('modal-telegram-login');
+      loadTelegramStatus();
+      syncActiveChannel();
+    } else {
+      showToast(data.detail || data.error || 'Codice non valido o errato', true);
+    }
+  } catch (err) {
+    showToast('Errore di rete durante la verifica', true);
+  } finally {
+    if (btn) {
+      btn.innerHTML = '<i class="fa-solid fa-check"></i> Conferma e Collega';
+      btn.disabled = false;
+    }
+  }
+}
+
+async function verifyTelegramAuthCodeFromSettings() {
+  const codeInput = document.getElementById('set_telegram_code');
+  const faInput = document.getElementById('set_telegram_2fa');
+  const code = codeInput ? codeInput.value.trim() : '';
+  const password2fa = faInput ? faInput.value.trim() : null;
+
+  if (!code) {
+    showToast('Inserisci il codice di verifica', true);
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/telegram/verify-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, password_2fa: password2fa || null })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(data.message || 'Account Telegram collegato!');
+      loadTelegramStatus();
+    } else {
+      showToast(data.detail || data.error || 'Codice errato', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
+  }
+}
+
+async function telegramLogout() {
+  if (!confirm('Vuoi davvero disconnettere l\'account Telegram?')) return;
+  try {
+    const res = await fetch('/api/telegram/logout', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast('Account Telegram disconnesso');
+      loadTelegramStatus();
+    }
+  } catch (err) {
+    showToast('Errore durante la disconnessione', true);
+  }
+}
+
 async function loadSettings() {
   try {
     const res = await fetch('/api/settings');
@@ -1394,6 +1820,12 @@ async function loadSettings() {
 
     if (s.test_mode !== undefined) {
       document.getElementById('set_test_mode').checked = s.test_mode === 'true';
+    }
+    if (s.telegram_phone) {
+      const phoneInput = document.getElementById('set_telegram_phone');
+      if (phoneInput) phoneInput.value = s.telegram_phone;
+      const modalPhone = document.getElementById('tg-input-phone');
+      if (modalPhone) modalPhone.value = s.telegram_phone;
     }
     if (s.telegram_api_id) document.getElementById('set_telegram_api_id').value = s.telegram_api_id;
     if (s.telegram_api_hash) document.getElementById('set_telegram_api_hash').value = s.telegram_api_hash;
@@ -1416,6 +1848,7 @@ async function saveSettings() {
 
   const items = [
     { key: 'test_mode', value: document.getElementById('set_test_mode').checked ? 'true' : 'false' },
+    { key: 'telegram_phone', value: (document.getElementById('set_telegram_phone') ? document.getElementById('set_telegram_phone').value : '') },
     { key: 'telegram_api_id', value: document.getElementById('set_telegram_api_id').value },
     { key: 'telegram_api_hash', value: document.getElementById('set_telegram_api_hash').value },
     { key: 'test_recipient', value: document.getElementById('set_test_recipient').value },
@@ -1480,7 +1913,6 @@ function showToast(msg, isError = false) {
 
   m.innerText = msg;
   
-  // Icona corretta
   const icon = t.querySelector('i');
   if (icon) {
     icon.className = isError ? 'fa-solid fa-circle-exclamation text-base' : 'fa-solid fa-circle-check text-base';
@@ -1499,7 +1931,7 @@ function showToast(msg, isError = false) {
 
   toastTimer = setTimeout(() => {
     hideToast();
-  }, 2000);
+  }, 2500);
 }
 
 function formatDate(isoStr) {
@@ -1561,6 +1993,7 @@ async function saveActiveChannel() {
       closeModal('modal-change-channel');
       loadActiveChannel();
       loadLogs();
+      syncActiveChannel();
     } else {
       showToast(data.detail || 'Errore salvataggio canale', true);
     }
@@ -1611,7 +2044,7 @@ async function submitParsedPost() {
 async function syncActiveChannel() {
   const btn = document.getElementById('btn-sync-channel');
   if (btn) {
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Download in corso...';
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Download offerte live...';
     btn.disabled = true;
   }
 
@@ -1623,8 +2056,11 @@ async function syncActiveChannel() {
       loadOffers();
       loadStats();
       loadLogs();
+    } else if (data.auth_required) {
+      showToast(data.message || data.error || 'Collega il tuo account Telegram per scaricare dal canale', true);
+      openTelegramAuthModal();
     } else {
-      showToast(data.message || 'Nessun post scaricato. Usa "Incolla Post"', true);
+      showToast(data.message || data.error || 'Nessun post scaricato. Usa "Incolla Post"', true);
     }
   } catch (err) {
     showToast('Errore di sincronizzazione canale', true);

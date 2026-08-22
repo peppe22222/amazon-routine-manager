@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>Amazon Review & Refund Manager</title>
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0F172A">
@@ -296,19 +299,23 @@
             <i class="fa-brands fa-telegram"></i>
           </div>
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <span class="text-xs text-slate-300 font-bold uppercase tracking-wider">Canale Operativo:</span>
-              <span id="active-channel-badge" class="text-xs font-mono font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-500/50">Canale Offerte Test 🧪</span>
+              <span id="active-channel-badge" class="text-xs font-mono font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-500/50">Articoli Addicted</span>
+              <span id="telegram-connection-status-badge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">Verifica Telegram...</span>
             </div>
-            <p class="text-[11px] text-slate-300 mt-0.5">Modalità Sicura Test: Le offerte sono simulate e inviate solo a te stesso.</p>
+            <p id="telegram-channel-status-desc" class="text-[11px] text-slate-300 mt-0.5">Sincronizzazione in tempo reale con foto HD originali e venditori.</p>
           </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <button onclick="syncActiveChannel()" id="btn-sync-channel" class="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-extrabold shadow-md flex items-center gap-1.5 transition-all">
             <i class="fa-solid fa-cloud-arrow-down"></i> Sincronizza Canale Live
           </button>
           <button onclick="openChangeChannelModal()" class="px-3 py-1.5 rounded-xl bg-brand-card hover:bg-brand-cardHover border border-brand-border text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all">
             <i class="fa-solid fa-pen-to-square"></i> Modifica Canale
+          </button>
+          <button onclick="openTelegramAuthModal()" id="btn-connect-telegram-top" class="px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-link"></i> Account Telegram
           </button>
         </div>
       </div>
@@ -737,22 +744,63 @@
           <input type="checkbox" id="set_test_mode" class="w-5 h-5 rounded text-emerald-500 bg-brand-card border-brand-border focus:ring-0 cursor-pointer">
         </div>
 
-        <!-- Telegram -->
-        <div class="space-y-2 p-3.5 rounded-xl bg-brand-bg border border-brand-border">
-          <p class="font-bold text-blue-400 uppercase tracking-wider text-[11px]">Parametri Telegram API (Opzionale)</p>
-          <div class="grid grid-cols-2 gap-2">
+        <!-- Telegram Account -->
+        <div class="space-y-3 p-3.5 rounded-xl bg-brand-bg border border-brand-border">
+          <div class="flex items-center justify-between">
+            <p class="font-bold text-blue-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <i class="fa-brands fa-telegram text-base"></i> Account Telegram Live
+            </p>
+            <span id="set-tg-status-tag" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">Verifica in corso...</span>
+          </div>
+          
+          <div id="set-tg-connected-box" class="hidden p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
             <div>
-              <label class="text-slate-400">API ID</label>
-              <input type="text" id="set_telegram_api_id" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-mono mt-1">
+              <p class="text-xs font-bold text-emerald-300" id="set-tg-user-name">Connesso</p>
+              <p class="text-[11px] text-slate-300" id="set-tg-user-phone"></p>
             </div>
+            <button type="button" onclick="telegramLogout()" class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-bold">
+              Disconnetti
+            </button>
+          </div>
+
+          <div id="set-tg-login-box" class="space-y-2">
             <div>
-              <label class="text-slate-400">API Hash</label>
-              <input type="text" id="set_telegram_api_hash" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-mono mt-1">
+              <label class="text-slate-300 text-[11px] font-bold">Numero di Telefono (con prefisso es. +39...)</label>
+              <div class="flex items-center gap-2 mt-1">
+                <input type="tel" id="set_telegram_phone" placeholder="+393331234567" class="flex-1 bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-mono text-xs">
+                <button type="button" onclick="sendTelegramAuthCodeFromSettings()" id="btn-set-send-code" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shrink-0 shadow-sm">
+                  Invia Codice
+                </button>
+              </div>
+            </div>
+
+            <div id="set-tg-code-box" class="hidden space-y-2 pt-2 border-t border-brand-border/60">
+              <p class="text-[11px] text-blue-300">Inserisci il codice ricevuto su Telegram o SMS:</p>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-slate-400 text-[10px]">Codice (5 cifre)</label>
+                  <input type="text" id="set_telegram_code" placeholder="12345" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-mono font-bold text-xs mt-1 text-center">
+                </div>
+                <div>
+                  <label class="text-slate-400 text-[10px]">Password 2FA (se attiva)</label>
+                  <input type="password" id="set_telegram_2fa" placeholder="2FA opzionale" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white text-xs mt-1">
+                </div>
+              </div>
+              <button type="button" onclick="verifyTelegramAuthCodeFromSettings()" class="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md">
+                Verifica & Connetti Account
+              </button>
             </div>
           </div>
-          <div>
-            <label class="text-slate-400">Destinatario di Prova Telegram</label>
-            <input type="text" id="set_test_recipient" placeholder="@tuo_username" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white mt-1">
+
+          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-brand-border/40">
+            <div>
+              <label class="text-slate-400 text-[10px]">API ID (Avanzato)</label>
+              <input type="text" id="set_telegram_api_id" class="w-full bg-brand-surface border border-brand-border rounded-lg p-1.5 text-white font-mono text-xs mt-0.5">
+            </div>
+            <div>
+              <label class="text-slate-400 text-[10px]">API Hash (Avanzato)</label>
+              <input type="text" id="set_telegram_api_hash" class="w-full bg-brand-surface border border-brand-border rounded-lg p-1.5 text-white font-mono text-xs mt-0.5">
+            </div>
           </div>
         </div>
 
@@ -809,6 +857,78 @@
   </div>
 
   <!-- ========================================================================= -->
+  <!-- MODAL: LOGIN / AUTENTICAZIONE TELEGRAM RAPIDO -->
+  <!-- ========================================================================= -->
+  <div id="modal-telegram-login" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+    <div class="glass-panel max-w-md w-full p-5 md:p-6 rounded-2xl shadow-2xl space-y-4">
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center text-lg">
+            <i class="fa-brands fa-telegram"></i>
+          </div>
+          <div>
+            <h3 class="text-sm md:text-base font-extrabold text-white">Accesso Account Telegram</h3>
+            <p class="text-[11px] text-slate-300">Necessario per sincronizzare il canale Articoli Addicted</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modal-telegram-login')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Stato Attuale -->
+      <div id="tg-auth-status-box" class="p-3 rounded-xl bg-brand-bg border border-brand-border text-xs flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span id="tg-auth-status-dot" class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+          <span id="tg-auth-status-text" class="font-bold text-slate-200">Controllo stato...</span>
+        </div>
+        <button id="tg-btn-disconnect" onclick="telegramLogout()" class="hidden text-xs text-rose-400 hover:text-rose-300 underline font-bold">
+          Disconnetti
+        </button>
+      </div>
+
+      <!-- Step 1: Inserisci Telefono e Invia Codice -->
+      <div id="tg-step-phone" class="space-y-3">
+        <div>
+          <label class="text-slate-300 font-bold uppercase tracking-wider text-xs block mb-1">1. Numero di Telefono Telegram</label>
+          <input type="tel" id="tg-input-phone" placeholder="+393331234567" class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-sm text-white font-mono font-bold focus:outline-none focus:border-blue-500">
+          <p class="text-[11px] text-slate-400 mt-1">Includi il prefisso internazionale (es. <code>+39</code> per l'Italia).</p>
+        </div>
+        <button onclick="sendTelegramAuthCode()" id="tg-btn-send-code" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-lg shadow-blue-900/40 flex items-center justify-center gap-2 transition-all">
+          <i class="fa-solid fa-paper-plane"></i> Invia Codice di Verifica
+        </button>
+      </div>
+
+      <!-- Step 2: Inserisci Codice e 2FA -->
+      <div id="tg-step-code" class="hidden space-y-3">
+        <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
+          📨 Codice inviato! Controlla la tua <strong>app Telegram</strong> (o gli SMS) e inseriscilo qui sotto:
+        </div>
+        <div>
+          <label class="text-slate-300 font-bold uppercase tracking-wider text-xs block mb-1">2. Codice di Verifica a 5 Cifre</label>
+          <input type="text" id="tg-input-code" placeholder="12345" maxlength="8" class="w-full bg-brand-bg border-2 border-brand-border focus:border-blue-500 rounded-xl px-4 py-3 text-center text-xl text-white font-mono font-black tracking-widest focus:outline-none">
+        </div>
+        <div>
+          <label class="text-slate-400 font-bold text-[11px] block mb-1">Password 2FA (Solo se attiva sul tuo account Telegram):</label>
+          <input type="password" id="tg-input-2fa" placeholder="Password 2FA opzionale..." class="w-full bg-brand-bg border border-brand-border rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="verifyTelegramAuthCode()" id="tg-btn-verify-code" class="flex-1 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 flex items-center justify-center gap-2 transition-all">
+            <i class="fa-solid fa-check"></i> Conferma e Collega
+          </button>
+          <button onclick="resetTelegramAuthStep()" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold border border-slate-700">
+            Indietro
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-brand-border text-right">
+        <button onclick="closeModal('modal-telegram-login')" class="px-4 py-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
   <!-- MODAL: CAMBIA CANALE TELEGRAM OPERATIVO -->
   <!-- ========================================================================= -->
   <div id="modal-change-channel" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
@@ -828,7 +948,7 @@
           <input type="text" id="input-channel-name" placeholder="@MioCanaleOfferte o https://t.me/MioCanale" class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-sm text-white font-bold focus:outline-none focus:border-blue-500">
         </div>
         <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-slate-300 text-[11px]">
-          💡 Puoi inserire il nome con o senza <code>@</code> (es. <code>@OfferteAmazonVIP</code> o <code>https://t.me/OfferteAmazonVIP</code>).
+          💡 Puoi inserire il nome con o senza <code>@</code> (es. <code>@ArticoliAddicted</code> o <code>https://t.me/+bJVdSCzoIygwODE0</code>).
         </div>
       </div>
       <div class="flex justify-between items-center pt-3 border-t border-brand-border">
@@ -892,6 +1012,6 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
     </button>
   </div>
 
-  <script src="/app.js?v=2.9"></script>
+  <script src="/app.js?v=4.1.0"></script>
 </body>
 </html>

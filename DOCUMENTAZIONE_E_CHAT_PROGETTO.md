@@ -27,9 +27,10 @@ Automatizzare e assistere la routine quotidiana di gestione delle offerte di pro
   - Il sistema genera automaticamente per ogni articolo un **Titolo a 5 stelle** e un **Testo dettagliato in italiano** (che valorizza imballaggio, spedizione e qualità).
   - Include pulsante rapido **"Copia"** con 1 tocco e collegamento diretto ad Amazon.
 
-- **Hosting su NAS Synology (Senza PC H24)**:
-  - Il server dell'applicazione gira in un container Docker all'interno del NAS Synology dell'utente (app *Container Manager*).
-  - Questo permette di avere il sistema attivo H24 a costo zero, con il PC di casa spento e controllabile interamente da **iPhone**.
+- **Gestione Codice e Hosting (PC, iPhone & Render.com)**:
+  - Il codice del progetto si trova sul **PC**, viene caricato su **GitHub** e distribuito automaticamente su **Render.com (`onrender.com`)**.
+  - L'applicazione è accessibile in modo sincronizzato sia da **PC** che da **iPhone** (come Web App / PWA) tramite l'indirizzo fornito da onrender.com.
+  - Ogni `git push` su GitHub avvia il deploy automatico su Render.com aggiornando sia la versione web per PC sia quella per iPhone.
 
 - **Modalità Sandbox / Test**:
   - Possibilità di testare il flusso con dati simulati senza contattare veri venditori Telegram finché non si inseriscono i dati definitivi.
@@ -46,7 +47,7 @@ Automatizzare e assistere la routine quotidiana di gestione delle offerte di pro
 sequenceDiagram
     autonumber
     actor Tu as Tu (PC o iPhone)
-    participant App as Dashboard / Bot (Synology NAS)
+    participant App as Dashboard / Server (Render.com)
     participant TG as Venditore Telegram
     participant AMZ as Amazon / Email
 
