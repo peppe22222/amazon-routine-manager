@@ -231,29 +231,40 @@
     </div>
   </section>
 
-  <!-- DESKTOP NAV TABS (Visibili solo su Desktop / Tablet, su iPhone si usa la barra inferiore nativa) -->
-  <div class="hidden md:block max-w-7xl mx-auto w-full px-4 md:px-8 mt-5">
-    <div class="flex items-center space-x-2 border-b border-brand-border pb-2 overflow-x-auto custom-scrollbar flex-nowrap">
-      <button onclick="switchTab('offers')" id="tab-btn-offers" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
-        <i class="fa-solid fa-tags text-emerald-400"></i> Offerte Telegram
-        <span id="badge-offers-count" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 font-extrabold">0</span>
+  <!-- NAV TABS PILLS CAROUSEL (Perfetto sia su iPhone che su Desktop: scorrevole orizzontalmente senza mai andare a capo) -->
+  <div class="max-w-7xl mx-auto w-full px-4 md:px-8 mt-4">
+    <div class="flex items-center space-x-2 border-b border-brand-border pb-2 overflow-x-auto custom-scrollbar flex-nowrap" style="-webkit-overflow-scrolling: touch;">
+      <button onclick="switchTab('offers')" id="tab-btn-offers" class="tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm transition-all active:scale-95">
+        <i class="fa-solid fa-tags text-emerald-400"></i>
+        <span>Offerte</span>
+        <span id="badge-offers-count" class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 font-black">0</span>
       </button>
-      <button onclick="switchTab('approved_links')" id="tab-btn-approved_links" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
-        <i class="fa-solid fa-cart-shopping text-cyan-400"></i> Link Ricevuti (Da Comprare)
-        <span id="badge-links-count" class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-extrabold">0</span>
+      
+      <button onclick="switchTab('approved_links')" id="tab-btn-approved_links" class="tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95">
+        <i class="fa-solid fa-cart-shopping text-cyan-400"></i>
+        <span>Da Comprare</span>
+        <span id="badge-links-count" class="text-[11px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-black">0</span>
       </button>
-      <button onclick="switchTab('confirmations')" id="tab-btn-confirmations" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
-        <i class="fa-solid fa-camera-retro text-amber-400"></i> Da Confermare (Screen)
-        <span id="badge-confirm-count" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold">0</span>
+      
+      <button onclick="switchTab('confirmations')" id="tab-btn-confirmations" class="tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95">
+        <i class="fa-solid fa-camera text-amber-400"></i>
+        <span>Da Confermare</span>
+        <span id="badge-confirm-count" class="text-[11px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-black">0</span>
       </button>
-      <button onclick="switchTab('reviews')" id="tab-btn-reviews" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
-        <i class="fa-solid fa-star text-amber-400"></i> Recensioni 5★ (Timer 10gg)
+      
+      <button onclick="switchTab('reviews')" id="tab-btn-reviews" class="tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95">
+        <i class="fa-solid fa-star text-amber-400"></i>
+        <span>Recensioni 5★</span>
       </button>
-      <button onclick="switchTab('refunds')" id="tab-btn-refunds" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
-        <i class="fa-brands fa-paypal text-blue-400"></i> Rimborsi PayPal
+      
+      <button onclick="switchTab('refunds')" id="tab-btn-refunds" class="tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95">
+        <i class="fa-brands fa-paypal text-blue-400"></i>
+        <span>Rimborsi</span>
       </button>
-      <button onclick="switchTab('logs')" id="tab-btn-logs" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
-        <i class="fa-solid fa-list-ul text-slate-400"></i> Registro Attività
+      
+      <button onclick="switchTab('logs')" id="tab-btn-logs" class="tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95">
+        <i class="fa-solid fa-list-ul text-slate-400"></i>
+        <span>Registro</span>
       </button>
     </div>
   </div>
@@ -1062,6 +1073,6 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
     </button>
   </div>
 
-  <script src="/app.js?v=4.4.0"></script>
+  <script src="/app.js?v=4.5.0"></script>
 </body>
 </html>
