@@ -456,6 +456,7 @@ def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db
     try:
         consolidate_offer_albums(db)
 
+<<<<<<< HEAD
         # Deduplica in-memory sicura tra le offerte attive
         all_active = db.query(Offer).filter(Offer.status.in_(["new", "requested"])).order_by(desc(Offer.created_at), desc(Offer.id)).all()
         kept_offers = []
