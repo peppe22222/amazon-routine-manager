@@ -726,7 +726,8 @@ async function clearManualAmazonLink() {
 }
 
 async function markOrderAsPurchased(orderId, productTitle) {
-  const orderNum = prompt(`Hai acquistato '${productTitle}' su Amazon?\n\nInserisci il numero d'ordine (es. 408-1234567-1234567) oppure premi OK per assegnare un numero temporaneo e inserirlo dopo tramite screenshot:`);
+  if (!confirm(`⚠️ Confermi di aver già acquistato "${productTitle}" su Amazon?\n\nQuesto sposterà l'articolo nella sezione "Da Confermare".`)) return;
+  const orderNum = prompt(`Inserisci il numero d'ordine Amazon (es. 408-1234567-1234567)\noppure premi OK per assegnare un numero temporaneo:`);
   if (orderNum === null) return; // Annullato
 
   try {
