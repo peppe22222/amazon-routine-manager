@@ -1434,21 +1434,76 @@ def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db
     db.commit()
     return {"success": True, "deleted_count": deleted_count, "message": f"{deleted_count} pratiche eliminate definitivamente!"}
 
-# Evento di avvio: imposta di default la modalità Sandbox a true
+# Evento di avvio: imposta di default la modalità Sandbox a true e assicura la presenza delle schede attive
 @app.on_event("startup")
 def on_app_startup():
-    from app.database import SessionLocal, Setting
+    from app.database import SessionLocal, Setting, Order, Offer
     db = SessionLocal()
     try:
-        # Imposta modalità Sandbox attiva di default
+        # 1. Imposta modalità Sandbox attiva di default
         s = db.query(Setting).filter_by(key="test_mode").first()
         if s:
             s.value = "true"
         else:
             db.add(Setting(key="test_mode", value="true"))
 
+        # 2. Se il database degli ordini è vuoto, inizializza le 3 pratiche operative
+        total_orders = db.query(Order).count()
+        if total_orders == 0:
+            now = datetime.utcnow()
+            # Scheda 1: Da Comprare (Fotocamera Digitale 4K)
+            ord1 = Order(
+                order_number="In attesa #157",
+                product_title="Fotocamera Digitale 4K 64MP con WiFi, Vlogging Autofocus",
+                product_image="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80",
+                seller_contact="@alex8700",
+                amazon_url=None,
+                price_paid=0.0,
+                refund_amount=0.0,
+                status="waiting_link",
+                order_date=now,
+                review_target_date=now + timedelta(days=10),
+                review_title="Fotocamera eccezionale, video 4K nitidi e autofocus rapido!",
+                review_body="Ottima qualità costruttiva, intuitiva da usare e resa video spettacolare. Molto soddisfatto dell'acquisto!",
+                is_test=False
+            )
+            # Scheda 2: Da Confermare (Pulitore a vapore)
+            ord2 = Order(
+                order_number="In attesa N° Ordine",
+                product_title="Pulitore a vapore, serbatoio trasparente, kit di accessori di 11 pezzi per divani",
+                product_image="https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80",
+                seller_contact="@alex8700",
+                amazon_url=None,
+                price_paid=0.0,
+                refund_amount=0.0,
+                status="pending_confirmation",
+                order_date=now,
+                review_target_date=now + timedelta(days=10),
+                review_title="Pulitore a vapore potente e accessori completissimi!",
+                review_body="Pulisce e igienizza perfettamente tessuti e divani. Facile da maneggiare e scalda in pochi istanti.",
+                is_test=False
+            )
+            # Scheda 3: Recensioni 5★ (Barattolo Caffè)
+            ord3 = Order(
+                order_number="404-1867984-8717122",
+                product_title="Barattolo per Caffè Ermetico in Acciaio Inox, 1.2 L con Valvola CO2 e Datario",
+                product_image="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80",
+                seller_contact="@alex8700",
+                amazon_url=None,
+                price_paid=22.99,
+                refund_amount=22.99,
+                status="waiting_review",
+                order_date=now - timedelta(days=2),
+                confirmation_sent_at=now - timedelta(days=2),
+                review_target_date=now + timedelta(days=8),
+                review_title="Barattolo ermetico eccellente, mantiene il caffè fresco a lungo!",
+                review_body="Materiali in acciaio di prima scelta, chiusura impeccabile e valvola CO2 utilissima. Consigliatissimo!",
+                is_test=False
+            )
+            db.add_all([ord1, ord2, ord3])
+
         db.commit()
-        print("[Startup] Modalità Sandbox impostata su ATTIVA.")
+        print("[Startup] Modalità Sandbox e schede operative attive inizializzate.")
     except Exception as e:
         print(f"[Startup error] {e}")
     finally:
