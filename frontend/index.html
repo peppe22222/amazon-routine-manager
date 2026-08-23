@@ -760,7 +760,7 @@
             <p class="font-bold text-white text-sm">Modalità Sandbox (Test Sicuro)</p>
             <p class="text-slate-400 text-[11px] mt-0.5">Se attiva, i messaggi vengono registrati internamente senza invii a persone reali.</p>
           </div>
-          <input type="checkbox" id="set_test_mode" checked class="w-5 h-5 rounded text-emerald-500 bg-brand-card border-brand-border focus:ring-0 cursor-pointer">
+          <input type="checkbox" id="set_test_mode" onchange="toggleSandboxDirect(this.checked)" checked class="w-5 h-5 rounded text-emerald-500 bg-brand-card border-brand-border focus:ring-0 cursor-pointer">
         </div>
 
         <!-- Telegram Account -->
@@ -1078,6 +1078,6 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
     </button>
   </div>
 
-  <script src="/app.js?v=5.1.0"></script>
+  <script src="/app.js?v=5.2.0"></script>
 </body>
 </html>

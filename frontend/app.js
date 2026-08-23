@@ -2243,6 +2243,28 @@ function openSettingsModal() {
   document.getElementById('modal-settings').classList.remove('hidden');
 }
 
+async function toggleSandboxDirect(isChecked) {
+  try {
+    const res = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ key: 'test_mode', value: isChecked ? 'true' : 'false' }])
+    });
+    if (res.ok) {
+      updateSandboxBadge(isChecked);
+      const chk = document.getElementById('set_test_mode');
+      if (chk) chk.checked = isChecked;
+      if (isChecked) {
+        showToast('🧪 Modalità SANDBOX Attiva (Zero messaggi reali ad Alex)');
+      } else {
+        showToast('🟢 Modalità LIVE Attiva (Messaggi reali)');
+      }
+    }
+  } catch (err) {
+    showToast('Errore durante il cambio modalità', true);
+  }
+}
+
 async function toggleSandboxQuick() {
   try {
     const res = await fetch('/api/settings');
