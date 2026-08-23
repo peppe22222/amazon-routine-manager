@@ -930,12 +930,7 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
         raise HTTPException(status_code=404, detail="Ordine non trovato")
 
     if payload.order_number is not None and payload.order_number.strip():
-        clean_num = payload.order_number.strip()
-        existing = db.query(Order).filter(Order.order_number == clean_num, Order.id != order.id).first()
-        if existing:
-            existing.order_number = f"{clean_num}_old_{existing.id}"
-            db.commit()
-        order.order_number = clean_num
+        order.order_number = payload.order_number.strip()
 
     if payload.price_paid is not None:
         order.price_paid = payload.price_paid
@@ -1187,11 +1182,6 @@ def upload_order_screenshot(order_id: int, payload: UploadScreenshotPayload, db:
         extracted_delivery_info = extracted["delivery_info"]
     
     if extracted_num and len(extracted_num) >= 5:
-        # Se esiste già un altro ordine con questo numero, rinominalo
-        existing = db.query(Order).filter(Order.order_number == extracted_num, Order.id != order.id).first()
-        if existing:
-            existing.order_number = f"{extracted_num}_old_{existing.id}"
-            db.commit()
         order.order_number = extracted_num
         
     if extracted_price and extracted_price > 0:

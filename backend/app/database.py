@@ -49,7 +49,7 @@ class Offer(Base):
 class Order(Base):
     __tablename__ = "orders"
     id = Column(Integer, primary_key=True, index=True)
-    order_number = Column(String(50), unique=True, index=True, nullable=False) # 408-1234567-1234567
+    order_number = Column(String(100), index=True, nullable=False) # 408-1234567-1234567
     product_title = Column(String(255), nullable=False)
     product_image = Column(Text, nullable=True)
     seller_contact = Column(String(100), nullable=True)

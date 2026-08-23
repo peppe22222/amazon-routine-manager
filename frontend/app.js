@@ -819,7 +819,8 @@ function renderConfirmations(orders) {
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80';
     const pricePaid = (o.price_paid != null ? Number(o.price_paid) : 0).toFixed(2);
     const screenUrl = o.confirmation_screen_url || '';
-    const isRealOrderNumber = o.order_number && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending');
+    const cleanOrderNum = (o.order_number || '').replace(/_old_\d+$/, '');
+    const isRealOrderNumber = cleanOrderNum && !cleanOrderNum.toLowerCase().includes('in attesa') && !cleanOrderNum.toLowerCase().includes('pending');
     
     return `
       <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
@@ -836,7 +837,7 @@ function renderConfirmations(orders) {
           <!-- Sinistra: Foto Prodotto + Dati Ordine -->
           <div class="flex items-start gap-4 flex-1">
             <!-- Thumbnail Prodotto Zoomabile -->
-            <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Numero Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
+            <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Numero Ordine: ${cleanOrderNum}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
               <img src="${prodImg}" alt="Foto Prodotto" class="max-w-full max-h-full object-contain p-1 group-hover:scale-110 transition-transform">
               <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
                 <i class="fa-solid fa-magnifying-glass-plus text-base"></i>
@@ -847,14 +848,14 @@ function renderConfirmations(orders) {
             <!-- Dettagli Ordine & Venditore -->
             <div class="flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg ${isRealOrderNumber ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400 border border-slate-700'} cursor-pointer" onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeHtml(o.order_number) : ''}')" title="Clicca per inserire o modificare il tuo vero numero d'ordine Amazon">
-                  ${isRealOrderNumber ? o.order_number : 'In attesa N° Ordine'}
+                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg ${isRealOrderNumber ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400 border border-slate-700'} cursor-pointer" onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeHtml(cleanOrderNum) : ''}')" title="Clicca per inserire o modificare il tuo vero numero d'ordine Amazon">
+                  ${isRealOrderNumber ? cleanOrderNum : 'In attesa N° Ordine'}
                 </span>
-                <button onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeHtml(o.order_number) : ''}')" title="Modifica Numero Ordine Amazon" class="px-2 py-1 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold flex items-center gap-1 border border-amber-500/30">
+                <button onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeHtml(cleanOrderNum) : ''}')" title="Modifica Numero Ordine Amazon" class="px-2 py-1 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold flex items-center gap-1 border border-amber-500/30">
                   <i class="fa-solid fa-pen-to-square text-[10px]"></i> ${isRealOrderNumber ? 'Modifica N°' : 'Inserisci N°'}
                 </button>
                 ${isRealOrderNumber ? `
-                  <button onclick="copyToClipboard('${o.order_number}', 'N° Ordine copiato!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1">
+                  <button onclick="copyToClipboard('${cleanOrderNum}', 'N° Ordine copiato!')" class="px-2 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1">
                     <i class="fa-regular fa-copy"></i> Copia N°
                   </button>
                 ` : ''}
@@ -981,7 +982,7 @@ function renderReviews(orders) {
                   </div>
                 </div>
                 <div>
-                  <span class="text-xs font-mono text-slate-400 font-bold">${(o.order_number && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending')) ? o.order_number : ''}</span>
+                  <span class="text-xs font-mono text-slate-400 font-bold">${((o.order_number || '').replace(/_old_\d+$/, '') && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending')) ? (o.order_number || '').replace(/_old_\d+$/, '') : ''}</span>
                   <h3 class="text-sm font-extrabold text-white line-clamp-1 mt-0.5">${escapeHtml(o.product_title || 'Prodotto')}</h3>
                 </div>
               </div>
