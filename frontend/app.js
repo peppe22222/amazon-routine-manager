@@ -292,26 +292,14 @@ async function loadOffers() {
     const container = document.getElementById('offers-grid');
     if (!container) return;
 
-    // Deduplicazione robusta client-side per titolo normalizzato e immagine
-    const seenTitles = new Set();
-    const seenImages = new Set();
+    // Mostra tutte le offerte attive (evita solo duplicati con lo stesso ID o testo identico 100%)
+    const seenIds = new Set();
     const offers = [];
     for (const o of (rawOffers || [])) {
-      // Nel feed offerte mostriamo solo le offerte non ancora approvate/comprate
       if (o.status !== 'new' && o.status !== 'requested') continue;
-
-      const cleanT = (o.title || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      const cleanImg = (o.image_url || '').trim();
-      
-      let isDup = false;
-      if (cleanT && seenTitles.has(cleanT)) isDup = true;
-      if (cleanImg && !cleanImg.includes('unsplash') && seenImages.has(cleanImg)) isDup = true;
-
-      if (!isDup) {
-        if (cleanT) seenTitles.add(cleanT);
-        if (cleanImg && !cleanImg.includes('unsplash')) seenImages.add(cleanImg);
-        offers.push(o);
-      }
+      if (seenIds.has(o.id)) continue;
+      seenIds.add(o.id);
+      offers.push(o);
     }
 
     if (offers.length === 0) {
