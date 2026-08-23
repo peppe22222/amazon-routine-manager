@@ -635,8 +635,16 @@ function openManualLinkModal(orderId, productTitle, currentLink = '') {
   currentManualLinkId = orderId;
   const nameEl = document.getElementById('modal-set-link-product-name');
   const inputEl = document.getElementById('input-manual-amazon-link');
+  const removeBtn = document.getElementById('btn-remove-manual-link');
   if (nameEl) nameEl.innerText = productTitle || 'Articolo';
   if (inputEl) inputEl.value = currentLink || '';
+  if (removeBtn) {
+    if (currentLink && currentLink.trim().length > 0) {
+      removeBtn.classList.remove('hidden');
+    } else {
+      removeBtn.classList.add('hidden');
+    }
+  }
   openModal('modal-set-link');
   if (inputEl) setTimeout(() => inputEl.focus(), 150);
 }
@@ -646,7 +654,7 @@ async function submitManualAmazonLink() {
   const inputEl = document.getElementById('input-manual-amazon-link');
   const url = inputEl ? inputEl.value.trim() : '';
   if (!url) {
-    showToast('Inserisci un URL Amazon valido', true);
+    showToast('Inserisci un URL Amazon valido (oppure usa Rimuovi Link)', true);
     return;
   }
 
@@ -658,12 +666,36 @@ async function submitManualAmazonLink() {
     });
     const data = await res.json();
     if (res.ok) {
-      showToast('Link Amazon salvato con successo!');
+      showToast('Link Amazon salvato con successo! Articolo pronto per l\'acquisto.');
       closeModal('modal-set-link');
       loadOrders();
       loadStats();
     } else {
       showToast(data.detail || 'Errore salvataggio link', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
+  }
+}
+
+async function clearManualAmazonLink() {
+  if (!currentManualLinkId) return;
+  if (!confirm('Sei sicuro di voler rimuovere il link e rimettere la scheda in attesa di Alex?')) return;
+  
+  try {
+    const res = await fetch(`/api/orders/${currentManualLinkId}/set-amazon-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amazon_url: '' })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Link rimosso! Scheda reimpostata in attesa di Alex.');
+      closeModal('modal-set-link');
+      loadOrders();
+      loadStats();
+    } else {
+      showToast(data.detail || 'Errore rimozione link', true);
     }
   } catch (err) {
     showToast('Errore di connessione', true);

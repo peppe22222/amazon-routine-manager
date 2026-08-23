@@ -125,7 +125,7 @@ class UploadScreenshotPayload(BaseModel):
     recognized_price: Optional[float] = None
 
 class SetAmazonLinkPayload(BaseModel):
-    amazon_url: str
+    amazon_url: Optional[str] = ""
 
 class MarkPurchasedPayload(BaseModel):
     order_number: Optional[str] = None
@@ -526,12 +526,12 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
         raise HTTPException(status_code=404, detail="Offerta non trovata")
     
     offer.status = "requested"
-    initial_status = "link_approved" if offer.amazon_link else "waiting_link"
+    # REGOLA RIGOROSA: Alla richiesta lo stato è SEMPRE 'waiting_link' e il link è None finché Alex non risponde
+    initial_status = "waiting_link"
     
-    # Crea l'ordine in 'waiting_link' o 'link_approved' pronto per ricevere il link di Alex e procedere all'acquisto
     existing_order = db.query(Order).filter_by(product_title=offer.title).first()
+    order_date = datetime.utcnow()
     if not existing_order:
-        order_date = datetime.utcnow()
         rev_data = generate_review(offer.title, gemini_api_key=get_gemini_api_key(db))
         temp_order_num = f"In attesa #{offer.id}_{int(order_date.timestamp())}"
         new_order = Order(
@@ -539,7 +539,7 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             product_title=offer.title,
             product_image=offer.image_url,
             seller_contact=offer.seller_contact or "@alex8700",
-            amazon_url=offer.amazon_link,
+            amazon_url=None,
             price_paid=0.0,
             refund_amount=0.0,
             status=initial_status,
@@ -553,8 +553,8 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     else:
         if existing_order.status in ["cancelled", "waiting_link"]:
             existing_order.status = initial_status
-            if offer.amazon_link:
-                existing_order.amazon_url = offer.amazon_link
+            existing_order.amazon_url = None
+            existing_order.order_date = order_date
     db.commit()
 
     # Invia messaggio di richiesta disponibilità ad Alex
@@ -574,28 +574,43 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
 
 @app.post("/api/orders/{order_id}/set-amazon-link")
 def set_order_amazon_link(order_id: int, payload: SetAmazonLinkPayload, db: Session = Depends(get_db)):
-    """Imposta o aggiorna il link del prodotto Amazon inviato da Alex"""
+    """Imposta, modifica o rimuove il link del prodotto Amazon inviato da Alex"""
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     
-    url = payload.amazon_url.strip()
-    order.amazon_url = url
+    raw_url = (payload.amazon_url or "").strip()
+    match_offer = db.query(Offer).filter_by(product_title=order.product_title if hasattr(Offer, 'product_title') else None).first() or db.query(Offer).filter_by(title=order.product_title).first()
+
+    if not raw_url:
+        # Se vuoto, rimuove il link e riporta lo stato in attesa
+        order.amazon_url = None
+        order.status = "waiting_link"
+        if match_offer:
+            match_offer.amazon_link = None
+            match_offer.status = "requested"
+        db.commit()
+        return {"success": True, "message": "Link rimosso. Scheda reimpostata in attesa di Alex."}
+    
+    # Assicurati che abbia http:// o https://
+    if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+        raw_url = "https://" + raw_url
+
+    order.amazon_url = raw_url
     order.status = "link_approved"
     
-    match_offer = db.query(Offer).filter_by(title=order.product_title).first()
     if match_offer:
-        match_offer.amazon_link = url
+        match_offer.amazon_link = raw_url
         match_offer.status = "link_received"
         
     log = ActivityLog(
         action_type="LINK_SET",
         title=f"Link Amazon Impostato per {order.product_title[:40]}",
-        details=f"Link: {url}"
+        details=f"Link: {raw_url}"
     )
     db.add(log)
     db.commit()
-    return {"success": True, "message": "Link Amazon salvato! Articolo pronto per l'acquisto."}
+    return {"success": True, "message": "Link Amazon salvato con successo! Articolo pronto per l'acquisto."}
 
 @app.post("/api/orders/{order_id}/mark-purchased")
 def mark_order_purchased(order_id: int, payload: Optional[MarkPurchasedPayload] = None, db: Session = Depends(get_db)):

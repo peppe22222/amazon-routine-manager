@@ -1012,10 +1012,15 @@
           <input type="url" id="input-manual-amazon-link" placeholder="https://www.amazon.it/dp/... o https://amzn.to/..." class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
         </div>
       </div>
-      <div class="flex justify-between items-center pt-3 border-t border-brand-border">
-        <button onclick="submitManualAmazonLink()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-extrabold text-xs shadow-lg shadow-cyan-900/40 flex items-center gap-1.5">
-          <i class="fa-solid fa-check"></i> Salva & Approva Link
-        </button>
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-brand-border">
+        <div class="flex items-center gap-2">
+          <button onclick="submitManualAmazonLink()" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-extrabold text-xs shadow-lg shadow-cyan-900/40 flex items-center gap-1.5">
+            <i class="fa-solid fa-check"></i> Salva & Approva Link
+          </button>
+          <button id="btn-remove-manual-link" onclick="clearManualAmazonLink()" class="hidden px-3.5 py-2.5 rounded-xl bg-rose-900/40 hover:bg-rose-900/70 border border-rose-500/40 text-rose-300 text-xs font-semibold flex items-center gap-1.5">
+            <i class="fa-solid fa-trash-can text-xs"></i> Rimuovi Link
+          </button>
+        </div>
         <button onclick="closeModal('modal-set-link')" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">Annulla</button>
       </div>
     </div>

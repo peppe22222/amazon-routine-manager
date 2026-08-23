@@ -788,7 +788,9 @@ class TelegramManager:
 
     async def sync_seller_replies(self, db: Session, seller_handle: str = "@alex8700") -> dict:
         """
-        Controlla i messaggi privati recenti ricevuti da Alex/venditore per estrarre eventuali link Amazon inviati in risposta.
+        Controlla i messaggi privati ricevuti da Alex/venditore DOPO l'invio della richiesta
+        per estrarre il link Amazon inviato specificamente per quell'articolo.
+        NON assegna MAI link storici o vecchi.
         """
         try:
             client = await self._ensure_connected_client(db)
@@ -798,48 +800,68 @@ class TelegramManager:
             target = (seller_handle or "@alex8700").strip()
             entity = await client.get_entity(target)
             
-            # Cerca gli ordini in stato 'waiting_link' o 'link_approved'
-            pending_orders = db.query(Order).filter(Order.status == "waiting_link").order_by(Order.id.desc()).all()
+            # Cerca SOLO gli ordini in stato 'waiting_link' che NON hanno già un link impostato
+            pending_orders = db.query(Order).filter(
+                Order.status == "waiting_link",
+                or_(Order.amazon_url == None, Order.amazon_url == "")
+            ).order_by(Order.order_date.asc()).all()
+            
             if not pending_orders:
                 return {"success": True, "updated_count": 0, "message": "Nessun ordine in attesa di link."}
 
+            # Troviamo la data della richiesta più vecchia in attesa
+            oldest_order_date = min((o.order_date for o in pending_orders if o.order_date), default=None)
+            if not oldest_order_date:
+                return {"success": True, "updated_count": 0, "message": "Nessuna data di richiesta valida."}
+
+            # Preleva solo i messaggi recenti da Alex inviati DOPO la richiesta
             messages = []
-            async for m in client.iter_messages(entity, limit=15):
-                if not m.out and m.text:  # Messaggio in arrivo da Alex
-                    messages.append(m)
+            async for m in client.iter_messages(entity, limit=25):
+                if not m.out and m.text and m.date:
+                    msg_date_utc = m.date.replace(tzinfo=None) if hasattr(m.date, 'tzinfo') and m.date.tzinfo else m.date
+                    if msg_date_utc >= oldest_order_date:
+                        messages.append((msg_date_utc, m))
+
+            # Ordina cronologicamente (dal più vecchio al più recente)
+            messages.sort(key=lambda x: x[0])
 
             updated = 0
-            for m in messages:
+            for msg_date_utc, m in messages:
                 text = m.text or ""
-                # Cerca URL Amazon o amzn.to
                 urls = re.findall(r'https?://[^\s]+', text)
                 amz_urls = [u for u in urls if 'amazon' in u.lower() or 'amzn' in u.lower()]
-                if amz_urls and pending_orders:
+                if amz_urls:
                     best_url = amz_urls[0]
-                    # Assegna al primo ordine in attesa
-                    target_order = pending_orders.pop(0)
-                    target_order.amazon_url = best_url
-                    target_order.status = "link_approved"
+                    # Trova il primo ordine la cui richiesta è avvenuta PRIMA di questo messaggio
+                    target_order = None
+                    for o in pending_orders:
+                        if o.order_date and o.order_date <= msg_date_utc and (not o.amazon_url):
+                            target_order = o
+                            break
                     
-                    # Aggiorna anche l'offerta se presente
-                    match_offer = db.query(Offer).filter_by(title=target_order.product_title).first()
-                    if match_offer:
-                        match_offer.amazon_link = best_url
-                        match_offer.status = "link_received"
+                    if target_order:
+                        pending_orders.remove(target_order)
+                        target_order.amazon_url = best_url
+                        target_order.status = "link_approved"
+                        
+                        match_offer = db.query(Offer).filter_by(title=target_order.product_title).first()
+                        if match_offer:
+                            match_offer.amazon_link = best_url
+                            match_offer.status = "link_received"
 
-                    log = ActivityLog(
-                        action_type="LINK_RECEIVED",
-                        title=f"Link Amazon Ricevuto da Alex ({target})!",
-                        details=f"Articolo: {target_order.product_title} | Link: {best_url}"
-                    )
-                    db.add(log)
-                    db.commit()
-                    updated += 1
+                        log = ActivityLog(
+                            action_type="LINK_RECEIVED",
+                            title=f"Link Amazon Ricevuto da Alex ({target})!",
+                            details=f"Articolo: {target_order.product_title} | Link: {best_url}"
+                        )
+                        db.add(log)
+                        db.commit()
+                        updated += 1
 
             return {
                 "success": True,
                 "updated_count": updated,
-                "message": f"Sincronizzazione completata: {updated} link aggiornati da Alex!"
+                "message": f"Sincronizzazione completata: {updated} nuovi link ricevuti da Alex!"
             }
         except Exception as e:
             print(f"[Telegram Sync Replies Error] {e}")
