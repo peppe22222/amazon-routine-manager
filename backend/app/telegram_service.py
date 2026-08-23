@@ -966,10 +966,11 @@ class TelegramManager:
             if not oldest_order_date:
                 return {"success": True, "updated_count": 0, "message": "Nessuna data di richiesta valida."}
 
-            # Preleva solo i messaggi recenti da Alex inviati DOPO la richiesta
+            # Preleva i messaggi inviati DOPO la richiesta (in Sandbox 'me' i messaggi hanno m.out=True)
             messages = []
             async for m in client.iter_messages(entity, limit=25):
-                if not m.out and m.text and m.date:
+                is_valid_sender = (target == "me") or (not m.out)
+                if is_valid_sender and m.text and m.date:
                     msg_date_utc = m.date.replace(tzinfo=None) if hasattr(m.date, 'tzinfo') and m.date.tzinfo else m.date
                     if msg_date_utc >= oldest_order_date:
                         messages.append((msg_date_utc, m))
