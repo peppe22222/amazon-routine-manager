@@ -611,8 +611,8 @@ def mark_order_purchased(order_id: int, payload: Optional[MarkPurchasedPayload] 
     
     if payload and payload.order_number and payload.order_number.strip():
         order.order_number = payload.order_number.strip()
-    elif not order.order_number or "in attesa" in order.order_number.lower():
-        order.order_number = f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
+    elif not order.order_number:
+        order.order_number = f"In attesa #{order.id}"
         
     if payload and payload.price_paid and payload.price_paid > 0:
         order.price_paid = payload.price_paid
