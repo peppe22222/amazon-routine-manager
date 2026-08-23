@@ -2239,7 +2239,37 @@ function openSimulatorModal() {
 }
 
 function openSettingsModal() {
+  loadSettings();
   document.getElementById('modal-settings').classList.remove('hidden');
+}
+
+async function toggleSandboxQuick() {
+  try {
+    const res = await fetch('/api/settings');
+    if (!res.ok) return;
+    const s = await res.json();
+    const currentIsTest = s.test_mode === 'true';
+    const newIsTest = !currentIsTest;
+
+    const postRes = await fetch('/api/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify([{ key: 'test_mode', value: newIsTest ? 'true' : 'false' }])
+    });
+
+    if (postRes.ok) {
+      updateSandboxBadge(newIsTest);
+      const chk = document.getElementById('set_test_mode');
+      if (chk) chk.checked = newIsTest;
+      if (newIsTest) {
+        showToast('🧪 Modalità Sandbox ATTIVA: nessun messaggio verrà inviato ad Alex!');
+      } else {
+        showToast('🟢 Modalità LIVE ATTIVA: i messaggi verranno inviati realmente ad Alex!');
+      }
+    }
+  } catch (err) {
+    showToast('Errore durante il cambio modalità', true);
+  }
 }
 
 function closeModal(modalId) {
@@ -2590,14 +2620,29 @@ async function telegramLogout() {
   }
 }
 
+function updateSandboxBadge(isTest) {
+  const badge = document.getElementById('sandbox-badge');
+  if (!badge) return;
+  if (isTest) {
+    badge.className = "text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase tracking-wider";
+    badge.innerHTML = '<i class="fa-solid fa-flask-vial text-amber-400 mr-1"></i>Sandbox';
+  } else {
+    badge.className = "text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider";
+    badge.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i>Live';
+  }
+}
+
 async function loadSettings() {
   try {
     const res = await fetch('/api/settings');
     if (!res.ok) return;
     const s = await res.json();
 
+    const isTest = s.test_mode === 'true';
     if (s.test_mode !== undefined) {
-      document.getElementById('set_test_mode').checked = s.test_mode === 'true';
+      const chk = document.getElementById('set_test_mode');
+      if (chk) chk.checked = isTest;
+      updateSandboxBadge(isTest);
     }
     if (s.telegram_phone) {
       const phoneInput = document.getElementById('set_telegram_phone');
@@ -2624,8 +2669,9 @@ async function saveSettings() {
     if (!pwdSuccess) return;
   }
 
+  const isTest = document.getElementById('set_test_mode').checked;
   const items = [
-    { key: 'test_mode', value: document.getElementById('set_test_mode').checked ? 'true' : 'false' },
+    { key: 'test_mode', value: isTest ? 'true' : 'false' },
     { key: 'telegram_phone', value: (document.getElementById('set_telegram_phone') ? document.getElementById('set_telegram_phone').value : '') },
     { key: 'telegram_api_id', value: document.getElementById('set_telegram_api_id').value },
     { key: 'telegram_api_hash', value: document.getElementById('set_telegram_api_hash').value },
@@ -2643,6 +2689,7 @@ async function saveSettings() {
       body: JSON.stringify(items)
     });
     if (res.ok) {
+      updateSandboxBadge(isTest);
       showToast('Configurazione e sicurezza salvate!');
       closeModal('modal-settings');
     }

@@ -732,9 +732,22 @@ class TelegramManager:
     async def send_availability_request(self, db: Session, offer: Offer, recipient: str = None) -> dict:
         """
         Invia la richiesta di disponibilità per un prodotto ad Alex (@alex8700 o contatto venditore).
+        In modalità Sandbox (test_mode=true) simula l'invio senza contattare Telegram reale.
         """
+        is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
         target_contact = (recipient or offer.seller_contact or "@alex8700").strip()
         message_text = f"Ciao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
+
+        if is_test:
+            log = ActivityLog(
+                action_type="MESSAGE_SENT",
+                title=f"Richiesta inviata ad Alex ({target_contact}) [SANDBOX]",
+                details=f"Articolo: {offer.title[:50]} (Modalità Sandbox: nessun messaggio reale inviato a Telegram)"
+            )
+            db.add(log)
+            offer.status = "requested"
+            db.commit()
+            return {"success": True, "message": f"[SANDBOX] Richiesta simulata registrata con successo (nessun messaggio inviato ad Alex)."}
 
         try:
             client = await self._ensure_connected_client(db)
@@ -764,9 +777,23 @@ class TelegramManager:
     async def send_order_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
         """
         Invia lo screenshot di conferma ordine e il numero d'ordine ad Alex (@alex8700 o contatto venditore).
+        In modalità Sandbox (test_mode=true) simula l'invio senza contattare Telegram reale.
         """
+        is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
         target_contact = (recipient or order.seller_contact or "@alex8700").strip()
         caption_text = f"Ciao Alex, ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\nGrazie!"
+
+        if is_test:
+            log = ActivityLog(
+                action_type="SCREEN_SENT",
+                title=f"Screenshot ordine inviato ad Alex ({target_contact}) [SANDBOX]",
+                details=f"Ordine: {order.order_number} ({order.product_title}) (Modalità Sandbox: nessun invio reale)"
+            )
+            db.add(log)
+            order.status = "waiting_review"
+            order.confirmation_sent_at = datetime.utcnow()
+            db.commit()
+            return {"success": True, "message": f"[SANDBOX] Invio screenshot simulato con successo (nessun messaggio inviato ad Alex)."}
 
         try:
             client = await self._ensure_connected_client(db)
@@ -797,9 +824,23 @@ class TelegramManager:
     async def send_review_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
         """
         Invia la conferma della recensione pubblicata con screenshot ad Alex (@alex8700 o contatto venditore).
+        In modalità Sandbox (test_mode=true) simula l'invio senza contattare Telegram reale.
         """
+        is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
         target_contact = (recipient or order.seller_contact or "@alex8700").strip()
         caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
+
+        if is_test:
+            log = ActivityLog(
+                action_type="REVIEW_SENT",
+                title=f"Screenshot recensione 5★ inviato ad Alex ({target_contact}) [SANDBOX]",
+                details=f"Ordine: {order.order_number} ({order.product_title}) (Modalità Sandbox: nessun invio reale)"
+            )
+            db.add(log)
+            order.status = "waiting_refund"
+            order.review_submitted_at = datetime.utcnow()
+            db.commit()
+            return {"success": True, "message": f"[SANDBOX] Invio recensione simulato con successo (nessun messaggio inviato ad Alex)."}
 
         try:
             client = await self._ensure_connected_client(db)
