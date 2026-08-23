@@ -672,8 +672,11 @@ class TelegramManager:
 
             msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
 
-            # Evita duplicati solo se esattamente lo stesso titolo nel batch corrente
-            if title in batch_seen_titles:
+            # Evita duplicati se il titolo o i messaggi esistono già nel DB o nel batch corrente
+            clean_t = title.strip().lower()
+            if any(t.strip().lower() == clean_t for t in existing_titles) or any(t.strip().lower() == clean_t for t in batch_seen_titles):
+                continue
+            if any(mid in existing_msg_ids for mid in all_msg_ids):
                 continue
 
             batch_seen_titles.append(title)
