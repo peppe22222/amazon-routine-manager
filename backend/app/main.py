@@ -457,15 +457,27 @@ def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db
             )
         ).delete(synchronize_session=False)
 
-        # Deduplica globale tra tutte le offerte attive (sia 'new' che 'requested')
+        # Deduplica globale tra tutte le offerte attive (per titolo normalizzato e immagine)
         all_active = db.query(Offer).filter(Offer.status.in_(["new", "requested"])).order_by(desc(Offer.created_at), desc(Offer.id)).all()
         seen_titles = set()
+        seen_images = set()
         for o in all_active:
-            clean_t = o.title.strip().lower()
-            if clean_t in seen_titles:
+            clean_t = re.sub(r'\s+', ' ', (o.title or '').strip().lower())
+            clean_img = (o.image_url or '').strip()
+            
+            is_dup = False
+            if clean_t and clean_t in seen_titles:
+                is_dup = True
+            elif clean_img and 'unsplash' not in clean_img and clean_img in seen_images:
+                is_dup = True
+            
+            if is_dup:
                 db.delete(o)
             else:
-                seen_titles.add(clean_t)
+                if clean_t:
+                    seen_titles.add(clean_t)
+                if clean_img and 'unsplash' not in clean_img:
+                    seen_images.add(clean_img)
 
         db.commit()
     except Exception as e:

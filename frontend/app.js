@@ -278,8 +278,28 @@ async function loadOffers() {
   try {
     const res = await fetch('/api/offers');
     if (!res.ok) return;
-    const offers = await res.json();
+    const rawOffers = await res.json();
     const container = document.getElementById('offers-grid');
+    if (!container) return;
+
+    // Deduplicazione robusta client-side per titolo normalizzato e immagine
+    const seenTitles = new Set();
+    const seenImages = new Set();
+    const offers = [];
+    for (const o of (rawOffers || [])) {
+      const cleanT = (o.title || '').trim().toLowerCase().replace(/\s+/g, ' ');
+      const cleanImg = (o.image_url || '').trim();
+      
+      let isDup = false;
+      if (cleanT && seenTitles.has(cleanT)) isDup = true;
+      if (cleanImg && !cleanImg.includes('unsplash') && seenImages.has(cleanImg)) isDup = true;
+
+      if (!isDup) {
+        if (cleanT) seenTitles.add(cleanT);
+        if (cleanImg && !cleanImg.includes('unsplash')) seenImages.add(cleanImg);
+        offers.push(o);
+      }
+    }
 
     if (offers.length === 0) {
       container.innerHTML = `
