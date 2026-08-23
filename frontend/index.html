@@ -231,28 +231,28 @@
     </div>
   </section>
 
-  <!-- DESKTOP NAV TABS -->
-  <div class="max-w-7xl mx-auto w-full px-4 md:px-8 mt-5">
-    <div class="flex items-center space-x-2 border-b border-brand-border pb-2 overflow-x-auto custom-scrollbar">
-      <button onclick="switchTab('offers')" id="tab-btn-offers" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
+  <!-- DESKTOP NAV TABS (Visibili solo su Desktop / Tablet, su iPhone si usa la barra inferiore nativa) -->
+  <div class="hidden md:block max-w-7xl mx-auto w-full px-4 md:px-8 mt-5">
+    <div class="flex items-center space-x-2 border-b border-brand-border pb-2 overflow-x-auto custom-scrollbar flex-nowrap">
+      <button onclick="switchTab('offers')" id="tab-btn-offers" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm">
         <i class="fa-solid fa-tags text-emerald-400"></i> Offerte Telegram
         <span id="badge-offers-count" class="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-100 font-extrabold">0</span>
       </button>
-      <button onclick="switchTab('approved_links')" id="tab-btn-approved_links" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+      <button onclick="switchTab('approved_links')" id="tab-btn-approved_links" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
         <i class="fa-solid fa-cart-shopping text-cyan-400"></i> Link Ricevuti (Da Comprare)
         <span id="badge-links-count" class="text-xs px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-extrabold">0</span>
       </button>
-      <button onclick="switchTab('confirmations')" id="tab-btn-confirmations" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+      <button onclick="switchTab('confirmations')" id="tab-btn-confirmations" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
         <i class="fa-solid fa-camera-retro text-amber-400"></i> Da Confermare (Screen)
         <span id="badge-confirm-count" class="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-extrabold">0</span>
       </button>
-      <button onclick="switchTab('reviews')" id="tab-btn-reviews" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+      <button onclick="switchTab('reviews')" id="tab-btn-reviews" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
         <i class="fa-solid fa-star text-amber-400"></i> Recensioni 5★ (Timer 10gg)
       </button>
-      <button onclick="switchTab('refunds')" id="tab-btn-refunds" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+      <button onclick="switchTab('refunds')" id="tab-btn-refunds" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
         <i class="fa-brands fa-paypal text-blue-400"></i> Rimborsi PayPal
       </button>
-      <button onclick="switchTab('logs')" id="tab-btn-logs" class="tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
+      <button onclick="switchTab('logs')" id="tab-btn-logs" class="tab-btn whitespace-nowrap shrink-0 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all">
         <i class="fa-solid fa-list-ul text-slate-400"></i> Registro Attività
       </button>
     </div>
@@ -419,29 +419,29 @@
 
   </main>
 
-  <!-- MOBILE BOTTOM NAV BAR (Ottimizzato iPhone PWA) -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-brand-border px-2 py-2 flex justify-around items-center shadow-2xl">
-    <button onclick="switchTab('offers')" id="mob-btn-offers" class="flex flex-col items-center text-emerald-400 transition-colors">
-      <i class="fa-solid fa-tags text-base"></i>
-      <span class="text-[10px] font-bold mt-0.5">Offerte</span>
+  <!-- MOBILE BOTTOM NAV BAR (Ottimizzato iPhone 12/13/14/15/16 Pro Max PWA) -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-panel border-t border-brand-border px-1.5 pt-2 flex justify-around items-center shadow-2xl bg-slate-950/95 backdrop-blur-xl" style="padding-bottom: max(env(safe-area-inset-bottom), 12px);">
+    <button onclick="switchTab('offers')" id="mob-btn-offers" class="flex flex-col items-center flex-1 py-1 text-emerald-400 transition-all active:scale-90">
+      <i class="fa-solid fa-tags text-lg"></i>
+      <span class="text-[10px] font-bold mt-1 tracking-tight">Offerte</span>
     </button>
-    <button onclick="switchTab('approved_links')" id="mob-btn-approved_links" class="flex flex-col items-center text-slate-400 relative transition-colors">
-      <i class="fa-solid fa-cart-shopping text-base"></i>
-      <span class="text-[10px] font-bold mt-0.5">Da Comprare</span>
-      <span id="mob-badge-links" class="hidden absolute -top-1 right-2 w-2.5 h-2.5 rounded-full bg-cyan-400 border-2 border-brand-bg"></span>
+    <button onclick="switchTab('approved_links')" id="mob-btn-approved_links" class="flex flex-col items-center flex-1 py-1 text-slate-400 relative transition-all active:scale-90">
+      <i class="fa-solid fa-cart-shopping text-lg"></i>
+      <span class="text-[10px] font-bold mt-1 tracking-tight">Da Comprare</span>
+      <span id="mob-badge-links" class="hidden absolute top-0.5 right-4 w-2.5 h-2.5 rounded-full bg-cyan-400 border-2 border-brand-bg shadow-sm"></span>
     </button>
-    <button onclick="switchTab('confirmations')" id="mob-btn-confirmations" class="flex flex-col items-center text-slate-400 relative transition-colors">
-      <i class="fa-solid fa-camera text-base"></i>
-      <span class="text-[10px] font-bold mt-0.5">Conferma</span>
-      <span id="mob-badge-confirm" class="hidden absolute -top-1 right-2 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-brand-bg"></span>
+    <button onclick="switchTab('confirmations')" id="mob-btn-confirmations" class="flex flex-col items-center flex-1 py-1 text-slate-400 relative transition-all active:scale-90">
+      <i class="fa-solid fa-camera text-lg"></i>
+      <span class="text-[10px] font-bold mt-1 tracking-tight">Conferma</span>
+      <span id="mob-badge-confirm" class="hidden absolute top-0.5 right-4 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-brand-bg shadow-sm"></span>
     </button>
-    <button onclick="switchTab('reviews')" id="mob-btn-reviews" class="flex flex-col items-center text-slate-400 transition-colors">
-      <i class="fa-solid fa-star text-base"></i>
-      <span class="text-[10px] font-bold mt-0.5">Recensioni</span>
+    <button onclick="switchTab('reviews')" id="mob-btn-reviews" class="flex flex-col items-center flex-1 py-1 text-slate-400 transition-all active:scale-90">
+      <i class="fa-solid fa-star text-lg"></i>
+      <span class="text-[10px] font-bold mt-1 tracking-tight">Recensioni</span>
     </button>
-    <button onclick="switchTab('refunds')" id="mob-btn-refunds" class="flex flex-col items-center text-slate-400 transition-colors">
-      <i class="fa-solid fa-hand-holding-dollar text-base"></i>
-      <span class="text-[10px] font-bold mt-0.5">Rimborsi</span>
+    <button onclick="switchTab('refunds')" id="mob-btn-refunds" class="flex flex-col items-center flex-1 py-1 text-slate-400 transition-all active:scale-90">
+      <i class="fa-solid fa-hand-holding-dollar text-lg"></i>
+      <span class="text-[10px] font-bold mt-1 tracking-tight">Rimborsi</span>
     </button>
   </nav>
 
@@ -1062,6 +1062,6 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
     </button>
   </div>
 
-  <script src="/app.js?v=4.3.0"></script>
+  <script src="/app.js?v=4.4.0"></script>
 </body>
 </html>
