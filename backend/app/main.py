@@ -22,7 +22,7 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_
 
-from app.database import init_db, get_db, Offer, Order, Setting, ActivityLog
+from app.database import init_db, get_db, Offer, Order, Setting, ActivityLog, DATA_DIR
 from app.review_generator import generate_review
 from app.screenshot_service import generate_amazon_order_screenshot, SCREENSHOTS_DIR
 from app.telegram_service import telegram_service, scrape_telegram_channel_offers, is_title_duplicate, normalize_text_key
