@@ -1038,27 +1038,18 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     prod_title = order.product_title
     order_num = order.order_number
     
-    # Segna le offerte collegate come "dismissed" usando SOLO match esatto del titolo
-    # (il vecchio match parziale con LIKE sui primi 25 caratteri cancellava offerte di altri prodotti!)
+    # Quando una pratica/ordine viene eliminata, l'offerta corrispondente NON scompare:
+    # ritorna allo stato 'new' (Disponibile) nell'elenco delle Offerte
     matching_offers = db.query(Offer).filter(
         Offer.title == prod_title
     ).all()
     for off in matching_offers:
-        off.status = "dismissed"
-
-    # Registra il titolo eliminato per impedire che venga ricreato automaticamente
-    deleted_key = f"deleted_product_{order_id}"
-    if not db.query(Setting).filter_by(key=deleted_key).first():
-        db.add(Setting(key=deleted_key, value=prod_title))
-
-    # Assicura che il flag demo_initialized sia attivo per evitare che il riavvio del server ricrei demo
-    if not db.query(Setting).filter_by(key="demo_initialized").first():
-        db.add(Setting(key="demo_initialized", value="true"))
+        off.status = "new"
 
     db.delete(order)
     db.commit()
     save_orders_backup(db)
-    return {"success": True, "message": f"Pratica '{prod_title}' eliminata definitivamente!"}
+    return {"success": True, "message": f"Pratica '{prod_title}' rimossa. L'offerta è tornata disponibile nell'elenco Offerte!"}
 
 @app.get("/api/orders/{order_id}/regenerate-review")
 def regenerate_order_review(order_id: int, db: Session = Depends(get_db)):
