@@ -829,9 +829,9 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
                 o.product_image = matching_offer.image_url
                 updated_db = True
 
-        # Aggiornamento specifico per il Barattolo (consegna prevista domani -> 11 giorni totali)
-        if o.product_title and ("barattolo" in o.product_title.lower() or "404-1867984" in (o.order_number or "")):
-            if not o.delivery_info or o.delivery_info != "Domani":
+        # Se la consegna è stimata per domani
+        if o.product_title and "barattolo" in o.product_title.lower():
+            if not o.delivery_info:
                 o.delivery_info = "Domani"
                 base_start = o.confirmation_sent_at or o.order_date or now
                 o.estimated_delivery_date = base_start + timedelta(days=1)
@@ -846,7 +846,20 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
                 o.review_target_date = base_date + timedelta(days=10)
             updated_db = True
             
-        # Rigenera automaticamente se mancante o se era una vecchia recensione generica o fuori tema
+        # Controllo di coerenza e rigenerazione automatica se mancante o fuori tema
+        prod_low = (o.product_title or "").lower()
+        rev_t_low = (o.review_title or "").lower()
+        rev_b_low = (o.review_body or "").lower()
+        
+        is_shaver_prod = any(w in prod_low for w in ["rasoio", "tagliacapelli", "tagliabarba", "regolabarba", "epilatore", "depilatore", "lamette", "shaver", "trimmer"])
+        is_shaver_rev = any(w in rev_t_low or w in rev_b_low for w in ["lame affilate", "taglio perfetto", "sessioni di rifinitura", "rasatura", "tiraggi di peli", "pelle liscia e zero tagli"])
+        
+        is_power_prod = any(w in prod_low for w in ["power bank", "powerbank", "batteria esterna", "batteria portatile"])
+        is_watch_rev = any(w in rev_t_low or w in rev_b_low for w in ["polso", "smartwatch", "cardio", "frequenza cardiaca", "sportive"])
+        
+        is_jar_prod = any(w in prod_low for w in ["barattolo", "chicchi", "valvola co2", "contenitore caffè"])
+        is_jar_rev = any(w in rev_t_low or w in rev_b_low for w in ["barattolo", "chicchi", "valvola co2", "cucchiaio dosatore"])
+
         is_old_generic = (
             not o.review_title 
             or not o.review_body
@@ -856,9 +869,10 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             or "I materiali impiegati sono resistenti e piacevoli al tatto" in (o.review_body or "")
             or "sicurezza elettrica" in (o.review_body or "")
             or "risolve ogni esigenza di ricarica" in (o.review_title or "")
-            or ("polso" in (o.review_title or "").lower() and "smartwatch" not in (o.product_title or "").lower() and "orologio" not in (o.product_title or "").lower())
-            or ("polso" in (o.review_body or "").lower() and "smartwatch" not in (o.product_title or "").lower() and "orologio" not in (o.product_title or "").lower())
-            or ("power" in (o.product_title or "").lower() and ("polso" in (o.review_title or "").lower() or "polso" in (o.review_body or "").lower() or "sportive" in (o.review_title or "").lower()))
+            or (not is_shaver_prod and is_shaver_rev)
+            or (not is_jar_prod and is_jar_rev)
+            or (is_power_prod and is_watch_rev)
+            or (not any(w in prod_low for w in ["smartwatch", "smartband", "orologio"]) and is_watch_rev)
         )
         if is_old_generic:
             rev_data = generate_review(o.product_title, gemini_api_key=gemini_key)

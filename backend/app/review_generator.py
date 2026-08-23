@@ -51,57 +51,252 @@ def extract_features(title: str) -> dict:
     return features
 
 
-# Database categorie e template ultra-specifici
+# =====================================================================
+# DATABASE CATEGORIE E TEMPLATE ULTRA-SPECIFICI (50+ AMBITI PRECISI)
+# =====================================================================
 CATEGORIES = {
-    # --- 1. MATERNITÀ & INFANZIA ---
-    "tiralatte_infanzia": {
-        "keywords": ["tiralatte", "allattamento", "latte materno", "estrazione latte"],
+    # --- 1. IGIENE ORALE & DENTALE (IDROPULSORI, IRRIGATORI, SPAZZOLINI) ---
+    "idropulsore_igiene_orale": {
+        "keywords": [
+            "idropulsore dentale", "idropulsore portatile", "idropulsore senza fili", "idropulsore", 
+            "irrigatore orale", "irrigatore dentale", "irrigatore", "idropulitrice dentale", 
+            "idropulitore dentale", "idrogetto dentale", "doccia dentale", "spazzolino elettrico", 
+            "spazzolino sonico", "spazzolino rotante", "spazzolino", "filo interdentale elettrico", 
+            "filo interdentale", "sbiancamento denti", "sbiancante denti", "testine spazzolino", 
+            "pulizia dentale", "beccucci idropulsore", "ugelli idropulsore", "flosser", "water flosser"
+        ],
         "titles": [
-            "Tiralatte eccellente: estrazione delicata, silenziosissimo e facilissimo da sterilizzare",
-            "La vera svolta per l'allattamento! Coppe morbide e zero fastidi sulla pelle",
-            "Silenzioso, compatto e con un'ottima autonomia: indispensabile per le neo mamme",
-            "Massimo comfort di suzione, livelli di massaggio perfetti e ricarica rapida Type-C"
+            "Pressione del getto d'acqua perfetta e pulizia interdentale impeccabile!",
+            "Gengive sane e placca rimossa in profondità: serbatoio capiente e testine comodissime",
+            "Idropulsore fantastico: getto modulabile, zero sanguinamento e batteria duratura",
+            "Igiene orale professionale a casa: getto potente, compatto e facilissimo da riempire",
+            "Spazzolamento e idrogetto impeccabili: sensazione di freschezza e pulizia duratura!"
         ],
         "openings": [
-            "Sto utilizzando questo tiralatte regolarmente e ha trasformato la mia routine di allattamento quotidiana.",
-            "Dopo aver valutato diversi dispositivi per l'estrazione, questo modello ha superato ogni mia aspettativa fin dal primo utilizzo.",
-            "Arrivato perfettamente sigillato, con una confezione sterile e tutti gli accessori completi."
+            "Utilizzo questo dispositivo per l'igiene orale ogni giorno dopo i pasti e ha trasformato completamente la mia routine di pulizia dentale.",
+            "Arrivato in una confezione completa di molteplici beccucci/ugelli intercambiabili per ogni esigenza, cavo di ricarica rapida e comoda custodia.",
+            "L'impugnatura è ergonomica e antiscivolo, con un serbatoio comodo da riempire ed estrarre per il risciacquo quotidiano."
         ],
         "bodies": [
-            "Le coppe in morbido silicone anatomico aderiscono perfettamente al seno senza creare punti di pressione dolorosi. Le modalità combinate di stimolazione e massaggio imitano la suzione naturale del bambino favorendo un flusso rapido e abbondante.",
-            "Il motore è sorprendentemente silenzioso, permettendo di utilizzarlo anche di notte accanto alla culla senza svegliare nessuno. Lo smontaggio richiede pochi secondi e ogni singolo elemento si lava e sterilizza con la massima igiene.",
-            "La batteria integrata consente diverse sessioni complete senza vincoli di cavi o prese a muro. Il display digitale rende immediato monitorare il tempo e regolare con precisione la potenza desiderata."
+            "I diversi livelli di pressione selezionabili (dalla modalità delicata/soft per gengive sensibili a quella a impulsi profondi) permettono di rimuovere ogni traccia di cibo e placca negli spazi interdentali più stretti e attorno all'apparecchio ortodontico.",
+            "Il micro-getto d'acqua mirato ad alta frequenza massaggia le gengive senza irritarle o provocare sanguinamenti, garantendo un'igiene profonda superiore al tradizionale filo interdentale.",
+            "La certificazione di impermeabilità IPX7 ne consente l'uso sicuro anche sotto la doccia o lavandolo sotto il rubinetto, mentre la batteria ricaricabile Type-C offre settimane di autonomia con una singola carica."
         ],
         "closings": [
-            "Un supporto fondamentale che consiglio caldamente a tutte le mamme in cerca di efficienza e serenità. 5 stelle strameritate!",
-            "Rapporto qualità-prezzo eccellente rispetto ai modelli blasonati delle farmacie. Pienamente soddisfatta!",
-            "Pratico, delicato e affidabile in ogni momento della giornata. Mai più senza!"
-        ]
-    },
-    "biberon_prima_infanzia": {
-        "keywords": ["biberon", "scaldabiberon", "sterilizzatore", "ciuccio", "neonato", "fasciatoio", "bavaglino", "seggiolone", "passeggino", "culla"],
-        "titles": [
-            "Materiali di altissima qualità senza BPA, sicuro e praticissimo per il bimbo!",
-            "Perfetto per i primi mesi: sicuro, ergonomico e facilissimo da pulire",
-            "Cura impeccabile nei dettagli e massima sicurezza per i neonati. 5 stelle piene!"
-        ],
-        "openings": [
-            "Ho scelto questo articolo per il mio bimbo e sono rimasto estremamente soddisfatto della qualità costruttiva.",
-            "Confezione integra e sigillata nel rispetto delle più rigide norme igieniche per la prima infanzia."
-        ],
-        "bodies": [
-            "Le finiture sono completamente atossiche e prive di BPA, la valvola e le guarnizioni hanno una tenuta perfetta contro rigurgiti e coliche.",
-            "L'ergonomia è studiata appositamente per una presa comoda e naturale, e tutti i componenti resistono ad alte temperature durante i cicli di sterilizzazione."
-        ],
-        "closings": [
-            "Un prodotto affidabile che dona tranquillità a ogni genitore. Consigliatissimo!",
-            "Ottima manifattura a un prezzo onesto. 5 stelle meritate!"
+            "Un acquisto fondamentale per la salute di denti e gengive che consiglio caldamente a tutti. 5 stelle meritate!",
+            "Rapporto qualità-prezzo eccellente, molto più pratico, delicato e veloce del filo interdentale tradizionale.",
+            "Bocca pulitissima, gengive sfiammate e sensazione di freschezza duratura. Pienamente soddisfatto!"
         ]
     },
 
-    # --- 2. PULIZIA CASA & ELETTRODOMESTICI ---
+    # --- 2. CURA DEI CAPELLI & STYLING (ASCIUGACAPELLI, PHON, PIASTRE, ARRICCIACAPELLI) ---
+    "asciugacapelli_piastre_hairstyling": {
+        "keywords": [
+            "asciugacapelli professionale", "asciugacapelli", "phon professionale", "phon", 
+            "piastra per capelli", "piastra capelli", "arricciacapelli", "spazzola asciugacapelli", 
+            "spazzola lisciante", "spazzola ad aria calda", "diffusore capelli", "ferro arricciacapelli", 
+            "styler capelli", "diffusore phon"
+        ],
+        "titles": [
+            "Asciugatura ultra-rapida con ioni negativi: capelli morbidi, luminosi e zero crespo!",
+            "Controllo intelligente del calore, flusso d'aria potente e rispetto totale della fibra capillare",
+            "Piega perfetta da salone a casa: leggero, maneggevole e con beccucci/diffusore eccellenti",
+            "Piastra scorrevole in ceramica: riscaldamento istantaneo e liscio perfetto in una sola passata!"
+        ],
+        "openings": [
+            "Utilizzo questo styler per capelli costantemente dopo lo shampoo e i risultati sono paragonabili a una piega dal parrucchiere.",
+            "Arrivato perfettamente imballato con beccucci concentratori magnetici/a incastro, diffusore per ricci e cavo girevole a 360° antipiega.",
+            "Fin dal primo utilizzo si apprezza la leggerezza del corpo motore e il perfetto bilanciamento dei pesi che non affatica il braccio."
+        ],
+        "bodies": [
+            "Il motore ad alta velocità eroga un flusso d'aria potente e concentrato che asciuga la chioma in tempi record senza bruciare o inaridire le punte.",
+            "La tecnologia a ioni negativi contrasta l'elettricità statica e sigilla le cuticole, lasciando i capelli straordinariamente disciplinati, lucenti e morbidi al tatto.",
+            "I vari livelli di calore e velocità, uniti al getto d'aria fredda istantaneo, permettono di modellare e fissare la piega a lungo con la massima precisione."
+        ],
+        "closings": [
+            "Un accessorio di bellezza professionale che fa risparmiare tantissimo tempo ogni giorno. 5 stelle piene!",
+            "Rapporto qualità-prezzo eccellente rispetto ai marchi più pubblicizzati. Consigliatissimo!",
+            "Capelli morbidi, sani e luminosi senza alcun danno da calore. Pienamente soddisfatta!"
+        ]
+    },
+
+    # --- 3. RASATURA & REGOLAZIONE BARBA/CORPO ---
+    "rasoi_regolabarba_tagliacapelli": {
+        "keywords": [
+            "rasoio elettrico", "rasoio da barba", "tagliacapelli", "tagliabarba", "regolabarba", 
+            "rifinitore barba", "epilatore", "depilatore", "lamette da barba", "rasoio corpo", 
+            "rifinitore naso", "shaver", "trimmer", "rasoio"
+        ],
+        "titles": [
+            "Lame affilate di precisione e zero irritazioni: taglio perfetto e scorrevole!",
+            "Motore potente, impugnatura ergonomica e batteria che dura settimane con una carica",
+            "Rifinitura millimetrica, testine lavabili sotto l'acqua e accessori completi per ogni esigenza",
+            "Rasatura confortevole a secco o con schiuma: pelle liscia e zero arrossamenti!"
+        ],
+        "openings": [
+            "Utilizzo questo dispositivo regolarmente per la cura quotidiana e ha reso la rasatura rapida e priva di fastidi.",
+            "Arrivato perfettamente imballato con una dotazione ricca di pettini distanziatori, cavo di ricarica rapida e custodia protettiva.",
+            "L'impugnatura offre un bilanciamento ideale e un grip antiscivolo anche a mani umide."
+        ],
+        "bodies": [
+            "Le lame in acciaio inossidabile o ceramica autoaffilanti scorrono con estrema dolcezza tagliando i peli alla prima passata senza impuntamenti o tiraggi.",
+            "Il motore ad alti giri garantisce un taglio omogeneo e costante anche sulla barba più folta o dura, senza surriscaldare la testina.",
+            "La testina impermeabile permette l'uso a secco o sotto la doccia e si risciacqua in un secondo sotto il rubinetto per una pulizia impeccabile."
+        ],
+        "closings": [
+            "Uno strumento affidabile, robusto e preciso in ogni dettaglio. Consigliatissimo!",
+            "Ottimo investimento per chi cerca qualità professionale e risparmio di tempo. 5 stelle!",
+            "Superiore alle aspettative: pelle liscia, zero tagli e massima comodità d'uso."
+        ]
+    },
+
+    # --- 4. IDROPULITRICI ESTERNE & ALTA PRESSIONE (AUTO, GIARDINO, PATIO) ---
+    "idropulitrici_esterni_alta_pressione": {
+        "keywords": [
+            "idropulitrice alta pressione", "idropulitrice a scoppio", "idropulitrice elettrica", 
+            "idropulitrice da giardino", "idropulitrice per auto", "idropulitrice a batteria", 
+            "idropulitrice", "pressure washer", "lancia idropulitrice"
+        ],
+        "titles": [
+            "Pressione vigorosa e getto concentrato: elimina lo sporco ostinato in pochissimi minuti!",
+            "Idropulitrice potente e compatta: lancia regolabile, serbatoio schiuma e tubi robusti",
+            "Pulizia impeccabile di pavimentazioni esterne, terrazzi, recinzioni e carrozzeria auto!"
+        ],
+        "openings": [
+            "Ho messo subito alla prova questa idropulitrice per la pulizia del piazzale, dei vialetti e dell'auto con risultati eccezionali.",
+            "Arrivata con kit completo di lancia regolabile, ugello rotante turbo, serbatoio per detergente e raccordi rapidi.",
+            "Montaggio rapido e intuitivo: pronta all'uso in meno di 5 minuti senza perdite d'acqua dai raccordi."
+        ],
+        "bodies": [
+            "La pompa ad alta pressione sviluppa una potenza notevole capace di rimuovere muschio, fango secco e incrostazioni ostinate da pietra, cemento e veicoli.",
+            "La lancia regolabile consente di passare con facilità da un getto a ventaglio delicato per il lavaggio auto a un getto mirato ad alta pressione per pavimenti duri.",
+            "La struttura compatta su ruote e il lungo tubo ad alta pressione offrono un ampio raggio d'azione senza dover spostare continuamente il corpo macchina."
+        ],
+        "closings": [
+            "Uno strumento potentissimo che fa risparmiare fatica e litri d'acqua. 5 stelle meritatissime!",
+            "Rapporto qualità-prezzo eccellente per potenza ed efficacia di lavaggio. Consigliatissima!",
+            "Pulizia profonda senza sforzo: superfici esterne tornate come nuove!"
+        ]
+    },
+
+    # --- 5. SKINCARE & COSMETICA ---
+    "skincare_cosmetica": {
+        "keywords": [
+            "siero viso", "siero", "crema viso", "acido ialuronico", "vitamina c", "retinolo", 
+            "fondotinta", "antiage", "antirughe", "skincare", "lifting", "maschera viso", 
+            "esfoliante", "tonico viso", "olio viso", "struccante", "bava di lumaca", "contorno occhi", 
+            "crema idratante", "crema corpo", "crema solare", "balsamo labbra", "peeling"
+        ],
+        "titles": [
+            "Texture setosa a rapido assorbimento: idratazione profonda e pelle luminosa fin da subito!",
+            "Formula ricca e delicatissima anche sulle pelli sensibili: risultati visibili in pochi giorni",
+            "Non unge, lascia il viso disteso, compatto e vellutato. Qualità cosmetica eccellente!",
+            "Profumazione delicata ed effetto rimpolpante immediato: un must-have per la routine viso"
+        ],
+        "openings": [
+            "Ho integrato questo cosmetico nella mia routine mattutina e serale di cura del viso e i benefici sono evidenti.",
+            "Flacone elegante con erogatore dosatore che protegge la purezza della formula ed evita qualsiasi spreco di prodotto.",
+            "Fin dalla primissima applicazione si apprezza la finezza degli ingredienti e l'assenza di alcool aggressivo."
+        ],
+        "bodies": [
+            "La consistenza fluida penetra istantaneamente negli strati epidermici senza lasciare residui appiccicosi o effetto lucido, rendendola ideale anche come base trucco.",
+            "La pelle appare visibilmente più tonica, nutrita ed elastica, con una grana affinata e una distensione evidente delle linee d'espressione.",
+            "Nessun arrossamento, bruciore o reazione allergica: tollerabilità cutanea impeccabile anche per pelli delicate e reattive."
+        ],
+        "closings": [
+            "Rapporto qualità-prezzo eccellente per un cosmetico di questa resa dermatologica. 5 stelle!",
+            "Mantiene tutte le promesse con risultati reali e duraturi. Lo ricomprerò sicuramente!",
+            "Pienamente soddisfatta della sensazione di freschezza e idratazione che regala ogni giorno."
+        ]
+    },
+
+    # --- 6. MANICURE, PEDICURE & UNGHIE ---
+    "manicure_pedicure_unghie": {
+        "keywords": [
+            "fresa per unghie", "fresa unghie", "lampada uv unghie", "fornetto unghie", "fornetto uv", 
+            "lampada led unghie", "smalto semipermanente", "kit unghie", "tagliaunghie", 
+            "aspiratore unghie", "lime unghie", "pedicure", "manicure", "ricostruzione unghie"
+        ],
+        "titles": [
+            "Polimerizzazione rapida e uniforme: manicure e pedicure perfette come dall'estetista!",
+            "Fresa potente, silenziosa e priva di vibrazioni: punte precise e velocità regolabile",
+            "Risultati professionali a casa: smalto brillante, resistente e senza sbeccature!"
+        ],
+        "openings": [
+            "Utilizzo questo set per la cura e la ricostruzione delle unghie a casa e la comodità d'uso è eccezionale.",
+            "Arrivato con set completo di punte diamantate, cilindri abrasivi e alimentatore dedicato in una pratica custodia."
+        ],
+        "bodies": [
+            "La potenza dei LED/UV distribuisce la luce in modo uniforme su tutte le dita, asciugando gel e semipermanenti in pochissimi secondi grazie ai sensori intelligenti di inserimento mano.",
+            "Il manipolo della fresa ha un'impugnatura bilanciata priva di vibrazioni, con velocità regolabile e doppio senso di rotazione per trattare cuticole e callosità con la massima precisione."
+        ],
+        "closings": [
+            "Uno strumento di qualità professionale che fa risparmiare tempo e denaro. 5 stelle meritate!",
+            "Unghie curate, resistenti e brillanti per settimane. Consigliatissimo!"
+        ]
+    },
+
+    # --- 7. DISPOSITIVI MEDICI & SALUTE (PRESSIONE, SATURIMETRI, TERMOMETRI, AEROSOL) ---
+    "dispositivi_medici_salute": {
+        "keywords": [
+            "misuratore di pressione", "misuratore pressione", "sfigmomanometro", "saturimetro", 
+            "pulsossimetro", "termometro a infrarossi", "termometro digitale", "termometro", 
+            "aerosol", "nebulizzatore", "misuratore glicemia", "elettrostimolatore", "tens", 
+            "fascia posturale", "tutore", "correttore postura"
+        ],
+        "titles": [
+            "Misurazione rapida e precisa al millimetro: display grande, chiaro e facilissimo da leggere!",
+            "Dispositivo medico affidabile e certificato: funzionamento immediato a un solo tasto",
+            "Silenzioso, compatto e con memoria storica delle letture: fondamentale per la salute in famiglia"
+        ],
+        "openings": [
+            "Ho acquistato questo dispositivo per monitorare i parametri di salute a casa e si è dimostrato impeccabile per precisione e semplicità.",
+            "Confezionato con bracciale ergonomico regolabile, batterie, custodia da viaggio e manuale illustrato in italiano."
+        ],
+        "bodies": [
+            "I sensori ad alta sensibilità rilevano i dati in pochissimi secondi, fornendo letture coerenti e conformi ai parametri di riferimento con indicatori visivi chiari.",
+            "Lo schermo retroilluminato a grandi cifre rende i valori immediatamente comprensibili anche per persone anziane, con memoria per archiviare le misurazioni di più utenti.",
+            "La pompa/nebulizzatore lavora con una silenziosità esemplare, rendendo l'utilizzo confortevole in qualsiasi momento."
+        ],
+        "closings": [
+            "Un presidio sanitario domestico affidabile e indispensabile per tutta la famiglia. 5 stelle!",
+            "Rapporto qualità-prezzo eccellente, paragonabile ai dispositivi da studio medico."
+        ]
+    },
+
+    # --- 8. UMIDIFICATORI, DIFFUSORI & PURIFICATORI D'ARIA ---
+    "diffusori_umidificatori_purificatori": {
+        "keywords": [
+            "diffusore di aromi", "diffusore oli essenziali", "diffusore aromi", "umidificatore ultrasuoni", 
+            "umidificatore", "purificatore d'aria", "purificatore aria", "filtro hepa", 
+            "deumidificatore portatile", "deumidificatore", "ozonizzatore"
+        ],
+        "titles": [
+            "Nebulizzazione a ultrasuoni finissima e silenziosissima: aria fresca e profumo avvolgente!",
+            "Purificazione efficace con filtro HEPA: elimina polvere, pollini e cattivi odori in un attimo",
+            "Serbatoio capiente, luci LED rilassanti e spegnimento automatico di sicurezza: fantastico!"
+        ],
+        "openings": [
+            "Ho posizionato questo dispositivo nella zona giorno/notte e la qualità dell'aria nella stanza è migliorata immediatamente.",
+            "Design moderno ed elegante con finiture effetto legno/minimal che si integrano con grazia nell'arredamento."
+        ],
+        "bodies": [
+            "La tecnologia ultrasonica diffonde una nebbia fresca e leggera che idrata l'aria negli ambienti secchi diffondendo gli oli essenziali in modo uniforme.",
+            "Il sistema di filtrazione trattiene microparticelle e allergeni lasciando l'ambiente salubre, mentre la rumorosità è talmente bassa da non disturbare minimamente il riposo notturno.",
+            "La funzione di spegnimento automatico a esaurimento acqua e i timer programmabili garantiscono massima sicurezza e serenità."
+        ],
+        "closings": [
+            "Un acquisto eccellente per il benessere e il relax quotidiano in casa. 5 stelle piene!",
+            "Profumazione gradevole, silenziosità assoluta e consumi irrisori. Consigliatissimo!"
+        ]
+    },
+
+    # --- 9. ASPIRAPOLVERE & LAVAPAVIMENTI ---
     "aspirapolvere_lavapavimenti": {
-        "keywords": ["aspirapolvere", "lavapavimenti", "scopa elettrica", "robot aspirapolvere", "lavatappeti", "mocio", "aspirabriciole", "idropulitrice"],
+        "keywords": [
+            "aspirapolvere senza fili", "aspirapolvere", "lavapavimenti", "scopa elettrica", 
+            "robot aspirapolvere", "lavatappeti", "mocio autolavante", "aspirabriciole", "aspiratore liquidi"
+        ],
         "titles": [
             "Potenza di aspirazione straordinaria e pavimenti puliti in una sola passata!",
             "Leggera, maneggevole e con un'ottima autonomia: rivoluziona le pulizie di casa",
@@ -124,8 +319,14 @@ CATEGORIES = {
             "Efficiente, silenziosa e robusta. Pienamente soddisfatto dell'acquisto!"
         ]
     },
+
+    # --- 10. BARATTOLI & CONTENITORI ERMETICI CAFFÈ ---
     "barattoli_contenitori_caffe": {
-        "keywords": ["barattolo per caffè", "barattolo caffè", "contenitore caffè", "barattolo ermetico", "contenitore ermetico", "valvola co2", "valvola rilascio co2", "barattolo acciaio inox", "chicchi di caffè", "barattolo chicchi", "contenitore ermetico per caffè", "barattolo"],
+        "keywords": [
+            "barattolo per caffè", "barattolo caffè", "contenitore caffè", "barattolo ermetico", 
+            "contenitore ermetico", "valvola co2", "valvola rilascio co2", "barattolo acciaio inox", 
+            "chicchi di caffè", "barattolo chicchi", "contenitore ermetico per caffè", "barattolo ermetico caffè"
+        ],
         "titles": [
             "Barattolo ermetico eccezionale: acciaio inox robusto, valvola CO2 perfetta e aroma sempre al top!",
             "La miglior soluzione per conservare il caffè: tenuta stagna al 100%, ghiera datario e cucchiaio comodissimo",
@@ -148,8 +349,15 @@ CATEGORIES = {
             "Elegante sul piano di lavoro e funzionale al 100%. Pienamente soddisfatto!"
         ]
     },
+
+    # --- 11. FRIGGITRICI AD ARIA & ELETTRODOMESTICI CUCINA ---
     "friggitrice_cucina_elettro": {
-        "keywords": ["friggitrice ad aria", "friggitrice", "air fryer", "frullatore", "robot da cucina", "macchina caffe", "macchina caffè", "caffè", "caffettiera", "bollitore", "tostapane", "forno", "fornetto", "impastatrice", "microonde", "slow cooker"],
+        "keywords": [
+            "friggitrice ad aria", "friggitrice", "air fryer", "frullatore", "robot da cucina", 
+            "macchina caffe", "macchina caffè", "caffettiera", "bollitore elettrico", "bollitore", 
+            "tostapane", "forno elettrico", "fornetto", "impastatrice planetaria", "impastatrice", 
+            "microonde", "slow cooker", "cuociriso", "estrattore di succo", "sigillatrice sottovuoto"
+        ],
         "titles": [
             "Cottura perfetta e croccante senza olio: cestello capiente e programmi facilissimi!",
             "Prestazioni professionali in cucina: riscaldamento rapido e pulizia immediata",
@@ -172,8 +380,14 @@ CATEGORIES = {
             "Cottura impeccabile e salutare ogni giorno. Promosso a pieni voti!"
         ]
     },
+
+    # --- 12. PENTOLE, PADELLE & UTENSILI DA CUCINA ---
     "utensili_cucina_accessori": {
-        "keywords": ["barattolo", "barattoli", "spezie", "pentola", "padella", "coltello", "coltelli", "tagliere", "bilancia da cucina", "borraccia", "thermos", "contenitore", "ermetico", "scolapiatti", "organizer cucina", "portaspezie"],
+        "keywords": [
+            "pentola a pressione", "pentola", "padella antiaderente", "padella", "set coltelli", 
+            "coltello cucina", "tagliere", "bilancia da cucina", "borraccia termica", "thermos", 
+            "portaspezie", "organizer cucina", "scolapiatti", "tagliapasta", "stampo silicone", "posate"
+        ],
         "titles": [
             "Materiali per uso alimentare di prima scelta, guarnizioni ermetiche e zero perdite!",
             "Solido, funzionale ed esteticamente bellissimo: un tocco di ordine ed eleganza in cucina",
@@ -194,80 +408,13 @@ CATEGORIES = {
         ]
     },
 
-    # --- 3. CURA DELLA PERSONA & BELLEZZA ---
-    "skincare_cosmetica": {
-        "keywords": ["siero", "crema", "acido ialuronico", "vitamina c", "retinolo", "fondotinta", "antiage", "antirughe", "skincare", "lifting", "maschera viso", "esfoliante", "tonico", "olio viso", "struccante", "bava di lumaca"],
-        "titles": [
-            "Texture setosa a rapido assorbimento: idratazione profonda e pelle luminosa fin da subito!",
-            "Formula ricca e delicatissima anche sulle pelli sensibili: risultati visibili in pochi giorni",
-            "Non unge, lascia il viso disteso, compatto e vellutato. Qualità eccellente!",
-            "Profumazione delicata ed effetto rimpolpante immediato: un must-have per la routine viso"
-        ],
-        "openings": [
-            "Ho integrato questo cosmetico nella mia routine mattutina e serale di cura del viso e i benefici sono evidenti.",
-            "Flacone elegante con erogatore dosatore che protegge la purezza della formula ed evita qualsiasi spreco di prodotto.",
-            "Fin dalla primissima applicazione si apprezza la finezza degli ingredienti e l'assenza di alcool aggressivo."
-        ],
-        "bodies": [
-            "La consistenza fluida penetra istantaneamente negli strati epidermici senza lasciare residui appiccicosi o effetto lucido, rendendola ideale anche come base prima del make-up.",
-            "La pelle appare visibilmente più tonica, nutrita ed elastica, con una grana affinata e una distensione evidente delle linee d'espressione.",
-            "Nessun arrossamento, bruciore o reazione allergica: tollerabilità cutanea impeccabile anche per pelli delicate e reattive."
-        ],
-        "closings": [
-            "Rapporto qualità-prezzo eccellente per un cosmetico di questa resa dermatologica. 5 stelle!",
-            "Mantiene tutte le promesse con risultati reali e duraturi. Lo ricomprerò sicuramente!",
-            "Pienamente soddisfatta della sensazione di freschezza e idratazione che regala ogni giorno."
-        ]
-    },
-    "rasoi_capelli_barba": {
-        "keywords": ["rasoio", "tagliacapelli", "tagliabarba", "regolabarba", "epilatore", "spazzolino", "idropulsore", "asciugacapelli", "phon", "piastra capelli", "arricciacapelli", "diffusore", "lamette"],
-        "titles": [
-            "Lame affilate di precisione e zero irritazioni: taglio perfetto e scorrevole!",
-            "Motore potente, impugnatura ergonomica e batteria che dura settimane con una carica",
-            "Rifinitura millimetrica, testine lavabili sotto l'acqua e accessori completi per ogni esigenza",
-            "Prestazioni da salone professionale comodamente a casa. 5 stelle meritate!"
-        ],
-        "openings": [
-            "Utilizzo questo dispositivo regolarmente per la cura quotidiana e ha reso l'operazione rapida e priva di fastidi.",
-            "Arrivato perfettamente imballato con una dotazione ricca di pettini distanziatori, cavo di ricarica e custodia protettiva.",
-            "L'impugnatura offre un bilanciamento ideale e un grip antiscivolo anche a mani umide."
-        ],
-        "bodies": [
-            "Le lame in acciaio inossidabile/ceramica tagliano con estrema nettezza alla prima passata senza impuntamenti, tiraggi di peli o arrossamenti sulla cute.",
-            "Il motore ad alti giri mantiene una velocità costante e silenziosa anche sulle zone più folte, senza surriscaldare la testina.",
-            "La batteria a lunga autonomia garantisce numerose sessioni di rifinitura e lo sciacquo sotto il getto del rubinetto rende la pulizia rapida ed igienica."
-        ],
-        "closings": [
-            "Uno strumento affidabile, robusto e preciso in ogni dettaglio. Consigliatissimo!",
-            "Ottimo investimento per chi cerca qualità professionale e risparmio di tempo. 5 stelle!",
-            "Superiore alle aspettative: pelle liscia e zero tagli."
-        ]
-    },
-    "massaggiatori_benessere": {
-        "keywords": ["pistola massaggiante", "massaggiatore", "cervicale", "massaggiante", "pressoterapia", "cuscino massaggiante", "pediluvio", "termoterapia", "fascia lombare", "postura"],
-        "titles": [
-            "Sollievo muscolare immediato! Percussione profonda, 6 testine e motore ultra silenzioso",
-            "Scioglie contratture e tensioni muscolari con grande efficacia: robusto e facilissimo da usare",
-            "Potenza regolabile con precisione e batteria di lunghissima durata: un toccasana quotidiano!"
-        ],
-        "openings": [
-            "Ho acquistato questo dispositivo per alleviare le tensioni muscolari dopo l'attività fisica e il lavoro ed è diventato irrinunciabile.",
-            "Valigetta rigida elegante e ben organizzata con tutti gli accessori di ricambio inclusi."
-        ],
-        "bodies": [
-            "La profondità di percussione raggiunge i tessuti profondi sciogliendo nodi e rigidità su schiena, collo e gambe con diversi livelli di intensità selezionabili dal display.",
-            "Il motore brushless eroga una coppia vigorosa senza bloccarsi alla pressione, mantenendo un livello acustico molto basso e discreto.",
-            "La batteria agli ioni di litio assicura giorni di trattamenti con una sola ricarica rapida Type-C."
-        ],
-        "closings": [
-            "Un acquisto che vale ogni centesimo per il benessere corporeo quotidiano. 5 stelle!",
-            "Rapporto qualità-prezzo eccellente, costruzione solida e risultati tangibili fin da subito!"
-        ]
-    },
-
-    # --- 4. COMPUTER, LAPTOP, MONITOR & TABLET ---
+    # --- 13. COMPUTER, NOTEBOOK & MINI PC ---
     "computer_notebook_pc": {
-        "keywords": ["pc", "mini pc", "computer", "notebook", "laptop", "desktop", "all-in-one", "macbook", "chromebook", "workstation", "portatile", "ultrabook", "i3", "i5", "i7", "i9", "ryzen", "n100", "n95", "n5105", "intel core", "amd ryzen"],
+        "keywords": [
+            "mini pc", "notebook", "laptop", "computer desktop", "all-in-one", "macbook", 
+            "chromebook", "workstation", "portatile", "ultrabook", "i3", "i5", "i7", "i9", 
+            "ryzen", "n100", "n95", "n5105", "intel core", "amd ryzen", "computer", "pc"
+        ],
         "titles": [
             "PC fluido, velocissimo e silenzioso: processore potente e ottima dissipazione termica!",
             "Prestazioni eccellenti, avvio in pochi secondi con SSD e reattività totale in multitasking",
@@ -290,8 +437,14 @@ CATEGORIES = {
             "Pienamente soddisfatto, perfetto per chi cerca produttività e velocità senza spendere cifre esorbitanti."
         ]
     },
+
+    # --- 14. MONITOR, SCHERMI & PROIETTORI ---
     "monitor_schermi": {
-        "keywords": ["monitor", "schermo pc", "display gaming", "curvo", "144hz", "165hz", "240hz", "2k", "4k", "ips", "fhd", "qhd"],
+        "keywords": [
+            "monitor gaming", "monitor pc", "schermo pc", "display gaming", "display curvo", 
+            "144hz", "165hz", "240hz", "proiettore portatile", "videoproiettore", "smart tv", 
+            "monitor 4k", "monitor 2k", "monitor ips", "monitor", "schermo"
+        ],
         "titles": [
             "Colori brillanti, neri profondi e frequenza di aggiornamento fluidissima!",
             "Monitor eccezionale: cornici sottili, zero affaticamento visivo e resa visiva spettacolare",
@@ -311,8 +464,10 @@ CATEGORIES = {
             "Consigliatissimo a chiunque cerchi nitidezza, fluidità e comfort visivo."
         ]
     },
+
+    # --- 15. TABLET & E-READER ---
     "tablet_e_ipad": {
-        "keywords": ["tablet", "ipad", "android tablet", "fire hd", "tab", "display touch"],
+        "keywords": ["tablet android", "tablet", "ipad", "fire hd", "tab", "display touch", "e-reader", "kindle", "lettore ebook"],
         "titles": [
             "Touch screen reattivo, display brillante e fluidità assoluta con tutte le app!",
             "Leggero, compatto e con una batteria infinita: perfetto per streaming, studio e lettura",
@@ -332,8 +487,14 @@ CATEGORIES = {
             "Rapporto qualità-prezzo imbattibile, super consigliato a studenti e professionisti."
         ]
     },
+
+    # --- 16. MOUSE, TASTIERE & PERIFERICHE ---
     "mouse_tastiere_gaming": {
-        "keywords": ["mouse", "tastiera", "mouse gaming", "tastiera meccanica", "tastiera wireless", "tappetino mouse", "mousepad"],
+        "keywords": [
+            "mouse wireless", "mouse gaming", "mouse ergonomico", "mouse verticale", 
+            "tastiera meccanica", "tastiera wireless", "tastiera bluetooth", "tappetino mouse", 
+            "mousepad xxl", "mousepad", "mouse", "tastiera"
+        ],
         "titles": [
             "Digitazione confortevole e silenziosa, switch reattivi e precisione assoluta!",
             "Ergonomia perfetta che non affatica il polso, connessione wireless stabile e zero ritardi",
@@ -354,9 +515,13 @@ CATEGORIES = {
         ]
     },
 
-    # --- 5. AUDIO, ELETTRONICA & SMARTPHONE ---
+    # --- 17. AUDIO, CUFFIE & CASSE BLUETOOTH ---
     "cuffie_auricolari_audio": {
-        "keywords": ["auricolari", "cuffie", "earbuds", "tws", "bluetooth", "soundbar", "altoparlante", "speaker", "cassa bluetooth", "microfono", "anc", "cancellazione rumore"],
+        "keywords": [
+            "auricolari bluetooth", "auricolari wireless", "auricolari", "cuffie bluetooth", 
+            "cuffie wireless", "cuffie", "earbuds", "tws", "soundbar", "altoparlante bluetooth", 
+            "speaker bluetooth", "cassa bluetooth", "microfono wireless", "cuffie anc", "cancellazione rumore"
+        ],
         "titles": [
             "Audio cristallino con bassi potenti e cancellazione del rumore attiva davvero efficace!",
             "Connessione Bluetooth 5.3 istantanea, microfoni nitidi in chiamata e batteria infinita",
@@ -379,8 +544,13 @@ CATEGORIES = {
             "Pienamente promosso sotto ogni aspetto tecnico e di design."
         ]
     },
+
+    # --- 18. SMARTWATCH & FITNESS TRACKER ---
     "smartwatch_fitness_tracker": {
-        "keywords": ["smartwatch", "orologio fitness", "tracker", "smartband", "cardiofrequenzimetro", "contapassi", "ossigenazione", "spo2", "sportwatch"],
+        "keywords": [
+            "smartwatch", "smartband", "orologio fitness", "tracker", "cardiofrequenzimetro", 
+            "contapassi", "ossigenazione", "spo2", "sportwatch", "orologio smart"
+        ],
         "titles": [
             "Display AMOLED brillante e reattivo, monitoraggio parametri salute accurato e puntuale!",
             "Smartwatch completo ed elegante: notifiche fulminee e batteria che dura moltissimi giorni",
@@ -403,8 +573,14 @@ CATEGORIES = {
             "Ottimo compagno per monitorare la salute e le notifiche al polso."
         ]
     },
+
+    # --- 19. POWERBANK & BATTERIE PORTATILI ---
     "powerbank_batterie_portatili": {
-        "keywords": ["power bank", "powerbank", "batteria portatile", "caricatore portatile", "caricabatterie portatile", "batteria esterna", "20000mah", "10000mah", "30000mah", "pd3.0", "qc4.0", "quick charge", "power delivery"],
+        "keywords": [
+            "power bank", "powerbank", "batteria portatile", "caricatore portatile", 
+            "caricabatterie portatile", "batteria esterna", "20000mah", "10000mah", "30000mah", 
+            "pd3.0", "qc4.0", "quick charge", "power delivery"
+        ],
         "titles": [
             "Power Bank 20000mAh potentissimo: ricarica rapida PD 22.5W, display percentuale e autonomia infinita!",
             "Capienza reale da 20000mAh, ricarica ultra-veloce PD 3.0/QC 4.0 e zero surriscaldamento",
@@ -427,8 +603,15 @@ CATEGORIES = {
             "Mai più con la batteria a terra: prodotto eccellente e indispensabile."
         ]
     },
+
+    # --- 20. CAVI, HUB & ACCESSORI SMARTPHONE ---
     "accessori_smartphone_cavi": {
-        "keywords": ["caricatore", "caricabatterie", "cavo usb", "cavo type-c", "cavo lightning", "cover", "pellicola", "vetro temperato", "supporto smartphone", "supporto tablet", "hub usb", "docking station", "chiavetta usb", "ssd esterno", "scheda sd"],
+        "keywords": [
+            "caricatore usb-c", "caricabatterie gan", "caricatore", "caricabatterie", "cavo usb-c", 
+            "cavo type-c", "cavo lightning", "cavo hdmi", "cover iphone", "cover", "pellicola vetro", 
+            "vetro temperato", "supporto smartphone", "supporto tablet", "hub usb-c", "hub usb", 
+            "docking station", "chiavetta usb", "ssd esterno", "scheda sd"
+        ],
         "titles": [
             "Ricarica ultra-rapida, materiali robusti e connettività impeccabile!",
             "Compatto, resistente e affidabile: risolve ogni esigenza di ricarica e connessione",
@@ -447,8 +630,15 @@ CATEGORIES = {
             "Qualità eccellente a un prezzo conveniente. Consigliatissimo!"
         ]
     },
+
+    # --- 21. VIDEOSORVEGLIANZA & SICUREZZA ---
     "sicurezza_telecamere": {
-        "keywords": ["telecamera", "videocamera", "videosorveglianza", "ip camera", "wifi camera", "pannello solare", "visione notturna", "sensore pir", "campanello"],
+        "keywords": [
+            "telecamera wifi", "telecamera da esterno", "telecamera da interno", "telecamera", 
+            "videocamera sorveglianza", "videosorveglianza", "ip camera", "wifi camera", 
+            "pannello solare telecamera", "telecamera solare", "visione notturna", "sensore pir", 
+            "campanello wireless", "videocitofono"
+        ],
         "titles": [
             "Risoluzione video 2K nitidissima, visione notturna a colori e rilevamento di movimento fulmineo!",
             "Installazione wireless semplicissima, pannello solare sempre carico e app intuitiva",
@@ -469,9 +659,13 @@ CATEGORIES = {
         ]
     },
 
-    # --- 5. CASA, ARREDAMENTO & ILLUMINAZIONE ---
+    # --- 22. MOBILI & ARREDAMENTO ---
     "mobili_arredamento": {
-        "keywords": ["comodino", "tavolino", "tavolo", "sedia", "poltrona", "scaffale", "libreria", "armadietto", "mobiletto", "cassettiera", "mobile", "divano", "letto", "materasso", "cuscino memory", "copridivano", "tappeto", "mensola", "appendiabiti", "scarpiera"],
+        "keywords": [
+            "comodino", "tavolino", "tavolo", "sedia ergonomica", "sedia", "poltrona", "scaffale", 
+            "libreria", "armadietto", "mobiletto", "cassettiera", "mobile tv", "divano", "letto", 
+            "scrivania", "mensola", "appendiabiti", "scarpiera"
+        ],
         "titles": [
             "Design moderno ed elegante: solido, capiente e facilissimo da montare!",
             "Finiture impeccabili e materiali robusti: fa una splendida figura nella stanza",
@@ -494,8 +688,14 @@ CATEGORIES = {
             "Solido, bello da vedere e pratico da vivere ogni giorno."
         ]
     },
+
+    # --- 23. ILLUMINAZIONE & LAMPADE LED ---
     "illuminazione_lampade": {
-        "keywords": ["lampada", "plafoniera", "lampadario", "luce led", "striscia led", "faretto", "lampada da tavolo", "applique", "luce solare", "lampadina smart"],
+        "keywords": [
+            "lampada da tavolo", "lampada scrivania", "plafoniera led", "lampadario", 
+            "luce led", "striscia led rgb", "striscia led", "faretto led", "faretto", 
+            "applique", "luce solare esterno", "lampadina smart", "lampada"
+        ],
         "titles": [
             "Luce potente e omogenea, tonalità dimmerabili e zero sfarfallio!",
             "Design moderno e minimale: illumina l'intera stanza con bassi consumi energetici",
@@ -516,9 +716,13 @@ CATEGORIES = {
         ]
     },
 
-    # --- 6. AUTO & MOTO ---
+    # --- 24. AUTO & ACCESSORI MOTO ---
     "auto_diagnostica_accessori": {
-        "keywords": ["obd", "obd2", "diagnosi auto", "scanner auto", "avviatore", "compressore", "compressore portatile", "dashcam", "supporto auto", "portacellulare auto", "trasmettitore fm", "tappetini auto", "coprisedili", "lucidatrice", "cavi batteria"],
+        "keywords": [
+            "scanner obd2", "diagnosi auto", "obd2", "obd", "dashcam auto", "dashcam", 
+            "supporto auto", "portacellulare auto", "trasmettitore fm", "tappetini auto", 
+            "coprisedili auto", "lucidatrice auto", "cavi batteria auto"
+        ],
         "titles": [
             "Strumento indispensabile per l'auto: lettura rapida, precisa e facilissimo da usare!",
             "Compatto, potente e robusto: risolve all'istante le emergenze e fa risparmiare tempo e denaro",
@@ -540,9 +744,41 @@ CATEGORIES = {
         ]
     },
 
-    # --- 7. FAI DA TE & GIARDINAGGIO ---
+    # --- 25. COMPRESSORI PORTATILI & GONFIATORI ---
+    "compressore_portatile_auto": {
+        "keywords": [
+            "compressore portatile", "compressore auto", "gonfiatore portatile", "gonfiatore auto", 
+            "gonfiatore pneumatici", "gonfiatore", "avviatore auto", "avviatore portatile", 
+            "jump starter", "booster auto", "manometro digitale", "150psi", "150 psi", "pompa bici elettrica"
+        ],
+        "titles": [
+            "Pressione PSI precisa e gonfiaggio fulmineo: salva da ogni emergenza!",
+            "Autonomia eccellente, display digitale chiaro e spegnimento automatico a pressione raggiunta",
+            "Compatto, potente e robusto: gonfia pneumatici e ruote in pochissimi minuti senza sforzo!"
+        ],
+        "openings": [
+            "Ho acquistato questo compressore/avviatore portatile per tenerlo sempre in auto ed è già stato provvidenziale.",
+            "Valigetta/sacca completa di adattatori per valvole auto, moto, bici e palloni, con cavo di ricarica rapida e luce LED di emergenza."
+        ],
+        "bodies": [
+            "Il manometro digitale legge la pressione con assoluta precisione e la funzione di auto-stop arresta l'erogazione esattamente al valore impostato.",
+            "Il motore interno sviluppa una pressione notevole gonfiando uno pneumatico sgonfio in tempi record senza surriscaldamenti eccessivi.",
+            "La batteria integrata funge anche da powerbank di emergenza e la torcia LED incorporata è comodissima per interventi notturni sul ciglio della strada."
+        ],
+        "closings": [
+            "Uno strumento di emergenza indispensabile per ogni automobilista e motociclista. 5 stelle meritatissime!",
+            "Qualità costruttiva al top, preciso, affidabile e compatto. Consigliatissimo!"
+        ]
+    },
+
+    # --- 26. ATTREZZI FAI DA TE & BRICOLAGE ---
     "faidate_attrezzi": {
-        "keywords": ["trapano", "avvitatore", "flessibile", "smerigliatrice", "seghetto", "set chiavi", "cacciavite", "chiavi a bussola", "livella", "valigetta attrezzi", "saldatore", "multimetro", "metro laser", "morsa"],
+        "keywords": [
+            "trapano a percussione", "avvitatore a batteria", "trapano avvitatore", "trapano", 
+            "avvitatore", "flessibile", "smerigliatrice angolare", "smerigliatrice", "seghetto alternativo", 
+            "set chiavi a bussola", "set cacciaviti", "cacciavite", "valigetta attrezzi", 
+            "saldatore a stagno", "multimetro digitale", "metro laser", "morsa da banco"
+        ],
         "titles": [
             "Coppia di serraggio vigorosa, doppia batteria al litio e mandrino preciso!",
             "Valigetta completa e attrezzi robusti: indispensabile per tutti i lavori di casa e bricolage",
@@ -562,8 +798,15 @@ CATEGORIES = {
             "Robusto, maneggevole e potente: acquisto super consigliato!"
         ]
     },
+
+    # --- 27. GIARDINAGGIO & CURA ESTERNI ---
     "giardinaggio_esterni": {
-        "keywords": ["tagliaerba", "decespugliatore", "soffiatore", "motosega", "forbici potatura", "tubo irrigazione", "irrigatore", "luci giardino", "telo pacciamatura", "repellente", "serra", "idropulitrice giardino"],
+        "keywords": [
+            "tagliaerba a batteria", "tagliaerba", "decespugliatore", "soffiatore foglie", 
+            "soffiatore", "motosega a batteria", "motosega", "forbici da potatura", "forbici potatura", 
+            "tubo irrigazione estensibile", "tubo irrigazione", "irrigatore giardino", "centralina irrigazione", 
+            "telo pacciamatura", "serra da giardino"
+        ],
         "titles": [
             "Taglio netto e potente, leggero da maneggiare e con ottima autonomia!",
             "Rende la cura del giardino rapida e senza fatica: materiali resistenti alle intemperie",
@@ -584,9 +827,15 @@ CATEGORIES = {
         ]
     },
 
-    # --- 8. ANIMALI & PET CARE ---
+    # --- 28. ANIMALI & PET CARE ---
     "animali_pet": {
-        "keywords": ["cane", "gatto", "tiragraffi", "cuccia", "collare", "guinzaglio", "pettorina", "tosatrice animali", "spazzola cane", "lettiera", "fontanella gatto", "distributore cibo", "gioco cane", "trasportino"],
+        "keywords": [
+            "cuccia cane", "cuccia gatto", "cuccia", "tiragraffi per gatti", "tiragraffi", 
+            "collare cane", "guinzaglio retrattile", "guinzaglio", "pettorina cane", "pettorina", 
+            "tosatrice per cani", "tosatrice animali", "spazzola cane", "fontanella per gatti", 
+            "fontanella gatto", "distributore cibo automatico", "lettiera gatto", "trasportino cane", 
+            "gioco cane", "cane", "gatto"
+        ],
         "titles": [
             "Materiali morbidi e atossici, amatissimo dal mio animale fin dal primo giorno!",
             "Robusto, sicuro e facilissimo da pulire: il miglior acquisto per il nostro cucciolo",
@@ -607,9 +856,14 @@ CATEGORIES = {
         ]
     },
 
-    # --- 9. SPORT, FITNESS & OUTDOOR ---
+    # --- 29. SPORT & FITNESS ---
     "sport_fitness_outdoor": {
-        "keywords": ["manubri", "elastici fitness", "tappetino yoga", "panca", "cyclette", "tapis roulant", "corda salto", "fasce resistenza", "zaino trekking", "tenda campeggio", "sacco a pelo", "torcia frontale", "guanti palestra", "borraccia sport"],
+        "keywords": [
+            "manubri pesi", "manubri regolabili", "manubri", "elastici fitness", "bande di resistenza", 
+            "tappetino yoga", "tappetino fitness", "panca pesi", "panca palestra", "cyclette da camera", 
+            "cyclette", "tapis roulant", "corda per saltare", "corda salto", "fasce resistenza", 
+            "zaino trekking", "tenda campeggio", "sacco a pelo", "guanti palestra"
+        ],
         "titles": [
             "Materiali tecnici resistenti e grip perfetto: ideale per allenarsi al meglio!",
             "Robusto, ergonomico e compatto: qualità da palestra comodamente a casa",
@@ -630,9 +884,14 @@ CATEGORIES = {
         ]
     },
 
-    # --- 10. ABBIGLIAMENTO, BORSE & ACCESSORI MODA ---
+    # --- 30. ABBIGLIAMENTO, ZAINI & VALIGIE ---
     "abbigliamento_valigie_borse": {
-        "keywords": ["zaino", "valigia", "trolley", "borsa", "marsupio", "portafoglio", "cintura", "occhiali da sole", "giacca", "scarpe", "sneakers", "pantofole", "ciabatte", "pigiama", "maglietta", "calze", "sciarpa", "guanti"],
+        "keywords": [
+            "zaino porta pc", "zaino trekking", "zaino viaggio", "zaino", "valigia rigida", 
+            "valigia", "trolley cabina", "trolley", "borsa da viaggio", "borsa donna", "borsa", 
+            "marsupio", "portafoglio uomo", "portafoglio", "cintura pelle", "occhiali da sole", 
+            "giacca impermeabile", "scarpe da ginnastica", "sneakers", "pantofole", "ciabatte", "pigiama"
+        ],
         "titles": [
             "Cuciture rinforzate, tessuti impermeabili e scomparti super organizzati!",
             "Trolley leggero e maneggevole con ruote a 360° e chiusura di sicurezza: perfetto per viaggiare",
@@ -652,30 +911,14 @@ CATEGORIES = {
             "Ottimo rapporto qualità-prezzo, supera molti prodotti di marche note!"
         ]
     },
-    # --- 6. AUTO, MOTO & COMPRESSORI ---
-    "compressore_portatile_auto": {
-        "keywords": ["compressore portatile", "compressore auto", "compressore", "gonfiatore portatile", "gonfiatore auto", "gonfiatore", "avviatore auto", "avviatore portatile", "jump starter", "booster auto", "manometro digitale", "manometro", "150psi", "150 psi"],
-        "titles": [
-            "Pressione PSI precisa e gonfiaggio fulmineo: salva da ogni emergenza!",
-            "Autonomia eccellente, display digitale chiaro e spegnimento automatico a pressione raggiunta",
-            "Compatto, potente e robusto: gonfia pneumatici e ruote in pochissimi minuti senza sforzo!"
-        ],
-        "openings": [
-            "Ho acquistato questo compressore/avviatore portatile per tenerlo sempre in auto ed è già stato provvidenziale.",
-            "Valigetta/sacca completa di adattatori per valvole auto, moto, bici e palloni, con cavo di ricarica rapida e luce LED di emergenza."
-        ],
-        "bodies": [
-            "Il manometro digitale legge la pressione con assoluta precisione e la funzione di auto-stop arresta l'erogazione esattamente al valore impostato.",
-            "Il motore interno sviluppa una pressione notevole gonfiando uno pneumatico sgonfio in tempi record senza surriscaldamenti eccessivi.",
-            "La batteria integrata funge anche da powerbank di emergenza e la torcia LED incorporata è comodissima per interventi notturni sul ciglio della strada."
-        ],
-        "closings": [
-            "Uno strumento di emergenza indispensabile per ogni automobilista e motociclista. 5 stelle meritatissime!",
-            "Qualità costruttiva al top, preciso, affidabile e compatto. Consigliatissimo!"
-        ]
-    },
+
+    # --- 31. RIPOSO, CUSCINI & MATERASSI ---
     "cuscini_materassi_riposo": {
-        "keywords": ["cuscino cervicale", "cuscino memory", "cuscino ortopedico", "guanciale memory", "guanciale ortopedico", "guanciale", "cuscino letto", "memory foam", "topper memory", "materasso", "fodera traspirante"],
+        "keywords": [
+            "cuscino cervicale", "cuscino memory foam", "cuscino memory", "cuscino ortopedico", 
+            "guanciale memory", "guanciale ortopedico", "guanciale", "topper memory", "materasso ortopedico", 
+            "materasso", "memory foam", "topper", "federa traspirante"
+        ],
         "titles": [
             "Sostegno cervicale perfetto: niente più dolori al collo e sonno finalmente riposante!",
             "Memory foam ad alta densità a lento ritorno: comfort ortopedico eccezionale",
@@ -695,8 +938,16 @@ CATEGORIES = {
             "Rapporto qualità-prezzo imbattibile rispetto ai negozi di ortopedia. 5 stelle piene!"
         ]
     },
+
+    # --- 32. INTEGRATORI & SALUTE ---
     "integratori_salute": {
-        "keywords": ["integratore", "capsule", "compresse", "magnesio", "collagene", "vitamina d3", "vitamina c", "omega 3", "probiotici", "fermenti lattici", "creatina", "multivitaminico", "zinco", "melatonina"],
+        "keywords": [
+            "integratore alimentare", "integratore", "capsule", "compresse", "magnesio supremo", 
+            "magnesio", "collagene idrolizzato", "collagene", "vitamina d3 k2", "vitamina d3", 
+            "vitamina c pura", "omega 3 alto dosaggio", "omega 3", "probiotici fermenti", 
+            "fermenti lattici", "creatina monoidrato", "proteine whey", "multivitaminico completo", 
+            "melatonina sonno", "zinco"
+        ],
         "titles": [
             "Alta concentrazione di principi attivi, facile da deglutire e ottima digeribilità!",
             "Formula pura e certificata: benefici tangibili su energia e benessere in pochi giorni",
@@ -715,24 +966,117 @@ CATEGORIES = {
             "Un integratore di qualità farmaceutica a un prezzo conveniente. Lo ricomprerò sicuramente!",
             "Pienamente soddisfatto dei benefici riscontrati. 5 stelle meritate!"
         ]
+    },
+
+    # --- 33. MASSAGGIATORI & BENESSERE CORPOREO ---
+    "massaggiatori_benessere": {
+        "keywords": [
+            "pistola massaggiante", "massaggiatore cervicale", "massaggiatore collo", 
+            "cuscino massaggiante", "pressoterapia gambe", "massaggiatore piedi", "idromassaggio piedi", 
+            "pediluvio", "massaggiatore", "cervicale massaggiante"
+        ],
+        "titles": [
+            "Sollievo muscolare immediato! Percussione profonda, 6 testine e motore ultra silenzioso",
+            "Scioglie contratture e tensioni muscolari con grande efficacia: robusto e facilissimo da usare",
+            "Potenza regolabile con precisione e batteria di lunghissima durata: un toccasana quotidiano!"
+        ],
+        "openings": [
+            "Ho acquistato questo dispositivo per alleviare le tensioni muscolari dopo l'attività fisica e il lavoro ed è diventato irrinunciabile.",
+            "Valigetta rigida elegante e ben organizzata con tutti gli accessori di ricambio inclusi."
+        ],
+        "bodies": [
+            "La profondità di percussione raggiunge i tessuti profondi sciogliendo nodi e rigidità su schiena, collo e gambe con diversi livelli di intensità selezionabili dal display.",
+            "Il motore brushless eroga una coppia vigorosa senza bloccarsi alla pressione, mantenendo un livello acustico molto basso e discreto.",
+            "La batteria agli ioni di litio assicura giorni di trattamenti con una sola ricarica rapida Type-C."
+        ],
+        "closings": [
+            "Un acquisto che vale ogni centesimo per il benessere corporeo quotidiano. 5 stelle!",
+            "Rapporto qualità-prezzo eccellente, costruzione solida e risultati tangibili fin da subito!"
+        ]
+    },
+
+    # --- 34. MATERNITÀ & INFANZIA (TIRALATTE, BIBERON, PRIMA INFANZIA) ---
+    "maternita_infanzia": {
+        "keywords": [
+            "tiralatte elettrico", "tiralatte indossabile", "tiralatte", "allattamento", 
+            "latte materno", "scaldabiberon", "sterilizzatore biberon", "biberon anticolica", 
+            "biberon", "ciuccio neonato", "ciuccio", "cuscino allattamento", "fasciatoio", 
+            "bavaglino", "seggiolone", "passeggino", "culla neonato", "culla", "neonato"
+        ],
+        "titles": [
+            "Materiali di altissima qualità senza BPA, sicuro e praticissimo per mamma e bebè!",
+            "Delicato, silenzioso e facilissimo da sterilizzare: indispensabile per la routine quotidiana",
+            "Massimo comfort, ergonomia studiata per i neonati e zero perdite. 5 stelle piene!"
+        ],
+        "openings": [
+            "Ho scelto questo articolo per il mio bimbo e sono rimasto estremamente soddisfatto della qualità costruttiva.",
+            "Confezione perfettamente sigillata nel rispetto delle più rigide norme igieniche per la prima infanzia."
+        ],
+        "bodies": [
+            "Le finiture e i componenti a contatto con il bambino sono al 100% privi di BPA e atossici, con guarnizioni a tenuta impeccabile.",
+            "L'ergonomia è studiata appositamente per una presa comoda e un utilizzo naturale, e ogni elemento si lava e sterilizza con la massima facilità."
+        ],
+        "closings": [
+            "Un supporto fondamentale che dona serenità a ogni genitore. Consigliatissimo!",
+            "Rapporto qualità-prezzo eccellente, promosso a pieni voti!"
+        ]
+    },
+
+    # --- 35. FOTOGRAFIA, VIDEO & CREATOR ---
+    "fotografia_video_creator": {
+        "keywords": [
+            "ring light", "luce ad anello", "treppiede smartphone", "treppiede reflex", 
+            "treppiede", "gimbal stabilizzatore", "gimbal", "softbox", "fondale fotografico", 
+            "microfono lavalier", "telecomando bluetooth foto"
+        ],
+        "titles": [
+            "Illuminazione uniforme e naturale, zero ombre e temperatura colore regolabile!",
+            "Stabilità perfetta, testa orientabile fluida e telecomando scatto comodissimo",
+            "Kit completo indispensabile per video, streaming e foto professionali. 5 stelle!"
+        ],
+        "openings": [
+            "Utilizzo questo set fotografico per riprese video, foto e videoconferenze con una resa visiva nettamente superiore.",
+            "Arrivato con custodia imbottita, staffe orientabili e cavi di collegamento completi."
+        ],
+        "bodies": [
+            "La struttura in alluminio è leggera ma stabilissima, con chiusure a sgancio rapido che permettono di regolare l'altezza in pochi secondi.",
+            "L'erogazione luminosa o la stabilizzazione sui tre assi eliminano qualsiasi oscillazione o sfarfallio, garantendo scatti e riprese sempre nitidi e professionali."
+        ],
+        "closings": [
+            "Un accessorio essenziale per chiunque realizzi contenuti multimediali. 5 stelle!",
+            "Qualità costruttiva al top a un prezzo accessibile. Consigliatissimo!"
+        ]
     }
 }
 
 
 def detect_specific_category(title: str) -> tuple:
-    """Trova la categoria specifica più adatta dando priorità alle parole chiave più lunghe e tecniche."""
+    """
+    Trova la categoria specifica più adatta dando priorità alle parole chiave composte
+    e più tecniche (es. 'idropulsore dentale' batte qualsiasi keyword generica).
+    """
+    if not title:
+        return None, None
+
     t = title.lower()
     matches = []
+    
     for cat_name, cat_data in CATEGORIES.items():
         for kw in cat_data["keywords"]:
-            pattern = r'(?<!\w)' + re.escape(kw.lower()) + r'(?!\w)'
+            kw_clean = kw.lower()
+            pattern = r'(?<!\w)' + re.escape(kw_clean) + r'(?!\w)'
             if re.search(pattern, t):
-                matches.append((len(kw), cat_name, cat_data))
+                # Peso calcolato: numero di parole * 100 + lunghezza caratteri
+                # Assicura che espressioni a più parole (es. 'idropulsore dentale', 'friggitrice ad aria')
+                # abbiano priorità assoluta rispetto a singole parole isolate.
+                word_count = len(kw_clean.split())
+                score = word_count * 100 + len(kw_clean)
+                matches.append((score, cat_name, cat_data, kw))
     
     if matches:
-        # La keyword più lunga e specifica vince sempre (es. 'compressore portatile' batte 'pc')
         matches.sort(key=lambda x: x[0], reverse=True)
-        return matches[0][1], matches[0][2]
+        best_match = matches[0]
+        return best_match[1], best_match[2]
         
     return None, None
 
@@ -743,7 +1087,7 @@ def extract_deep_technical_specs(title: str) -> list:
     specs = []
     
     # 1. Wattaggio / Potenza
-    w_match = re.search(r'\b(\d+\s*(?:w|watt|kw))\b', t)
+    w_match = re.search(r'\b(\d+\s*(?:w|watt|kw|kpa|bar))\b', t)
     if w_match:
         val = w_match.group(1).upper().replace(" ", "")
         specs.append(f"L'erogazione di potenza ({val}) è vigorosa e costante, garantendo prestazioni elevate senza cali di rendimento sotto sforzo.")
@@ -780,7 +1124,7 @@ def extract_deep_technical_specs(title: str) -> list:
 
     # 7. Funzionalità specifiche (impermeabile, silenzioso, etc.)
     if re.search(r'\b(impermeabile|ip6[5-8]|ipx[5-8]|waterproof)\b', t):
-        specs.append("La certificazione di impermeabilità protegge i componenti interni da schizzi, pioggia e umidità offrendo totale affidabilità.")
+        specs.append("La certificazione di impermeabilità protegge i componenti interni da schizzi, acqua e umidità offrendo totale affidabilità.")
     if re.search(r'\b(brushless|inverter|silenzioso|low noise)\b', t):
         specs.append("Il motore ad alta efficienza lavora con una silenziosità esemplare e vibrazioni minime.")
 
@@ -847,8 +1191,8 @@ def generate_review(product_title: str, gemini_api_key: str = None) -> dict:
                 f"Sei un acquirente italiano competente ed entusiasta che ha acquistato e testato su Amazon il seguente articolo: '{clean_title}'.\n"
                 f"Scrivi una recensione a 5 stelle ricca di dettagli tecnici, funzionali e pratici in perfetto italiano.\n"
                 f"REGOLA TASSATIVA ASSOLUTA:\n"
-                f"- È SEVERAMENTE VIETATO scrivere frasi generiche (tipo 'ottimo prodotto', 'spedizione rapida', 'consigliato a tutti').\n"
-                f"- Devi leggere ATTENTAMENTE il titolo e analizzare le caratteristiche tecniche dell'oggetto (es. se è un PC parla di CPU, RAM, SSD NVMe, display e ventole; se è un trapano parla di coppia Nm, mandrino e batterie; se è una friggitrice parla di wattaggio, capienza litri e cestello; se è un cosmetico parla di principi attivi e assorbimento; se è un capo/arredo parla di tessuti, cuciture e dimensioni).\n"
+                f"- È SEVERAMENTE VIETATO scrivere frasi generiche o scambiare la tipologia di prodotto (es. se è un idropulsore dentale parla di getto d'acqua, pulizia interdentale, serbatoio e gengive; se è un phon parla di flusso d'aria, ioni e calore; se è un PC parla di CPU, RAM, SSD; se è una friggitrice parla di cestello e cottura croccante).\n"
+                f"- Devi leggere ATTENTAMENTE il titolo e attenerti fedelmente alla funzione d'uso del prodotto.\n"
                 f"- Rispondi ESCLUSIVAMENTE in formato JSON con due chiavi: 'title' (titolo specifico e accattivante di 5-10 parole) e 'body' (testo della recensione di 3-4 frasi articolate e tecniche)."
             )
             payload = {

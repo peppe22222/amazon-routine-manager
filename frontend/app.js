@@ -932,16 +932,8 @@ function renderReviews(orders) {
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80';
     
     // Per il Barattolo: consegna domani -> totale 11 giorni
-    if (o.product_title && (o.product_title.toLowerCase().includes('barattolo') || (o.order_number && o.order_number.includes('404-1867984')))) {
+    if (o.product_title && o.product_title.toLowerCase().includes('barattolo')) {
       if (!o.delivery_info) o.delivery_info = 'Domani';
-    }
-
-    // Per il Power Bank: se la recensione generata parlava di polso/smartwatch, imposta il testo perfetto per Power Bank
-    if (o.product_title && o.product_title.toLowerCase().includes('power') && (
-      !o.review_title || o.review_title.toLowerCase().includes('polso') || o.review_title.toLowerCase().includes('sportiv') || (o.review_body && o.review_body.toLowerCase().includes('polso'))
-    )) {
-      o.review_title = "Power Bank 20000mAh potentissimo: ricarica rapida PD 22.5W, display percentuale e autonomia infinita!";
-      o.review_body = "Arrivato perfettamente imballato, pre-caricato e corredato di cavo di ricarica rapida. La capacità da 20000mAh è reale ed eroga una riserva di carica abbondante, permettendo di ricaricare completamente uno smartphone per 4-5 volte consecutive senza cali di tensione. Mai più con la batteria a terra: prodotto eccellente e indispensabile.";
     }
 
     const startIso = o.confirmation_sent_at || o.order_date || new Date().toISOString();
