@@ -623,7 +623,7 @@ def set_order_amazon_link(order_id: int, payload: SetAmazonLinkPayload, db: Sess
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     
     raw_url = (payload.amazon_url or "").strip()
-    match_offer = db.query(Offer).filter_by(product_title=order.product_title if hasattr(Offer, 'product_title') else None).first() or db.query(Offer).filter_by(title=order.product_title).first()
+    match_offer = db.query(Offer).filter_by(title=order.product_title).first()
 
     if not raw_url:
         # Se vuoto, rimuove il link e riporta lo stato in attesa
