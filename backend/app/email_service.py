@@ -43,9 +43,9 @@ def create_order_from_data(db: Session, order_number: str, product_title: str, p
     if existing:
         return existing
 
-    # Genera screenshot
+    # Nessuno screenshot fittizio pre-generato
     order_date = datetime.utcnow()
-    screen_url = generate_amazon_order_screenshot(order_number, product_title, price, order_date)
+    screen_url = None
     
     # Pre-genera recensione 5 stelle
     review_data = generate_review(product_title)

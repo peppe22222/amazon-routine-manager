@@ -671,14 +671,7 @@ def mark_order_purchased(order_id: int, payload: Optional[MarkPurchasedPayload] 
         order.price_paid = payload.price_paid
         order.refund_amount = compute_order_refund(order.price_paid, order.product_title, db)
 
-    # Genera screenshot di conferma se mancante
-    if not order.confirmation_screen_url:
-        order.confirmation_screen_url = generate_amazon_order_screenshot(
-            order_number=order.order_number,
-            product_title=order.product_title,
-            price=order.price_paid
-        )
-
+    # NON generare facsimile automatici: la ricevuta deve essere lo screenshot reale caricato dall'utente
     order.status = "pending_confirmation"
     order.order_date = datetime.utcnow()
     
