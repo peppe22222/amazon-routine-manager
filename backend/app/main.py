@@ -265,13 +265,31 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
     # 2. Fallback su anteprima web pubblica per canali pubblici
     offers_data = scrape_telegram_channel_offers(channel, limit=25)
     if offers_data:
-        db.query(Offer).filter(Offer.status == "new").delete()
-        db.commit()
+        # Preleva tutte le offerte già esistenti (inclusi i dismissed e i requested)
+        existing_all = db.query(Offer).all()
+        existing_titles = {re.sub(r'\s+', ' ', (o.title or '').strip().lower()) for o in existing_all}
+        existing_images = {(o.image_url or '').strip() for o in existing_all if o.image_url and 'unsplash' not in o.image_url}
 
         added_count = 0
+        batch_seen_titles = set()
         for item in offers_data:
+            t = item["title"].strip()
+            clean_t = re.sub(r'\s+', ' ', t.lower())
+            img = (item.get("image_url") or "").strip()
+            
+            # Se è già presente nel DB (anche se cancellata/dismissed) o già vista nel batch, salta
+            if clean_t in existing_titles or clean_t in batch_seen_titles:
+                continue
+            if img and 'unsplash' not in img and img in existing_images:
+                continue
+
+            batch_seen_titles.add(clean_t)
+            existing_titles.add(clean_t)
+            if img and 'unsplash' not in img:
+                existing_images.add(img)
+
             off = Offer(
-                title=item["title"],
+                title=t,
                 price_info=item["price_info"],
                 seller_contact=item["seller_contact"],
                 image_url=item["image_url"],
@@ -688,12 +706,11 @@ def reset_all_offers_status(db: Session = Depends(get_db)):
     return {"success": True, "count": count, "message": f"{count} richieste reimpostate a Nuovo!"}
 
 @app.delete("/api/offers/{offer_id}")
-
 def dismiss_offer(offer_id: int, db: Session = Depends(get_db)):
     offer = db.query(Offer).filter_by(id=offer_id).first()
     if not offer:
         raise HTTPException(status_code=404, detail="Offerta non trovata")
-    db.delete(offer)
+    offer.status = "dismissed"
     db.commit()
     return {"success": True}
 

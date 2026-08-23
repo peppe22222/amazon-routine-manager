@@ -521,11 +521,14 @@ class TelegramManager:
                 album_groups[key] = []
             album_groups[key].append(m)
 
-        # Pulisci le vecchie offerte 'new' non ancora elaborate per sostituirle con quelle unificate
-        db.query(Offer).filter(Offer.status == "new").delete()
-        db.commit()
+        # Non cancellare le offerte esistenti; rispetta le offerte già salvate o scartate dall'utente
+        existing_all = db.query(Offer).all()
+        existing_titles = {re.sub(r'\s+', ' ', (o.title or '').strip().lower()) for o in existing_all}
+        existing_msg_ids = {str(o.message_id) for o in existing_all if o.message_id}
+        existing_images = {(o.image_url or '').strip() for o in existing_all if o.image_url and 'unsplash' not in o.image_url}
 
         imported_count = 0
+        batch_seen_titles = set()
         for key, msgs in album_groups.items():
             raw_text = ""
             primary_msg = msgs[0]
@@ -618,16 +621,19 @@ class TelegramManager:
 
             msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
 
-            # Evita duplicati se l'articolo è già presente in stato 'requested'
-            existing_offer = db.query(Offer).filter(
-                Offer.status == "requested",
-                or_(
-                    Offer.message_id == str(primary_msg.id),
-                    Offer.title == title
-                )
-            ).first()
-            if existing_offer:
+            # Evita duplicati assoluti (anche se l'offerta è stata scartata con cestino o già richiesta)
+            clean_title_norm = re.sub(r'\s+', ' ', title.strip().lower())
+            msg_id_str = str(primary_msg.id)
+            if clean_title_norm in existing_titles or clean_title_norm in batch_seen_titles or msg_id_str in existing_msg_ids:
                 continue
+            if photo_url and 'unsplash' not in photo_url and photo_url in existing_images:
+                continue
+
+            batch_seen_titles.add(clean_title_norm)
+            existing_titles.add(clean_title_norm)
+            existing_msg_ids.add(msg_id_str)
+            if photo_url and 'unsplash' not in photo_url:
+                existing_images.add(photo_url)
 
             off = Offer(
                 title=title,
@@ -637,7 +643,7 @@ class TelegramManager:
                 refund_pct=100.0,
                 taxes_covered=taxes_covered,
                 channel_name=channel_title,
-                message_id=str(primary_msg.id),
+                message_id=msg_id_str,
                 status="new",
                 created_at=msg_date
             )
