@@ -37,6 +37,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Timer live per conto alla rovescia recensioni (aggiorna solo i numeri dei secondi senza ricaricare la pagina)
   setInterval(updateReviewLiveTimers, 1000);
 
+  // Controllo automatico in background risposte e link di Alex ogni 20 secondi
+  setInterval(async () => {
+    const token = localStorage.getItem('amz_auth_token');
+    if (token && document.visibilityState === 'visible') {
+      await syncTelegramReplies(true);
+    }
+  }, 20000);
+
   // Sincronizza solo quando si riapre l'app o si torna sulla scheda del browser (senza refresh continuo fastidioso)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
@@ -691,12 +699,12 @@ async function syncTelegramReplies(silent = false) {
     const res = await fetch('/api/telegram/sync-replies', { method: 'POST' });
     const data = await res.json();
     if (res.ok && data.success) {
-      if (!silent) {
-        showToast(data.message || 'Risposte di Alex sincronizzate!');
-      }
       if (data.updated_count > 0) {
+        showToast(`🎉 Alex ti ha inviato il link Amazon! Pronta per l'acquisto.`);
         loadOrders();
         loadStats();
+      } else if (!silent) {
+        showToast(data.message || 'Risposte di Alex sincronizzate!');
       }
     } else if (!silent) {
       showToast(data.error || 'Nessun nuovo messaggio da Alex', true);
