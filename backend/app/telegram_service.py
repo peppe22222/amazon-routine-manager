@@ -573,8 +573,8 @@ class TelegramManager:
         for key, msgs in album_groups.items():
             all_msg_ids = [str(m.id) for m in msgs]
             
-            # Se uno qualsiasi dei messaggi dell'album è già noto nel DB, salta l'intero album
-            if any(m_id in existing_msg_ids for m_id in all_msg_ids):
+            # Se TUTTI i messaggi dell'album sono già noti nel DB, salta l'album
+            if all(m_id in existing_msg_ids for m_id in all_msg_ids):
                 continue
 
             raw_text = ""
@@ -637,7 +637,11 @@ class TelegramManager:
                 if not clean_l:
                     continue
                 l_lower = clean_l.lower()
-                is_condition = any(w in l_lower for w in ['paga', 'costo', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback', 'recensione', 'contattare', 'disponibilit', 'pm per link', 'link'])
+                # Condizione economica/venditore solo se contiene pattern specifici di spesa/rimborso
+                is_condition = bool(
+                    re.search(r'(?:si paga|paga|paghi|costo|spesa|rimborso|tasse|feedback|recensione|contattare|disponibilit|pm per|per link)\b', l_lower)
+                    or re.search(r'\d+\s*(?:€|euro|%)', l_lower)
+                )
                 if is_condition:
                     condition_lines.append(clean_l)
                 else:
@@ -668,18 +672,14 @@ class TelegramManager:
 
             msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
 
-            # Controllo duplicati fuzzy con titoli esistenti nel DB o nel batch corrente
-            if any(is_title_duplicate(title, ext) for ext in existing_titles) or any(is_title_duplicate(title, bt) for bt in batch_seen_titles):
-                continue
-            if photo_url and 'unsplash' not in photo_url and photo_url in existing_images:
+            # Evita duplicati solo se esattamente lo stesso titolo nel batch corrente
+            if title in batch_seen_titles:
                 continue
 
             batch_seen_titles.append(title)
             existing_titles.append(title)
             for mid in all_msg_ids:
                 existing_msg_ids.add(mid)
-            if photo_url and 'unsplash' not in photo_url:
-                existing_images.add(photo_url)
 
             all_ids_str = ",".join(all_msg_ids)
             off = Offer(
