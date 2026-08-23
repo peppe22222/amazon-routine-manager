@@ -84,6 +84,35 @@ def extract_title_with_ai(image_path: str, gemini_key: str) -> str:
         print(f"[AI Vision extract error] {e}")
     return ""
 
+def normalize_text_key(text: str) -> str:
+    if not text:
+        return ""
+    clean = re.sub(r'[^\w\s]', ' ', text.lower())
+    words = [w for w in clean.split() if len(w) > 1 and w not in [
+        'per', 'con', 'del', 'della', 'delle', 'dei', 'degli', 'in', 'da', 'su', 'il', 'la', 'le', 'lo', 'gli', 
+        'un', 'una', 'uno', 'euro', 'tasse', 'forse', 'coperte', 'rimborso', 'feedback', 'recensione', 'prodotto', 'articolo'
+    ]]
+    return " ".join(words)
+
+def is_title_duplicate(title1: str, title2: str) -> bool:
+    if not title1 or not title2:
+        return False
+    k1 = normalize_text_key(title1)
+    k2 = normalize_text_key(title2)
+    if not k1 or not k2:
+        return False
+    if k1 == k2 or k1 in k2 or k2 in k1:
+        return True
+    w1 = set(k1.split())
+    w2 = set(k2.split())
+    if not w1 or not w2:
+        return False
+    common = w1.intersection(w2)
+    min_len = min(len(w1), len(w2))
+    if min_len > 0 and (len(common) / min_len) >= 0.70:
+        return True
+    return False
+
 def clean_html_text(raw_html: str) -> str:
     if not raw_html:
         return ""
@@ -115,10 +144,16 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 20) -> 
             return []
             
         page_html = resp.text
-        message_blocks = re.findall(r'<div class="tgme_widget_message\b[^>]*>(.*?)<div class="tgme_widget_message_footer\b', page_html, re.DOTALL)
+        message_blocks = re.findall(r'(<div class="tgme_widget_message\b[^>]*>.*?<div class="tgme_widget_message_footer\b)', page_html, re.DOTALL)
         
         offers_found = []
         for block in message_blocks[-limit:]:
+            # Estrazione message_id da data-post
+            msg_id = None
+            data_post_match = re.search(r'data-post=[\'"][^/\'"]+/(\d+)[\'"]', block)
+            if data_post_match:
+                msg_id = data_post_match.group(1)
+
             # 1. Estrazione Testo
             text_match = re.search(r'<div class="tgme_widget_message_text\b[^>]*>(.*?)</div>', block, re.DOTALL)
             raw_text = clean_html_text(text_match.group(1)) if text_match else ""
@@ -154,7 +189,7 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 20) -> 
                 if not clean_l:
                     continue
                 l_lower = clean_l.lower()
-                is_condition = any(w in l_lower for w in ['paga', 'costo', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback', 'recensione', 'contattare', 'disponibilit', 'pm per link'])
+                is_condition = any(w in l_lower for w in ['paga', 'costo', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback', 'recensione', 'contattare', 'disponibilit', 'pm per link', 'link'])
                 if is_condition:
                     condition_lines.append(clean_l)
                 else:
@@ -190,7 +225,8 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 20) -> 
                 "seller_contact": seller_contact,
                 "image_url": img_url,
                 "taxes_covered": taxes_covered,
-                "raw_text": raw_text
+                "raw_text": raw_text,
+                "message_id": msg_id
             })
 
         return offers_found
@@ -521,12 +557,26 @@ class TelegramManager:
                 album_groups[key] = []
             album_groups[key].append(m)
 
-        # Pulisci le vecchie offerte 'new' non ancora elaborate per sostituirle con quelle unificate
-        db.query(Offer).filter(Offer.status == "new").delete()
-        db.commit()
+        # Non cancellare le offerte esistenti; rispetta le offerte già salvate o scartate dall'utente (incluso dismissed)
+        existing_all = db.query(Offer).all()
+        existing_titles = [o.title for o in existing_all if o.title]
+        existing_msg_ids = set()
+        for o in existing_all:
+            if o.message_id:
+                for mid in str(o.message_id).split(','):
+                    if mid.strip():
+                        existing_msg_ids.add(mid.strip())
+        existing_images = {(o.image_url or '').strip() for o in existing_all if o.image_url and 'unsplash' not in o.image_url}
 
         imported_count = 0
+        batch_seen_titles = []
         for key, msgs in album_groups.items():
+            all_msg_ids = [str(m.id) for m in msgs]
+            
+            # Se uno qualsiasi dei messaggi dell'album è già noto nel DB, salta l'intero album
+            if any(m_id in existing_msg_ids for m_id in all_msg_ids):
+                continue
+
             raw_text = ""
             primary_msg = msgs[0]
             for m in msgs:
@@ -618,17 +668,20 @@ class TelegramManager:
 
             msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
 
-            # Evita duplicati se l'articolo è già presente in stato 'requested'
-            existing_offer = db.query(Offer).filter(
-                Offer.status == "requested",
-                or_(
-                    Offer.message_id == str(primary_msg.id),
-                    Offer.title == title
-                )
-            ).first()
-            if existing_offer:
+            # Controllo duplicati fuzzy con titoli esistenti nel DB o nel batch corrente
+            if any(is_title_duplicate(title, ext) for ext in existing_titles) or any(is_title_duplicate(title, bt) for bt in batch_seen_titles):
+                continue
+            if photo_url and 'unsplash' not in photo_url and photo_url in existing_images:
                 continue
 
+            batch_seen_titles.append(title)
+            existing_titles.append(title)
+            for mid in all_msg_ids:
+                existing_msg_ids.add(mid)
+            if photo_url and 'unsplash' not in photo_url:
+                existing_images.add(photo_url)
+
+            all_ids_str = ",".join(all_msg_ids)
             off = Offer(
                 title=title,
                 price_info=price_info,
@@ -637,7 +690,7 @@ class TelegramManager:
                 refund_pct=100.0,
                 taxes_covered=taxes_covered,
                 channel_name=channel_title,
-                message_id=str(primary_msg.id),
+                message_id=all_ids_str,
                 status="new",
                 created_at=msg_date
             )
@@ -786,4 +839,86 @@ class TelegramManager:
             print(f"[Telegram Review Send Error] {e}")
             return {"success": False, "error": str(e)}
 
+    async def sync_seller_replies(self, db: Session, seller_handle: str = "@alex8700") -> dict:
+        """
+        Controlla i messaggi privati ricevuti da Alex/venditore DOPO l'invio della richiesta
+        per estrarre il link Amazon inviato specificamente per quell'articolo.
+        NON assegna MAI link storici o vecchi.
+        """
+        try:
+            client = await self._ensure_connected_client(db)
+            if not await client.is_user_authorized():
+                return {"success": False, "auth_required": True, "error": "Telegram non autorizzato"}
+
+            target = (seller_handle or "@alex8700").strip()
+            entity = await client.get_entity(target)
+            
+            # Cerca SOLO gli ordini in stato 'waiting_link' che NON hanno già un link impostato
+            pending_orders = db.query(Order).filter(
+                Order.status == "waiting_link",
+                or_(Order.amazon_url == None, Order.amazon_url == "")
+            ).order_by(Order.order_date.asc()).all()
+            
+            if not pending_orders:
+                return {"success": True, "updated_count": 0, "message": "Nessun ordine in attesa di link."}
+
+            # Troviamo la data della richiesta più vecchia in attesa
+            oldest_order_date = min((o.order_date for o in pending_orders if o.order_date), default=None)
+            if not oldest_order_date:
+                return {"success": True, "updated_count": 0, "message": "Nessuna data di richiesta valida."}
+
+            # Preleva solo i messaggi recenti da Alex inviati DOPO la richiesta
+            messages = []
+            async for m in client.iter_messages(entity, limit=25):
+                if not m.out and m.text and m.date:
+                    msg_date_utc = m.date.replace(tzinfo=None) if hasattr(m.date, 'tzinfo') and m.date.tzinfo else m.date
+                    if msg_date_utc >= oldest_order_date:
+                        messages.append((msg_date_utc, m))
+
+            # Ordina cronologicamente (dal più vecchio al più recente)
+            messages.sort(key=lambda x: x[0])
+
+            updated = 0
+            for msg_date_utc, m in messages:
+                text = m.text or ""
+                urls = re.findall(r'https?://[^\s]+', text)
+                amz_urls = [u for u in urls if 'amazon' in u.lower() or 'amzn' in u.lower()]
+                if amz_urls:
+                    best_url = amz_urls[0]
+                    # Trova il primo ordine la cui richiesta è avvenuta PRIMA di questo messaggio
+                    target_order = None
+                    for o in pending_orders:
+                        if o.order_date and o.order_date <= msg_date_utc and (not o.amazon_url):
+                            target_order = o
+                            break
+                    
+                    if target_order:
+                        pending_orders.remove(target_order)
+                        target_order.amazon_url = best_url
+                        target_order.status = "link_approved"
+                        
+                        match_offer = db.query(Offer).filter_by(title=target_order.product_title).first()
+                        if match_offer:
+                            match_offer.amazon_link = best_url
+                            match_offer.status = "link_received"
+
+                        log = ActivityLog(
+                            action_type="LINK_RECEIVED",
+                            title=f"Link Amazon Ricevuto da Alex ({target})!",
+                            details=f"Articolo: {target_order.product_title} | Link: {best_url}"
+                        )
+                        db.add(log)
+                        db.commit()
+                        updated += 1
+
+            return {
+                "success": True,
+                "updated_count": updated,
+                "message": f"Sincronizzazione completata: {updated} nuovi link ricevuti da Alex!"
+            }
+        except Exception as e:
+            print(f"[Telegram Sync Replies Error] {e}")
+            return {"success": False, "error": str(e)}
+
 telegram_service = TelegramManager()
+

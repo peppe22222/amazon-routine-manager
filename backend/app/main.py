@@ -25,7 +25,7 @@ from sqlalchemy import desc, or_
 from app.database import init_db, get_db, Offer, Order, Setting, ActivityLog
 from app.review_generator import generate_review
 from app.screenshot_service import generate_amazon_order_screenshot, SCREENSHOTS_DIR
-from app.telegram_service import telegram_service, scrape_telegram_channel_offers
+from app.telegram_service import telegram_service, scrape_telegram_channel_offers, is_title_duplicate, normalize_text_key
 from app.email_service import create_order_from_data
 
 import hashlib
@@ -123,6 +123,13 @@ class UploadScreenshotPayload(BaseModel):
     image_base64: str
     recognized_order_number: Optional[str] = None
     recognized_price: Optional[float] = None
+
+class SetAmazonLinkPayload(BaseModel):
+    amazon_url: Optional[str] = ""
+
+class MarkPurchasedPayload(BaseModel):
+    order_number: Optional[str] = None
+    price_paid: Optional[float] = None
 
 class CreateOrderWithScreenshotPayload(BaseModel):
     product_title: str
@@ -258,19 +265,48 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
     # 2. Fallback su anteprima web pubblica per canali pubblici
     offers_data = scrape_telegram_channel_offers(channel, limit=25)
     if offers_data:
-        db.query(Offer).filter(Offer.status == "new").delete()
-        db.commit()
+        # Preleva tutte le offerte già esistenti (inclusi i dismissed e i requested)
+        existing_all = db.query(Offer).all()
+        existing_titles = [o.title for o in existing_all if o.title]
+        existing_msg_ids = set()
+        for o in existing_all:
+            if o.message_id:
+                for mid in str(o.message_id).split(','):
+                    if mid.strip():
+                        existing_msg_ids.add(mid.strip())
+        existing_images = {(o.image_url or '').strip() for o in existing_all if o.image_url and 'unsplash' not in o.image_url}
 
         added_count = 0
+        batch_seen_titles = []
         for item in offers_data:
+            t = item["title"].strip()
+            msg_id = str(item.get("message_id") or "").strip()
+            img = (item.get("image_url") or "").strip()
+            
+            # Se è già presente nel DB (anche se cancellata/dismissed) o già vista nel batch, salta
+            if msg_id and msg_id in existing_msg_ids:
+                continue
+            if any(is_title_duplicate(t, ext) for ext in existing_titles) or any(is_title_duplicate(t, bt) for bt in batch_seen_titles):
+                continue
+            if img and 'unsplash' not in img and img in existing_images:
+                continue
+
+            batch_seen_titles.append(t)
+            existing_titles.append(t)
+            if msg_id:
+                existing_msg_ids.add(msg_id)
+            if img and 'unsplash' not in img:
+                existing_images.add(img)
+
             off = Offer(
-                title=item["title"],
+                title=t,
                 price_info=item["price_info"],
                 seller_contact=item["seller_contact"],
                 image_url=item["image_url"],
                 refund_pct=100.0,
                 taxes_covered=item["taxes_covered"],
                 channel_name=channel,
+                message_id=msg_id or None,
                 status="new"
             )
             db.add(off)
@@ -397,70 +433,63 @@ def parse_and_create_offer(payload: ParseTelegramPostPayload, db: Session = Depe
     }
 
 def consolidate_offer_albums(db: Session):
-    """Assicura che gli album Telegram abbiano le foto collage e i titoli aggregati corretti"""
+    """Assicura che gli album Telegram abbiano le foto collage e i titoli aggregati corretti se mancanti"""
     try:
         base = SCREENSHOTS_DIR
         cosmetics = [os.path.join(base, f"tg_offer_{i}.jpg") for i in [46218, 46219, 46220, 46221]]
         out_cosmetics = os.path.join(base, "tg_album_46218_46221.jpg")
-        if any(os.path.exists(p) for p in cosmetics):
+        if any(os.path.exists(p) for p in cosmetics) and not os.path.exists(out_cosmetics):
             from app.telegram_service import create_album_collage
             create_album_collage([p for p in cosmetics if os.path.exists(p)], out_cosmetics)
 
         creams = [os.path.join(base, f"tg_offer_{i}.jpg") for i in [46222, 46223]]
         out_creams = os.path.join(base, "tg_album_46222_46223.jpg")
-        if any(os.path.exists(p) for p in creams):
+        if any(os.path.exists(p) for p in creams) and not os.path.exists(out_creams):
             from app.telegram_service import create_album_collage
             create_album_collage([p for p in creams if os.path.exists(p)], out_creams)
-
-        # Rimuovi parti orfane duplicate
-        db.query(Offer).filter(Offer.message_id.in_(["46219", "46220", "46221", "46223"])).delete(synchronize_session=False)
-
-        # Aggiorna offerta set cosmetici
-        off_cosm = db.query(Offer).filter_by(message_id="46218").first()
-        if off_cosm:
-            off_cosm.title = "Shampoo solido • Fondotinta • Rossetto • Siero effetto lifting"
-            off_cosm.price_info = "FEEDBACK - non serve recensione • 100% - tasse coperte"
-            if os.path.exists(out_cosmetics):
-                off_cosm.image_url = "/screenshots/tg_album_46218_46221.jpg"
-            off_cosm.taxes_covered = True
-
-        # Aggiorna offerta set creme
-        off_cream = db.query(Offer).filter_by(message_id="46222").first()
-        if off_cream:
-            off_cream.title = "Crema viso • Crema gambe"
-            off_cream.price_info = "FEEDBACK - non serve recensione • 100% - tasse coperte"
-            if os.path.exists(out_creams):
-                off_cream.image_url = "/screenshots/tg_album_46222_46223.jpg"
-            off_cream.taxes_covered = True
-
-        db.commit()
     except Exception as e:
-        db.rollback()
+        pass
 
 @app.get("/api/offers")
 def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db: Session = Depends(get_db)):
-    # Rimuovi automaticamente offerte orfane incomplete o frammentate da vecchi import
+    # Deduplica pulita e sicura in background tra le offerte attive (senza cancellare record tracciati)
     try:
         consolidate_offer_albums(db)
-        db.query(Offer).filter(
-            Offer.status == "new",
-            or_(
-                Offer.title.like("Articolo Offerta #%"),
-                Offer.title == "Prodotto in Promozione"
-            )
-        ).delete(synchronize_session=False)
 
-        # Deduplica globale tra tutte le offerte attive (sia 'new' che 'requested')
+        # Deduplica in-memory sicura tra le offerte attive
         all_active = db.query(Offer).filter(Offer.status.in_(["new", "requested"])).order_by(desc(Offer.created_at), desc(Offer.id)).all()
-        seen_titles = set()
+        kept_offers = []
+        needs_commit = False
+        
         for o in all_active:
-            clean_t = o.title.strip().lower()
-            if clean_t in seen_titles:
-                db.delete(o)
-            else:
-                seen_titles.add(clean_t)
+            is_dup = False
+            for kept in kept_offers:
+                # Confronto fuzzy titolo o stessa immagine (non placeholder)
+                same_title = is_title_duplicate(o.title, kept.title)
+                same_img = (
+                    o.image_url 
+                    and kept.image_url 
+                    and 'unsplash' not in o.image_url 
+                    and 'unsplash' not in kept.image_url 
+                    and o.image_url.strip() == kept.image_url.strip()
+                )
+                if same_title or same_img:
+                    is_dup = True
+                    # Se l'offerta duplicata è 'requested' mentre la precedente era solo 'new', diamo priorità a 'requested'
+                    if o.status == "requested" and kept.status == "new":
+                        kept.status = "dismissed"
+                        kept_offers.remove(kept)
+                        kept_offers.append(o)
+                    else:
+                        o.status = "dismissed"
+                    needs_commit = True
+                    break
+            
+            if not is_dup:
+                kept_offers.append(o)
 
-        db.commit()
+        if needs_commit:
+            db.commit()
     except Exception as e:
         db.rollback()
 
@@ -519,11 +548,12 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
         raise HTTPException(status_code=404, detail="Offerta non trovata")
     
     offer.status = "requested"
+    # REGOLA RIGOROSA: Alla richiesta lo stato è SEMPRE 'waiting_link' e il link è None finché Alex non risponde
+    initial_status = "waiting_link"
     
-    # Crea l'ordine in 'Da Confermare' pronto per inserire il numero reale e la ricevuta Amazon
     existing_order = db.query(Order).filter_by(product_title=offer.title).first()
+    order_date = datetime.utcnow()
     if not existing_order:
-        order_date = datetime.utcnow()
         rev_data = generate_review(offer.title, gemini_api_key=get_gemini_api_key(db))
         temp_order_num = f"In attesa #{offer.id}_{int(order_date.timestamp())}"
         new_order = Order(
@@ -531,9 +561,10 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             product_title=offer.title,
             product_image=offer.image_url,
             seller_contact=offer.seller_contact or "@alex8700",
+            amazon_url=None,
             price_paid=0.0,
             refund_amount=0.0,
-            status="pending_confirmation",
+            status=initial_status,
             order_date=order_date,
             review_target_date=order_date + timedelta(days=10),
             review_title=rev_data.get("title", "Ottimo acquisto, qualità eccellente!"),
@@ -541,6 +572,11 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             is_test=False
         )
         db.add(new_order)
+    else:
+        if existing_order.status in ["cancelled", "waiting_link"]:
+            existing_order.status = initial_status
+            existing_order.amazon_url = None
+            existing_order.order_date = order_date
     db.commit()
 
     # Invia messaggio di richiesta disponibilità ad Alex
@@ -555,8 +591,94 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     
     return {
         "success": True, 
-        "message": "Richiesta inviata ad Alex! Scheda creata in Da Confermare."
+        "message": "Richiesta inviata ad Alex! Scheda aggiunta in 'Link Ricevuti (Da Comprare)'."
     }
+
+@app.post("/api/orders/{order_id}/set-amazon-link")
+def set_order_amazon_link(order_id: int, payload: SetAmazonLinkPayload, db: Session = Depends(get_db)):
+    """Imposta, modifica o rimuove il link del prodotto Amazon inviato da Alex"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    
+    raw_url = (payload.amazon_url or "").strip()
+    match_offer = db.query(Offer).filter_by(product_title=order.product_title if hasattr(Offer, 'product_title') else None).first() or db.query(Offer).filter_by(title=order.product_title).first()
+
+    if not raw_url:
+        # Se vuoto, rimuove il link e riporta lo stato in attesa
+        order.amazon_url = None
+        order.status = "waiting_link"
+        if match_offer:
+            match_offer.amazon_link = None
+            match_offer.status = "requested"
+        db.commit()
+        return {"success": True, "message": "Link rimosso. Scheda reimpostata in attesa di Alex."}
+    
+    # Assicurati che abbia http:// o https://
+    if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+        raw_url = "https://" + raw_url
+
+    order.amazon_url = raw_url
+    order.status = "link_approved"
+    
+    if match_offer:
+        match_offer.amazon_link = raw_url
+        match_offer.status = "link_received"
+        
+    log = ActivityLog(
+        action_type="LINK_SET",
+        title=f"Link Amazon Impostato per {order.product_title[:40]}",
+        details=f"Link: {raw_url}"
+    )
+    db.add(log)
+    db.commit()
+    return {"success": True, "message": "Link Amazon salvato con successo! Articolo pronto per l'acquisto."}
+
+@app.post("/api/orders/{order_id}/mark-purchased")
+def mark_order_purchased(order_id: int, payload: Optional[MarkPurchasedPayload] = None, db: Session = Depends(get_db)):
+    """Segna l'articolo come acquistato su Amazon e lo sposta in 'Da Confermare' con screen pronto"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    
+    if payload and payload.order_number and payload.order_number.strip():
+        order.order_number = payload.order_number.strip()
+    elif not order.order_number or "in attesa" in order.order_number.lower():
+        order.order_number = f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
+        
+    if payload and payload.price_paid and payload.price_paid > 0:
+        order.price_paid = payload.price_paid
+        order.refund_amount = compute_order_refund(order.price_paid, order.product_title, db)
+
+    # Genera screenshot di conferma se mancante
+    if not order.confirmation_screen_url:
+        order.confirmation_screen_url = generate_amazon_order_screenshot(
+            order_number=order.order_number,
+            product_title=order.product_title,
+            price=order.price_paid
+        )
+
+    order.status = "pending_confirmation"
+    order.order_date = datetime.utcnow()
+    
+    log = ActivityLog(
+        action_type="ORDER_PURCHASED",
+        title=f"Acquisto Effettuato: {order.product_title[:40]}",
+        details=f"Numero Ordine: {order.order_number} | Pronto per invio screen ad Alex"
+    )
+    db.add(log)
+    db.commit()
+    return {
+        "success": True, 
+        "order_number": order.order_number,
+        "confirmation_screen_url": order.confirmation_screen_url,
+        "message": "Acquisto registrato! La scheda è ora in 'Da Confermare' per l'invio dello screenshot."
+    }
+
+@app.post("/api/telegram/sync-replies")
+async def sync_telegram_replies(db: Session = Depends(get_db)):
+    """Controlla se Alex ha risposto ai messaggi inviando il link Amazon del prodotto"""
+    return await telegram_service.sync_seller_replies(db)
 
 @app.post("/api/offers/{offer_id}/reset")
 def reset_offer_status(offer_id: int, db: Session = Depends(get_db)):
@@ -580,7 +702,7 @@ def dismiss_offer(offer_id: int, db: Session = Depends(get_db)):
     offer = db.query(Offer).filter_by(id=offer_id).first()
     if not offer:
         raise HTTPException(status_code=404, detail="Offerta non trovata")
-    db.delete(offer)
+    offer.status = "dismissed"
     db.commit()
     return {"success": True}
 
@@ -637,6 +759,7 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             "product_title": o.product_title,
             "product_image": o.product_image,
             "seller_contact": o.seller_contact,
+            "amazon_url": o.amazon_url,
             "price_paid": o.price_paid,
             "refund_amount": o.refund_amount,
             "status": o.status,
@@ -835,10 +958,16 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     prod_title = order.product_title
     order_num = order.order_number
     
-    # Se esiste un'offerta collegata con stato 'requested', reimpostala a 'new'
-    offer = db.query(Offer).filter_by(title=prod_title).first()
-    if offer and offer.status == "requested":
-        offer.status = "new"
+    # Se esiste un'offerta collegata, contrassegnala come "dismissed" per evitare che ritorni tra le nuove
+    matching_offers = db.query(Offer).filter(
+        or_(
+            Offer.title == prod_title,
+            Offer.title.like(f"%{prod_title[:25]}%") if len(prod_title) >= 25 else False
+        )
+    ).all()
+    for off in matching_offers:
+        if off.status in ["new", "requested"]:
+            off.status = "dismissed"
 
     # Assicura che il flag demo_initialized sia attivo per evitare che il riavvio del server ricrei demo
     if not db.query(Setting).filter_by(key="demo_initialized").first():
@@ -1107,14 +1236,16 @@ def get_stats(db: Session = Depends(get_db)):
     reimbursed_total = sum(o.refund_amount for o in db.query(Order).filter_by(status="reimbursed").all())
     
     new_offers_count = db.query(Offer).filter_by(status="new").count()
+    links_count = db.query(Order).filter(Order.status.in_(["waiting_link", "link_approved"])).count()
     pending_confirmation_count = db.query(Order).filter_by(status="pending_confirmation").count()
-    active_orders_count = db.query(Order).filter(Order.status.in_(["pending_confirmation", "waiting_review", "review_ready", "review_submitted"])).count()
+    active_orders_count = db.query(Order).filter(Order.status.in_(["waiting_link", "link_approved", "pending_confirmation", "waiting_review", "review_ready", "review_submitted"])).count()
     
     return {
         "total_spent": total_spent,
         "pending_refund": pending_refund,
         "reimbursed_total": reimbursed_total,
         "new_offers_count": new_offers_count,
+        "links_count": links_count,
         "pending_confirmation_count": pending_confirmation_count,
         "active_orders_count": active_orders_count
     }

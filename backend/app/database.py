@@ -30,7 +30,7 @@ class Offer(Base):
     taxes_covered = Column(Boolean, default=True)
     channel_name = Column(String(100), default="Offerte Telegram")
     seller_contact = Column(String(100), nullable=True) # @username venditore
-    message_id = Column(Integer, nullable=True)
+    message_id = Column(String(255), nullable=True)
     status = Column(String(50), default="new") # new, requested, link_received, dismissed
     amazon_link = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
