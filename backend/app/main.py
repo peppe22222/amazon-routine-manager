@@ -829,6 +829,15 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
                 o.product_image = matching_offer.image_url
                 updated_db = True
 
+        # Aggiornamento specifico per il Barattolo (consegna prevista domani -> 11 giorni totali)
+        if o.product_title and ("barattolo" in o.product_title.lower() or "404-1867984" in (o.order_number or "")):
+            if not o.delivery_info or o.delivery_info != "Domani":
+                o.delivery_info = "Domani"
+                base_start = o.confirmation_sent_at or o.order_date or now
+                o.estimated_delivery_date = base_start + timedelta(days=1)
+                o.review_target_date = o.estimated_delivery_date + timedelta(days=10)
+                updated_db = True
+
         if not o.review_target_date:
             if o.estimated_delivery_date:
                 o.review_target_date = o.estimated_delivery_date + timedelta(days=10)

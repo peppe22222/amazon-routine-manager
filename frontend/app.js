@@ -929,8 +929,20 @@ function renderReviews(orders) {
 
   container.innerHTML = reviewOrders.map(o => {
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80';
-    const targetIso = o.review_target_date || (o.confirmation_sent_at ? new Date(new Date(o.confirmation_sent_at).getTime() + 10*86400000).toISOString() : new Date(new Date(o.order_date).getTime() + 10*86400000).toISOString());
+    
+    // Per il Barattolo: consegna domani -> totale 11 giorni
+    if (o.product_title && (o.product_title.toLowerCase().includes('barattolo') || (o.order_number && o.order_number.includes('404-1867984')))) {
+      if (!o.delivery_info) o.delivery_info = 'Domani';
+    }
+
     const startIso = o.confirmation_sent_at || o.order_date || new Date().toISOString();
+    let targetIso = o.review_target_date;
+    
+    if (o.delivery_info === 'Domani' && (!targetIso || new Date(targetIso).getTime() - new Date(startIso).getTime() <= 10.5 * 86400000)) {
+      targetIso = new Date(new Date(startIso).getTime() + 11 * 86400000).toISOString();
+    } else if (!targetIso) {
+      targetIso = (o.confirmation_sent_at ? new Date(new Date(o.confirmation_sent_at).getTime() + 10*86400000).toISOString() : new Date(new Date(o.order_date).getTime() + 10*86400000).toISOString());
+    }
     const isSubmitted = o.status === 'review_submitted' || o.status === 'reimbursed';
 
     return `
