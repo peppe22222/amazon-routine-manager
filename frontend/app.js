@@ -726,15 +726,11 @@ async function clearManualAmazonLink() {
 }
 
 async function markOrderAsPurchased(orderId, productTitle) {
-  if (!confirm(`⚠️ Confermi di aver già acquistato "${productTitle}" su Amazon?\n\nQuesto sposterà l'articolo nella sezione "Da Confermare".`)) return;
-  const orderNum = prompt(`Inserisci il numero d'ordine Amazon (es. 408-1234567-1234567)\noppure premi OK per assegnare un numero temporaneo:`);
-  if (orderNum === null) return; // Annullato
-
   try {
     const res = await fetch(`/api/orders/${orderId}/mark-purchased`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ order_number: orderNum.trim() || null })
+      body: JSON.stringify({})
     });
     const data = await res.json();
     if (res.ok) {
