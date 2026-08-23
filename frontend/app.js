@@ -557,7 +557,28 @@ async function loadOrders() {
   try {
     const res = await fetch('/api/orders');
     if (!res.ok) return;
-    const orders = await res.json();
+    let orders = await res.json();
+
+    // Schermatura di sicurezza client-side:
+    // Se il server ha perso gli ordini durante un riavvio ma il browser ha una copia memorizzata, ripristina all'istante
+    const localBackupStr = localStorage.getItem('amz_shielded_orders');
+    let localBackup = [];
+    try { localBackup = JSON.parse(localBackupStr) || []; } catch(e) {}
+
+    if ((!orders || orders.length === 0) && localBackup && localBackup.length > 0) {
+      console.log('[Shield] Ripristino automatico ordini dal browser al server...');
+      await fetch('/api/orders/client-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orders: localBackup })
+      });
+      const refreshRes = await fetch('/api/orders');
+      if (refreshRes.ok) {
+        orders = await refreshRes.json();
+      }
+    } else if (orders && orders.length > 0) {
+      localStorage.setItem('amz_shielded_orders', JSON.stringify(orders));
+    }
 
     renderApprovedLinks(orders);
     renderConfirmations(orders);
@@ -1364,6 +1385,15 @@ async function confirmAndDeleteOrder(orderId, wrapperElement) {
     const res = await fetch(`/api/orders/${orderId}`, { method: 'DELETE' });
     const data = await res.json();
     if (res.ok) {
+      // Rimuovi l'ordine anche dal backup del browser
+      try {
+        const localBackupStr = localStorage.getItem('amz_shielded_orders');
+        if (localBackupStr) {
+          const arr = JSON.parse(localBackupStr) || [];
+          const updated = arr.filter(x => x.id !== orderId);
+          localStorage.setItem('amz_shielded_orders', JSON.stringify(updated));
+        }
+      } catch(e) {}
       showToast(data.message || 'Pratica eliminata definitivamente!');
     } else {
       showToast(data.detail || 'Errore durante l\'eliminazione', true);

@@ -111,6 +111,52 @@ def restore_orders_backup(db: Session) -> int:
 
 app = FastAPI(title="Amazon Routine Assistant", version="1.0.0")
 
+class ClientSyncPayload(BaseModel):
+    orders: List[dict]
+
+@app.post("/api/orders/client-sync")
+def sync_client_orders_backup(payload: ClientSyncPayload, db: Session = Depends(get_db)):
+    """Sincronizza e blinda gli ordini memorizzati nel browser del cliente con il database del server"""
+    if not payload.orders:
+        return {"success": True, "restored": 0}
+    
+    restored = 0
+    now = datetime.utcnow()
+    for item in payload.orders:
+        if not item.get("id"):
+            continue
+        existing = db.query(Order).filter_by(id=item["id"]).first()
+        if not existing:
+            o = Order(
+                id=item["id"],
+                order_number=item.get("order_number"),
+                product_title=item.get("product_title"),
+                product_image=item.get("product_image"),
+                seller_contact=item.get("seller_contact"),
+                amazon_url=item.get("amazon_url"),
+                price_paid=float(item.get("price_paid") or 0.0),
+                refund_amount=float(item.get("refund_amount") or 0.0),
+                status=item.get("status") or "waiting_link",
+                order_date=datetime.fromisoformat(item["order_date"]) if item.get("order_date") else now,
+                confirmation_screen_url=item.get("confirmation_screen_url"),
+                confirmation_sent_at=datetime.fromisoformat(item["confirmation_sent_at"]) if item.get("confirmation_sent_at") else None,
+                review_target_date=datetime.fromisoformat(item["review_target_date"]) if item.get("review_target_date") else None,
+                review_title=item.get("review_title"),
+                review_body=item.get("review_body"),
+                review_submitted_at=datetime.fromisoformat(item["review_submitted_at"]) if item.get("review_submitted_at") else None,
+                review_screen_url=item.get("review_screen_url"),
+                refunded_at=datetime.fromisoformat(item["refunded_at"]) if item.get("refunded_at") else None,
+                is_test=item.get("is_test", False)
+            )
+            db.add(o)
+            restored += 1
+    
+    if restored > 0:
+        db.commit()
+        save_orders_backup(db)
+        
+    return {"success": True, "restored": restored}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
