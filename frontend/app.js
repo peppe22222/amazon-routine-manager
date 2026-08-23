@@ -1763,7 +1763,7 @@ async function requestOffer(offerId) {
       loadOffers();
       loadOrders();
       loadStats();
-      switchTab('links');
+      switchTab('approved_links');
     } else {
       showToast(data.detail || 'Errore durante la richiesta', true);
     }
