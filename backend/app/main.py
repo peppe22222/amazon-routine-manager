@@ -1455,7 +1455,7 @@ def on_app_startup():
             ord1 = Order(
                 order_number="In attesa #157",
                 product_title="Fotocamera Digitale 4K 64MP con WiFi, Vlogging Autofocus",
-                product_image="https://images.unsplash.com/photo-1516035069371-29a1b244cc32?auto=format&fit=crop&w=800&q=80",
+                product_image="/screenshots/tg_offer_46243.jpg",
                 seller_contact="@alex8700",
                 amazon_url=None,
                 price_paid=0.0,
@@ -1471,7 +1471,7 @@ def on_app_startup():
             ord2 = Order(
                 order_number="In attesa N° Ordine",
                 product_title="Pulitore a vapore, serbatoio trasparente, kit di accessori di 11 pezzi per divani",
-                product_image="https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80",
+                product_image="/screenshots/tg_offer_46231.jpg",
                 seller_contact="@alex8700",
                 amazon_url=None,
                 price_paid=0.0,
@@ -1487,7 +1487,7 @@ def on_app_startup():
             ord3 = Order(
                 order_number="404-1867984-8717122",
                 product_title="Barattolo per Caffè Ermetico in Acciaio Inox, 1.2 L con Valvola CO2 e Datario",
-                product_image="https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80",
+                product_image="/screenshots/tg_offer_46229.jpg",
                 seller_contact="@alex8700",
                 amazon_url=None,
                 price_paid=22.99,
