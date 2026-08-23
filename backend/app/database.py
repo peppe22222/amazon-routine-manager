@@ -106,16 +106,15 @@ def init_db():
             "gemini_api_key": ""
         }
         for k, v in defaults.items():
-            if not db.query(Setting).filter_by(key=k).first():
+            s = db.query(Setting).filter_by(key=k).first()
+            if not s:
                 db.add(Setting(key=k, value=v))
-        
-        # Forza sempre test_mode a 'true'
-        tm = db.query(Setting).filter_by(key="test_mode").first()
-        if tm:
-            tm.value = "true"
-        else:
-            db.add(Setting(key="test_mode", value="true"))
+            elif k == "test_mode":
+                s.value = "true"
         db.commit()
+    except Exception as e:
+        db.rollback()
+        print(f"[init_db error] {e}")
     finally:
         db.close()
 
