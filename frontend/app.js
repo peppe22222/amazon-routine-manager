@@ -287,6 +287,9 @@ async function loadOffers() {
     const seenImages = new Set();
     const offers = [];
     for (const o of (rawOffers || [])) {
+      // Nel feed offerte mostriamo solo le offerte non ancora approvate/comprate
+      if (o.status !== 'new' && o.status !== 'requested') continue;
+
       const cleanT = (o.title || '').trim().toLowerCase().replace(/\s+/g, ' ');
       const cleanImg = (o.image_url || '').trim();
       

@@ -452,38 +452,51 @@ def consolidate_offer_albums(db: Session):
 
 @app.get("/api/offers")
 def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db: Session = Depends(get_db)):
-    # Deduplica pulita e sicura in background tra le offerte attive (senza cancellare record tracciati)
+    # Deduplica globale pulita e sicura tra TUTTE le offerte non scartate (inclusi i frammenti di album e vecchi import)
     try:
         consolidate_offer_albums(db)
-        # Deduplica in-memory sicura tra le offerte attive
-        all_active = db.query(Offer).filter(Offer.status.in_(["new", "requested"])).order_by(desc(Offer.created_at), desc(Offer.id)).all()
+        
+        all_non_dismissed = db.query(Offer).filter(Offer.status != "dismissed").order_by(desc(Offer.created_at), desc(Offer.id)).all()
         kept_offers = []
         needs_commit = False
         
-        for o in all_active:
+        for o in all_non_dismissed:
             is_dup = False
+            o_mid = str(o.message_id or '').strip()
+            o_mids = set(o_mid.split(',')) if o_mid else set()
+            o_img = (o.image_url or '').strip()
+            o_title = o.title or ''
+            
             for kept in kept_offers:
-                # Confronto fuzzy titolo o stessa immagine (non placeholder)
-                same_title = is_title_duplicate(o.title, kept.title)
-                same_img = (
-                    o.image_url 
-                    and kept.image_url 
-                    and 'unsplash' not in o.image_url 
-                    and 'unsplash' not in kept.image_url 
-                    and o.image_url.strip() == kept.image_url.strip()
-                )
-                if same_title or same_img:
+                k_mid = str(kept.message_id or '').strip()
+                k_mids = set(k_mid.split(',')) if k_mid else set()
+                k_img = (kept.image_url or '').strip()
+                k_title = kept.title or ''
+                
+                same_mids = bool(o_mids and k_mids and o_mids.intersection(k_mids))
+                same_img = bool(o_img and k_img and 'unsplash' not in o_img and 'unsplash' not in k_img and o_img == k_img)
+                same_title = is_title_duplicate(o_title, k_title)
+                
+                if same_mids or same_img or same_title:
                     is_dup = True
-                    # Se l'offerta duplicata è 'requested' mentre la precedente era solo 'new', diamo priorità a 'requested'
-                    if o.status == "requested" and kept.status == "new":
+                    # Prefer link_received > requested > new
+                    o_priority = 3 if o.status == 'link_received' else (2 if o.status == 'requested' else 1)
+                    k_priority = 3 if kept.status == 'link_received' else (2 if kept.status == 'requested' else 1)
+                    
+                    merged_mids = o_mids.union(k_mids)
+                    merged_str = ",".join(sorted(merged_mids)) if merged_mids else None
+                    
+                    if o_priority > k_priority:
                         kept.status = "dismissed"
                         kept_offers.remove(kept)
+                        o.message_id = merged_str
                         kept_offers.append(o)
                     else:
                         o.status = "dismissed"
+                        kept.message_id = merged_str
                     needs_commit = True
                     break
-            
+                    
             if not is_dup:
                 kept_offers.append(o)
 
