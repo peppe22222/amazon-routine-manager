@@ -1442,18 +1442,12 @@ def on_app_startup():
         else:
             db.add(Setting(key="test_mode", value="true"))
 
-        # 2. Pulizia ordini residui cancellati in precedenza (es. Power Bank 20000mAh)
+        # 2. Pulizia ordini residui Power Bank 20000mAh cancellato
         db.query(Order).filter(Order.product_title.like("%Power Bank 20000mAh%")).delete(synchronize_session=False)
         db.query(Order).filter(Order.order_number.like("%powerbank%")).delete(synchronize_session=False)
 
-        # 3. Elimina qualsiasi ordine il cui titolo sia tra i prodotti contrassegnati come cancellati
-        deleted_settings = db.query(Setting).filter(Setting.key.like("deleted_product_%")).all()
-        for d in deleted_settings:
-            if d.value and d.value.strip():
-                db.query(Order).filter(Order.product_title == d.value.strip()).delete(synchronize_session=False)
-
         db.commit()
-        print("[Startup] Modalità Sandbox impostata su ATTIVA e ordini ripuliti con successo.")
+        print("[Startup] Modalità Sandbox impostata su ATTIVA.")
     except Exception as e:
         print(f"[Startup error] {e}")
     finally:
