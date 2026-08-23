@@ -948,7 +948,8 @@ class TelegramManager:
             if not await client.is_user_authorized():
                 return {"success": False, "auth_required": True, "error": "Telegram non autorizzato"}
 
-            target = (seller_handle or "@alex8700").strip()
+            test_mode = self.get_setting(db, "test_mode", "false").lower() == "true"
+            target = "me" if test_mode else (seller_handle or "@alex8700").strip()
             entity = await client.get_entity(target)
             
             # Cerca SOLO gli ordini in stato 'waiting_link' che NON hanno già un link impostato
