@@ -820,27 +820,7 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
     """Permette di modificare il numero d'ordine reale Amazon, il prezzo o il contatto venditore"""
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
-        clean_num = (payload.order_number or "").strip()
-        if clean_num:
-            order = db.query(Order).filter_by(order_number=clean_num).first()
-        if not order:
-            order = db.query(Order).filter_by(status="pending_confirmation").order_by(desc(Order.id)).first()
-            
-    if not order:
-        # Crea nuovo ordine al volo
-        clean_num = (payload.order_number or "").strip() or f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
-        order = Order(
-            order_number=clean_num,
-            product_title=payload.product_title or "Articolo Amazon",
-            price_paid=payload.price_paid or 0.0,
-            refund_amount=payload.price_paid or 0.0,
-            seller_contact=payload.seller_contact or "@alex8700",
-            status="pending_confirmation",
-            order_date=datetime.utcnow()
-        )
-        db.add(order)
-        db.commit()
-        db.refresh(order)
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
 
     if payload.order_number is not None and payload.order_number.strip():
         clean_num = payload.order_number.strip()
