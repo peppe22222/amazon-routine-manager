@@ -97,6 +97,13 @@ def init_db():
         for k, v in defaults.items():
             if not db.query(Setting).filter_by(key=k).first():
                 db.add(Setting(key=k, value=v))
+        
+        # Forza sempre test_mode a 'true'
+        tm = db.query(Setting).filter_by(key="test_mode").first()
+        if tm:
+            tm.value = "true"
+        else:
+            db.add(Setting(key="test_mode", value="true"))
         db.commit()
     finally:
         db.close()

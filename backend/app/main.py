@@ -1517,6 +1517,8 @@ def on_app_startup():
         db.close()
 
 # Monta la cartella del frontend statico
+from fastapi.responses import FileResponse
+
 candidate_frontend_dirs = [
     os.path.join(PROJECT_DIR, "frontend"),
     os.path.join(BACKEND_DIR, "frontend"),
@@ -1530,4 +1532,16 @@ for candidate in candidate_frontend_dirs:
         break
 
 if FRONTEND_DIR:
+    @app.get("/")
+    async def serve_root_index():
+        index_path = os.path.join(FRONTEND_DIR, "index.html")
+        return FileResponse(
+            index_path,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
+
     app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="frontend")
