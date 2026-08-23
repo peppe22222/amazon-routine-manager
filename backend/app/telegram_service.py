@@ -732,22 +732,34 @@ class TelegramManager:
     async def send_availability_request(self, db: Session, offer: Offer, recipient: str = None) -> dict:
         """
         Invia la richiesta di disponibilità per un prodotto ad Alex (@alex8700 o contatto venditore).
-        In modalità Sandbox (test_mode=true) simula l'invio senza contattare Telegram reale.
+        In modalità Sandbox (test_mode=true) invia il messaggio di prova a te stesso (Messaggi Salvati / 'me').
         """
         is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
         target_contact = (recipient or offer.seller_contact or "@alex8700").strip()
         message_text = f"Ciao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
 
         if is_test:
+            try:
+                client = await self._ensure_connected_client(db)
+                if client and await client.is_user_authorized():
+                    file_path = self._find_screenshot_file(offer.image_url)
+                    test_notice = f"🧪 *[TEST SANDBOX - Copia per te]*\n(Nessun messaggio inviato ad Alex)\n\n{message_text}"
+                    if file_path:
+                        await client.send_file('me', file_path, caption=test_notice)
+                    else:
+                        await client.send_message('me', test_notice)
+            except Exception as e:
+                print(f"[Sandbox Send 'me' Error] {e}")
+
             log = ActivityLog(
                 action_type="MESSAGE_SENT",
-                title=f"Richiesta inviata ad Alex ({target_contact}) [SANDBOX]",
-                details=f"Articolo: {offer.title[:50]} (Modalità Sandbox: nessun messaggio reale inviato a Telegram)"
+                title=f"Richiesta test inviata a me (Messaggi Salvati) [SANDBOX]",
+                details=f"Articolo: {offer.title[:50]} (Inviato ai tuoi Messaggi Salvati Telegram per verifica)"
             )
             db.add(log)
             offer.status = "requested"
             db.commit()
-            return {"success": True, "message": f"[SANDBOX] Richiesta simulata registrata con successo (nessun messaggio inviato ad Alex)."}
+            return {"success": True, "message": f"🧪 [SANDBOX] Messaggio di test inviato ai tuoi 'Messaggi Salvati' su Telegram (nessun messaggio inviato ad Alex)!"}
 
         try:
             client = await self._ensure_connected_client(db)
@@ -777,23 +789,35 @@ class TelegramManager:
     async def send_order_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
         """
         Invia lo screenshot di conferma ordine e il numero d'ordine ad Alex (@alex8700 o contatto venditore).
-        In modalità Sandbox (test_mode=true) simula l'invio senza contattare Telegram reale.
+        In modalità Sandbox (test_mode=true) invia il messaggio di prova a te stesso (Messaggi Salvati / 'me').
         """
         is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
         target_contact = (recipient or order.seller_contact or "@alex8700").strip()
         caption_text = f"Ciao Alex, ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\nGrazie!"
 
         if is_test:
+            try:
+                client = await self._ensure_connected_client(db)
+                if client and await client.is_user_authorized():
+                    file_path = self._find_screenshot_file(order.confirmation_screen_url)
+                    test_notice = f"🧪 *[TEST SANDBOX - Screenshot per te]*\n(Nessun messaggio inviato ad Alex)\n\n{caption_text}"
+                    if file_path:
+                        await client.send_file('me', file_path, caption=test_notice)
+                    else:
+                        await client.send_message('me', test_notice)
+            except Exception as e:
+                print(f"[Sandbox Send 'me' Error] {e}")
+
             log = ActivityLog(
                 action_type="SCREEN_SENT",
-                title=f"Screenshot ordine inviato ad Alex ({target_contact}) [SANDBOX]",
-                details=f"Ordine: {order.order_number} ({order.product_title}) (Modalità Sandbox: nessun invio reale)"
+                title=f"Screenshot ordine inviato a me (Messaggi Salvati) [SANDBOX]",
+                details=f"Ordine: {order.order_number} ({order.product_title})"
             )
             db.add(log)
             order.status = "waiting_review"
             order.confirmation_sent_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": f"[SANDBOX] Invio screenshot simulato con successo (nessun messaggio inviato ad Alex)."}
+            return {"success": True, "message": f"🧪 [SANDBOX] Screenshot ordine inviato ai tuoi 'Messaggi Salvati' su Telegram!"}
 
         try:
             client = await self._ensure_connected_client(db)
@@ -824,23 +848,47 @@ class TelegramManager:
     async def send_review_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
         """
         Invia la conferma della recensione pubblicata con screenshot ad Alex (@alex8700 o contatto venditore).
-        In modalità Sandbox (test_mode=true) simula l'invio senza contattare Telegram reale.
+        In modalità Sandbox (test_mode=true) invia il messaggio di prova a te stesso (Messaggi Salvati / 'me').
         """
         is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
         target_contact = (recipient or order.seller_contact or "@alex8700").strip()
         caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
 
         if is_test:
+            try:
+                client = await self._ensure_connected_client(db)
+                if client and await client.is_user_authorized():
+                    from app.screenshot_service import generate_amazon_review_screenshot
+                    review_url = order.review_screen_url
+                    if not review_url:
+                        review_url = generate_amazon_review_screenshot(
+                            order_number=order.order_number,
+                            product_title=order.product_title,
+                            review_title=order.review_title or "Ottimo prodotto, spedizione impeccabile",
+                            review_body=order.review_body or "Arrivato puntuale, ben imballato. Qualità dei materiali ottima e facilissimo da utilizzare. Pienamente soddisfatto!"
+                        )
+                        order.review_screen_url = review_url
+                        db.commit()
+
+                    file_path = self._find_screenshot_file(review_url)
+                    test_notice = f"🧪 *[TEST SANDBOX - Recensione per te]*\n(Nessun messaggio inviato ad Alex)\n\n{caption_text}"
+                    if file_path:
+                        await client.send_file('me', file_path, caption=test_notice)
+                    else:
+                        await client.send_message('me', test_notice)
+            except Exception as e:
+                print(f"[Sandbox Send 'me' Error] {e}")
+
             log = ActivityLog(
                 action_type="REVIEW_SENT",
-                title=f"Screenshot recensione 5★ inviato ad Alex ({target_contact}) [SANDBOX]",
-                details=f"Ordine: {order.order_number} ({order.product_title}) (Modalità Sandbox: nessun invio reale)"
+                title=f"Screenshot recensione 5★ inviato a me (Messaggi Salvati) [SANDBOX]",
+                details=f"Ordine: {order.order_number} ({order.product_title})"
             )
             db.add(log)
             order.status = "waiting_refund"
             order.review_submitted_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": f"[SANDBOX] Invio recensione simulato con successo (nessun messaggio inviato ad Alex)."}
+            return {"success": True, "message": f"🧪 [SANDBOX] Screenshot recensione 5★ inviato ai tuoi 'Messaggi Salvati' su Telegram!"}
 
         try:
             client = await self._ensure_connected_client(db)
