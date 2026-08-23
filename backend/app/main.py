@@ -33,6 +33,82 @@ import hashlib
 # Inizializza DB
 init_db()
 
+ORDERS_BACKUP_FILE = os.path.join(DATA_DIR, "orders_persistent_backup.json")
+
+def save_orders_backup(db: Session):
+    """Salva una copia blindata di tutti gli ordini attivi su file JSON protetto"""
+    try:
+        orders = db.query(Order).all()
+        data = []
+        for o in orders:
+            data.append({
+                "id": o.id,
+                "order_number": o.order_number,
+                "product_title": o.product_title,
+                "product_image": o.product_image,
+                "seller_contact": o.seller_contact,
+                "amazon_url": o.amazon_url,
+                "price_paid": o.price_paid,
+                "refund_amount": o.refund_amount,
+                "status": o.status,
+                "order_date": o.order_date.isoformat() if o.order_date else None,
+                "confirmation_screen_url": o.confirmation_screen_url,
+                "confirmation_sent_at": o.confirmation_sent_at.isoformat() if o.confirmation_sent_at else None,
+                "review_target_date": o.review_target_date.isoformat() if o.review_target_date else None,
+                "review_title": o.review_title,
+                "review_body": o.review_body,
+                "review_submitted_at": o.review_submitted_at.isoformat() if o.review_submitted_at else None,
+                "review_screen_url": o.review_screen_url,
+                "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
+                "is_test": o.is_test
+            })
+        with open(ORDERS_BACKUP_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[Backup Error] {e}")
+
+def restore_orders_backup(db: Session) -> int:
+    """Ripristina tutti gli ordini dal backup JSON protetto se il DB è vuoto"""
+    if not os.path.exists(ORDERS_BACKUP_FILE):
+        return 0
+    try:
+        with open(ORDERS_BACKUP_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not data:
+            return 0
+        
+        restored = 0
+        for item in data:
+            if not db.query(Order).filter_by(id=item["id"]).first():
+                o = Order(
+                    id=item["id"],
+                    order_number=item.get("order_number"),
+                    product_title=item.get("product_title"),
+                    product_image=item.get("product_image"),
+                    seller_contact=item.get("seller_contact"),
+                    amazon_url=item.get("amazon_url"),
+                    price_paid=item.get("price_paid", 0.0),
+                    refund_amount=item.get("refund_amount", 0.0),
+                    status=item.get("status", "waiting_link"),
+                    order_date=datetime.fromisoformat(item["order_date"]) if item.get("order_date") else datetime.utcnow(),
+                    confirmation_screen_url=item.get("confirmation_screen_url"),
+                    confirmation_sent_at=datetime.fromisoformat(item["confirmation_sent_at"]) if item.get("confirmation_sent_at") else None,
+                    review_target_date=datetime.fromisoformat(item["review_target_date"]) if item.get("review_target_date") else None,
+                    review_title=item.get("review_title"),
+                    review_body=item.get("review_body"),
+                    review_submitted_at=datetime.fromisoformat(item["review_submitted_at"]) if item.get("review_submitted_at") else None,
+                    review_screen_url=item.get("review_screen_url"),
+                    refunded_at=datetime.fromisoformat(item["refunded_at"]) if item.get("refunded_at") else None,
+                    is_test=item.get("is_test", False)
+                )
+                db.add(o)
+                restored += 1
+        db.commit()
+        return restored
+    except Exception as e:
+        print(f"[Restore Error] {e}")
+        return 0
+
 app = FastAPI(title="Amazon Routine Assistant", version="1.0.0")
 
 app.add_middleware(
@@ -546,6 +622,7 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             existing_order.amazon_url = None
             existing_order.order_date = order_date
     db.commit()
+    save_orders_backup(db)
 
     # Invia messaggio di richiesta disponibilità ad Alex
     try:
@@ -600,6 +677,7 @@ def set_order_amazon_link(order_id: int, payload: SetAmazonLinkPayload, db: Sess
     )
     db.add(log)
     db.commit()
+    save_orders_backup(db)
     return {"success": True, "message": "Link Amazon salvato con successo! Articolo pronto per l'acquisto."}
 
 @app.post("/api/orders/{order_id}/mark-purchased")
@@ -634,6 +712,7 @@ def mark_order_purchased(order_id: int, payload: Optional[MarkPurchasedPayload] 
     )
     db.add(log)
     db.commit()
+    save_orders_backup(db)
     return {
         "success": True, 
         "order_number": order.order_number,
@@ -801,6 +880,7 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
     if payload.product_title is not None and payload.product_title.strip():
         order.product_title = payload.product_title.strip()
     db.commit()
+    save_orders_backup(db)
     return {"success": True, "order_number": order.order_number, "order_id": order.id, "refund_amount": order.refund_amount, "message": "Dati ordine aggiornati con successo!"}
 
 @app.post("/api/orders/{order_id}/confirm-and-send")
@@ -846,6 +926,7 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
         order.review_body = rev_data.get("body", "Prodotto eccellente e spedizione rapida. Consigliatissimo!")
         
     db.commit()
+    save_orders_backup(db)
     
     # Invia screenshot ai Messaggi Salvati via Telegram
     tele_res = {}
@@ -930,6 +1011,7 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
 
     db.delete(order)
     db.commit()
+    save_orders_backup(db)
     return {"success": True, "message": f"Pratica '{prod_title}' eliminata definitivamente!"}
 
 @app.get("/api/orders/{order_id}/regenerate-review")
@@ -1440,82 +1522,6 @@ def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db
     deleted_count = query.delete(synchronize_session=False)
     db.commit()
     return {"success": True, "deleted_count": deleted_count, "message": f"{deleted_count} pratiche eliminate definitivamente!"}
-
-ORDERS_BACKUP_FILE = os.path.join(DATA_DIR, "orders_persistent_backup.json")
-
-def save_orders_backup(db: Session):
-    """Salva una copia blindata di tutti gli ordini attivi su file JSON protetto"""
-    try:
-        orders = db.query(Order).all()
-        data = []
-        for o in orders:
-            data.append({
-                "id": o.id,
-                "order_number": o.order_number,
-                "product_title": o.product_title,
-                "product_image": o.product_image,
-                "seller_contact": o.seller_contact,
-                "amazon_url": o.amazon_url,
-                "price_paid": o.price_paid,
-                "refund_amount": o.refund_amount,
-                "status": o.status,
-                "order_date": o.order_date.isoformat() if o.order_date else None,
-                "confirmation_screen_url": o.confirmation_screen_url,
-                "confirmation_sent_at": o.confirmation_sent_at.isoformat() if o.confirmation_sent_at else None,
-                "review_target_date": o.review_target_date.isoformat() if o.review_target_date else None,
-                "review_title": o.review_title,
-                "review_body": o.review_body,
-                "review_submitted_at": o.review_submitted_at.isoformat() if o.review_submitted_at else None,
-                "review_screen_url": o.review_screen_url,
-                "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
-                "is_test": o.is_test
-            })
-        with open(ORDERS_BACKUP_FILE, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[Backup Error] {e}")
-
-def restore_orders_backup(db: Session) -> int:
-    """Ripristina tutti gli ordini dal backup JSON protetto se il DB è vuoto"""
-    if not os.path.exists(ORDERS_BACKUP_FILE):
-        return 0
-    try:
-        with open(ORDERS_BACKUP_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if not data:
-            return 0
-        
-        restored = 0
-        for item in data:
-            if not db.query(Order).filter_by(id=item["id"]).first():
-                o = Order(
-                    id=item["id"],
-                    order_number=item.get("order_number"),
-                    product_title=item.get("product_title"),
-                    product_image=item.get("product_image"),
-                    seller_contact=item.get("seller_contact"),
-                    amazon_url=item.get("amazon_url"),
-                    price_paid=item.get("price_paid", 0.0),
-                    refund_amount=item.get("refund_amount", 0.0),
-                    status=item.get("status", "waiting_link"),
-                    order_date=datetime.fromisoformat(item["order_date"]) if item.get("order_date") else datetime.utcnow(),
-                    confirmation_screen_url=item.get("confirmation_screen_url"),
-                    confirmation_sent_at=datetime.fromisoformat(item["confirmation_sent_at"]) if item.get("confirmation_sent_at") else None,
-                    review_target_date=datetime.fromisoformat(item["review_target_date"]) if item.get("review_target_date") else None,
-                    review_title=item.get("review_title"),
-                    review_body=item.get("review_body"),
-                    review_submitted_at=datetime.fromisoformat(item["review_submitted_at"]) if item.get("review_submitted_at") else None,
-                    review_screen_url=item.get("review_screen_url"),
-                    refunded_at=datetime.fromisoformat(item["refunded_at"]) if item.get("refunded_at") else None,
-                    is_test=item.get("is_test", False)
-                )
-                db.add(o)
-                restored += 1
-        db.commit()
-        return restored
-    except Exception as e:
-        print(f"[Restore Error] {e}")
-        return 0
 
 # Evento di avvio: imposta di default la modalità Sandbox a true e ripristina SOLO le pratiche reali dell'utente
 @app.on_event("startup")
