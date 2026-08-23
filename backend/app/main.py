@@ -1441,6 +1441,82 @@ def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db
     db.commit()
     return {"success": True, "deleted_count": deleted_count, "message": f"{deleted_count} pratiche eliminate definitivamente!"}
 
+ORDERS_BACKUP_FILE = os.path.join(DATA_DIR, "orders_persistent_backup.json")
+
+def save_orders_backup(db: Session):
+    """Salva una copia blindata di tutti gli ordini attivi su file JSON protetto"""
+    try:
+        orders = db.query(Order).all()
+        data = []
+        for o in orders:
+            data.append({
+                "id": o.id,
+                "order_number": o.order_number,
+                "product_title": o.product_title,
+                "product_image": o.product_image,
+                "seller_contact": o.seller_contact,
+                "amazon_url": o.amazon_url,
+                "price_paid": o.price_paid,
+                "refund_amount": o.refund_amount,
+                "status": o.status,
+                "order_date": o.order_date.isoformat() if o.order_date else None,
+                "confirmation_screen_url": o.confirmation_screen_url,
+                "confirmation_sent_at": o.confirmation_sent_at.isoformat() if o.confirmation_sent_at else None,
+                "review_target_date": o.review_target_date.isoformat() if o.review_target_date else None,
+                "review_title": o.review_title,
+                "review_body": o.review_body,
+                "review_submitted_at": o.review_submitted_at.isoformat() if o.review_submitted_at else None,
+                "review_screen_url": o.review_screen_url,
+                "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
+                "is_test": o.is_test
+            })
+        with open(ORDERS_BACKUP_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"[Backup Error] {e}")
+
+def restore_orders_backup(db: Session) -> int:
+    """Ripristina tutti gli ordini dal backup JSON protetto se il DB è vuoto"""
+    if not os.path.exists(ORDERS_BACKUP_FILE):
+        return 0
+    try:
+        with open(ORDERS_BACKUP_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not data:
+            return 0
+        
+        restored = 0
+        for item in data:
+            if not db.query(Order).filter_by(id=item["id"]).first():
+                o = Order(
+                    id=item["id"],
+                    order_number=item.get("order_number"),
+                    product_title=item.get("product_title"),
+                    product_image=item.get("product_image"),
+                    seller_contact=item.get("seller_contact"),
+                    amazon_url=item.get("amazon_url"),
+                    price_paid=item.get("price_paid", 0.0),
+                    refund_amount=item.get("refund_amount", 0.0),
+                    status=item.get("status", "waiting_link"),
+                    order_date=datetime.fromisoformat(item["order_date"]) if item.get("order_date") else datetime.utcnow(),
+                    confirmation_screen_url=item.get("confirmation_screen_url"),
+                    confirmation_sent_at=datetime.fromisoformat(item["confirmation_sent_at"]) if item.get("confirmation_sent_at") else None,
+                    review_target_date=datetime.fromisoformat(item["review_target_date"]) if item.get("review_target_date") else None,
+                    review_title=item.get("review_title"),
+                    review_body=item.get("review_body"),
+                    review_submitted_at=datetime.fromisoformat(item["review_submitted_at"]) if item.get("review_submitted_at") else None,
+                    review_screen_url=item.get("review_screen_url"),
+                    refunded_at=datetime.fromisoformat(item["refunded_at"]) if item.get("refunded_at") else None,
+                    is_test=item.get("is_test", False)
+                )
+                db.add(o)
+                restored += 1
+        db.commit()
+        return restored
+    except Exception as e:
+        print(f"[Restore Error] {e}")
+        return 0
+
 # Evento di avvio: imposta di default la modalità Sandbox a true e assicura la presenza delle schede attive
 @app.on_event("startup")
 def on_app_startup():
@@ -1454,7 +1530,12 @@ def on_app_startup():
         else:
             db.add(Setting(key="test_mode", value="true"))
 
-        # 2. Se il database degli ordini è vuoto, inizializza le 3 pratiche operative
+        # 2. Ripristina da backup JSON protetto se presente
+        restored = restore_orders_backup(db)
+        if restored > 0:
+            print(f"[Startup] Ripristinati {restored} ordini dal backup protetto.")
+
+        # 3. Se ancora vuoto (primo avvio assoluto), inserisce le schede operative iniziali
         total_orders = db.query(Order).count()
         if total_orders == 0:
             now = datetime.utcnow()
@@ -1508,9 +1589,12 @@ def on_app_startup():
                 is_test=False
             )
             db.add_all([ord1, ord2, ord3])
+            db.commit()
+            save_orders_backup(db)
 
         db.commit()
-        print("[Startup] Modalità Sandbox e schede operative attive inizializzate.")
+        save_orders_backup(db)
+        print("[Startup] Modalità Sandbox e schede operative attive inizializzate e blindate.")
     except Exception as e:
         print(f"[Startup error] {e}")
     finally:
