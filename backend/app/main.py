@@ -621,6 +621,11 @@ def mark_order_purchased(order_id: int, payload: Optional[MarkPurchasedPayload] 
     # NON generare facsimile automatici: la ricevuta deve essere lo screenshot reale caricato dall'utente
     order.status = "pending_confirmation"
     order.order_date = datetime.utcnow()
+
+    # Aggiorna lo stato dell'offerta collegata a 'purchased'
+    match_offer = db.query(Offer).filter_by(title=order.product_title).first()
+    if match_offer:
+        match_offer.status = "purchased"
     
     log = ActivityLog(
         action_type="ORDER_PURCHASED",
