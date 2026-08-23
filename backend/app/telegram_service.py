@@ -786,4 +786,64 @@ class TelegramManager:
             print(f"[Telegram Review Send Error] {e}")
             return {"success": False, "error": str(e)}
 
+    async def sync_seller_replies(self, db: Session, seller_handle: str = "@alex8700") -> dict:
+        """
+        Controlla i messaggi privati recenti ricevuti da Alex/venditore per estrarre eventuali link Amazon inviati in risposta.
+        """
+        try:
+            client = await self._ensure_connected_client(db)
+            if not await client.is_user_authorized():
+                return {"success": False, "auth_required": True, "error": "Telegram non autorizzato"}
+
+            target = (seller_handle or "@alex8700").strip()
+            entity = await client.get_entity(target)
+            
+            # Cerca gli ordini in stato 'waiting_link' o 'link_approved'
+            pending_orders = db.query(Order).filter(Order.status == "waiting_link").order_by(Order.id.desc()).all()
+            if not pending_orders:
+                return {"success": True, "updated_count": 0, "message": "Nessun ordine in attesa di link."}
+
+            messages = []
+            async for m in client.iter_messages(entity, limit=15):
+                if not m.out and m.text:  # Messaggio in arrivo da Alex
+                    messages.append(m)
+
+            updated = 0
+            for m in messages:
+                text = m.text or ""
+                # Cerca URL Amazon o amzn.to
+                urls = re.findall(r'https?://[^\s]+', text)
+                amz_urls = [u for u in urls if 'amazon' in u.lower() or 'amzn' in u.lower()]
+                if amz_urls and pending_orders:
+                    best_url = amz_urls[0]
+                    # Assegna al primo ordine in attesa
+                    target_order = pending_orders.pop(0)
+                    target_order.amazon_url = best_url
+                    target_order.status = "link_approved"
+                    
+                    # Aggiorna anche l'offerta se presente
+                    match_offer = db.query(Offer).filter_by(title=target_order.product_title).first()
+                    if match_offer:
+                        match_offer.amazon_link = best_url
+                        match_offer.status = "link_received"
+
+                    log = ActivityLog(
+                        action_type="LINK_RECEIVED",
+                        title=f"Link Amazon Ricevuto da Alex ({target})!",
+                        details=f"Articolo: {target_order.product_title} | Link: {best_url}"
+                    )
+                    db.add(log)
+                    db.commit()
+                    updated += 1
+
+            return {
+                "success": True,
+                "updated_count": updated,
+                "message": f"Sincronizzazione completata: {updated} link aggiornati da Alex!"
+            }
+        except Exception as e:
+            print(f"[Telegram Sync Replies Error] {e}")
+            return {"success": False, "error": str(e)}
+
 telegram_service = TelegramManager()
+
