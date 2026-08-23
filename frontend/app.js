@@ -292,11 +292,11 @@ async function loadOffers() {
     const container = document.getElementById('offers-grid');
     if (!container) return;
 
-    // Mostra tutte le offerte attive (evita solo duplicati con lo stesso ID o testo identico 100%)
+    // Mostra tutte le offerte attive nel feed
     const seenIds = new Set();
     const offers = [];
     for (const o of (rawOffers || [])) {
-      if (o.status !== 'new' && o.status !== 'requested') continue;
+      if (o.status === 'dismissed') continue;
       if (seenIds.has(o.id)) continue;
       seenIds.add(o.id);
       offers.push(o);
@@ -375,11 +375,11 @@ async function loadOffers() {
 
             <!-- Bottoni Azione -->
             <div class="pt-3 border-t border-brand-border flex items-center gap-2">
-              ${isRequested
+              ${(isRequested || o.status === 'link_received')
                 ? `
                   <div class="flex-1 flex items-center gap-1.5">
-                    <button disabled class="flex-1 py-2.5 px-2.5 rounded-xl bg-blue-600/20 text-blue-300 border border-blue-500/40 text-xs font-bold flex items-center justify-center gap-1.5 truncate">
-                      <i class="fa-solid fa-check-double text-blue-400"></i> Richiesta Inviata
+                    <button disabled class="flex-1 py-2.5 px-2.5 rounded-xl ${o.status === 'link_received' ? 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/40' : 'bg-blue-600/20 text-blue-300 border border-blue-500/40'} text-xs font-bold flex items-center justify-center gap-1.5 truncate">
+                      <i class="fa-solid ${o.status === 'link_received' ? 'fa-cart-shopping text-emerald-400' : 'fa-check-double text-blue-400'}"></i> ${o.status === 'link_received' ? 'Link Ricevuto / In Corso' : 'Richiesta Inviata'}
                     </button>
                     <button onclick="resetOffer(${o.id})" title="Reimposta e riabilita tasto richiesta" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition-all shrink-0">
                       <i class="fa-solid fa-rotate-left"></i> Reset
