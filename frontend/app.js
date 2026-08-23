@@ -885,7 +885,7 @@ function renderConfirmations(orders) {
 
 function renderReviews(orders) {
   const container = document.getElementById('reviews-list');
-  const reviewOrders = (orders || []).filter(o => o.status !== 'cancelled' && o.status !== 'pending_confirmation');
+  const reviewOrders = (orders || []).filter(o => ['waiting_review', 'review_ready', 'review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status));
 
   if (reviewOrders.length === 0) {
     container.innerHTML = `
@@ -1170,7 +1170,7 @@ async function resetOrderTimer(orderId) {
 
 function renderRefunds(orders) {
   const container = document.getElementById('refunds-list');
-  const eligibleOrders = (orders || []).filter(o => o.status !== 'cancelled' && o.status !== 'pending_confirmation');
+  const eligibleOrders = (orders || []).filter(o => ['waiting_review', 'review_ready', 'review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status));
 
   if (eligibleOrders.length === 0) {
     container.innerHTML = `

@@ -7,10 +7,21 @@ BASE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fi
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(BASE_ROOT, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 
-DB_PATH = os.path.join(DATA_DIR, "amazon_manager.db")
-DATABASE_URL = f"sqlite:///{DB_PATH}"
+# Supporto flessibile per PostgreSQL (Render/Neon/Supabase) e SQLite locale con persistenza
+RAW_DATABASE_URL = os.getenv("DATABASE_URL", "")
+if RAW_DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = RAW_DATABASE_URL.replace("postgres://", "postgresql://", 1)
+elif RAW_DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = RAW_DATABASE_URL
+else:
+    DB_PATH = os.path.join(DATA_DIR, "amazon_manager.db")
+    DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+else:
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
