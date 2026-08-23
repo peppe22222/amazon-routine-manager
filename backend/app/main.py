@@ -1482,19 +1482,31 @@ def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db
     db.commit()
     return {"success": True, "deleted_count": deleted_count, "message": f"{deleted_count} pratiche eliminate definitivamente!"}
 
-# Evento di avvio: imposta di default la modalità Sandbox a true per garantire test sicuri
+# Evento di avvio: imposta di default la modalità Sandbox a true e pulisce eventuali ordini fantasma
 @app.on_event("startup")
 def on_app_startup():
-    from app.database import SessionLocal, Setting
+    from app.database import SessionLocal, Setting, Order
     db = SessionLocal()
     try:
+        # 1. Imposta modalità Sandbox attiva di default
         s = db.query(Setting).filter_by(key="test_mode").first()
         if s:
             s.value = "true"
         else:
             db.add(Setting(key="test_mode", value="true"))
+
+        # 2. Pulizia ordini residui cancellati in precedenza (es. Power Bank 20000mAh)
+        db.query(Order).filter(Order.product_title.like("%Power Bank 20000mAh%")).delete(synchronize_session=False)
+        db.query(Order).filter(Order.order_number.like("%powerbank%")).delete(synchronize_session=False)
+
+        # 3. Elimina qualsiasi ordine il cui titolo sia tra i prodotti contrassegnati come cancellati
+        deleted_settings = db.query(Setting).filter(Setting.key.like("deleted_product_%")).all()
+        for d in deleted_settings:
+            if d.value and d.value.strip():
+                db.query(Order).filter(Order.product_title == d.value.strip()).delete(synchronize_session=False)
+
         db.commit()
-        print("[Startup] Modalità Sandbox impostata automaticamente su ATTIVA (true)")
+        print("[Startup] Modalità Sandbox impostata su ATTIVA e ordini ripuliti con successo.")
     except Exception as e:
         print(f"[Startup error] {e}")
     finally:
