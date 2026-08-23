@@ -254,7 +254,7 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
     
     # 1. Prova con il client Telegram autorizzato
     try:
-        tele_res = await telegram_service.sync_channel_live(db, channel, limit=30)
+        tele_res = await telegram_service.sync_channel_live(db, channel, limit=60)
         if tele_res.get("success"):
             return tele_res
         elif tele_res.get("auth_required"):

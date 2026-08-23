@@ -652,7 +652,7 @@ class TelegramManager:
             elif lines:
                 first_clean = re.sub(r'https?://\S+', '', lines[0])
                 first_clean = re.sub(r'@[a-zA-Z0-9_]+', '', first_clean).strip()
-                title = first_clean if len(first_clean) >= 3 else f"Articolo Offerta #{primary_msg.id}"
+                title = first_clean if len(first_clean) >= 2 else f"Articolo Offerta #{primary_msg.id}"
             else:
                 title = f"Articolo Offerta #{primary_msg.id}"
 
