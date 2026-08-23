@@ -389,7 +389,7 @@ async function loadOffers() {
                           : (o.status === 'link_received' ? 'fa-cart-arrow-down text-cyan-400' : 'fa-check-double text-blue-400')
                       }"></i> ${
                         o.status === 'purchased'
-                          ? 'Acquistato (In Conferma)'
+                          ? 'Acquistato'
                           : (o.status === 'link_received' ? 'Link Ricevuto / Da Comprare' : 'Richiesta Inviata')
                       }
                     </button>
