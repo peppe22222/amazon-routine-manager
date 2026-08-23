@@ -1498,10 +1498,23 @@ def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db
     db.commit()
     return {"success": True, "deleted_count": deleted_count, "message": f"{deleted_count} pratiche eliminate definitivamente!"}
 
-# Evento di avvio: non inserire MAI più dati demo in automatico
+# Evento di avvio: imposta di default la modalità Sandbox a true per garantire test sicuri
 @app.on_event("startup")
 def on_app_startup():
-    pass
+    from app.database import SessionLocal, Setting
+    db = SessionLocal()
+    try:
+        s = db.query(Setting).filter_by(key="test_mode").first()
+        if s:
+            s.value = "true"
+        else:
+            db.add(Setting(key="test_mode", value="true"))
+        db.commit()
+        print("[Startup] Modalità Sandbox impostata automaticamente su ATTIVA (true)")
+    except Exception as e:
+        print(f"[Startup error] {e}")
+    finally:
+        db.close()
 
 # Monta la cartella del frontend statico
 candidate_frontend_dirs = [

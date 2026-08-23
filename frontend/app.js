@@ -2624,11 +2624,11 @@ function updateSandboxBadge(isTest) {
   const badge = document.getElementById('sandbox-badge');
   if (!badge) return;
   if (isTest) {
-    badge.className = "text-[11px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold uppercase tracking-wider";
-    badge.innerHTML = '<i class="fa-solid fa-flask-vial text-amber-400 mr-1"></i>Sandbox';
+    badge.className = "text-xs px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/50 font-extrabold uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm";
+    badge.innerHTML = '<i class="fa-solid fa-flask-vial text-amber-400"></i><span>Sandbox (Test)</span>';
   } else {
-    badge.className = "text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold uppercase tracking-wider";
-    badge.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400 mr-1"></i>Live';
+    badge.className = "text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 font-extrabold uppercase tracking-wider cursor-pointer hover:scale-105 active:scale-95 transition-all flex items-center gap-1.5 shadow-sm";
+    badge.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i><span>Live Mode</span>';
   }
 }
 
