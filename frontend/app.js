@@ -200,7 +200,7 @@ function switchTab(tabId) {
   }
 
   // Aggiorna stile bottoni mobile
-  const mobTabs = ['offers', 'confirmations', 'reviews', 'refunds'];
+  const mobTabs = ['offers', 'approved_links', 'confirmations', 'reviews', 'refunds'];
   mobTabs.forEach(t => {
     const mBtn = document.getElementById(`mob-btn-${t}`);
     if (mBtn) {
@@ -218,6 +218,10 @@ function switchTab(tabId) {
   if (tabId === 'offers') {
     loadOffers();
     syncActiveChannel(true);
+  }
+  else if (tabId === 'approved_links') {
+    loadOrders();
+    syncTelegramReplies(true);
   }
   else if (tabId === 'confirmations' || tabId === 'reviews' || tabId === 'refunds') loadOrders();
   else if (tabId === 'logs') loadLogs();
@@ -237,6 +241,16 @@ async function loadStats() {
     document.getElementById('stat-active-count').innerText = data.active_orders_count;
 
     document.getElementById('badge-offers-count').innerText = data.new_offers_count;
+    
+    const badgeLinks = document.getElementById('badge-links-count');
+    if (badgeLinks) badgeLinks.innerText = data.links_count || 0;
+
+    const mobBadgeLinks = document.getElementById('mob-badge-links');
+    if (mobBadgeLinks) {
+      if ((data.links_count || 0) > 0) mobBadgeLinks.classList.remove('hidden');
+      else mobBadgeLinks.classList.add('hidden');
+    }
+
     document.getElementById('badge-confirm-count').innerText = data.pending_confirmation_count;
 
     const mobBadge = document.getElementById('mob-badge-confirm');
@@ -495,17 +509,200 @@ async function quickEditOfferTitle(offerId, currentTitle) {
 
 // ----------------- ORDERS / CONFIRMATIONS / REVIEWS -----------------
 
+let currentManualLinkId = null;
+
 async function loadOrders() {
   try {
     const res = await fetch('/api/orders');
     if (!res.ok) return;
     const orders = await res.json();
 
+    renderApprovedLinks(orders);
     renderConfirmations(orders);
     renderReviews(orders);
     renderRefunds(orders);
   } catch (err) {
     console.error('Errore caricamento ordini:', err);
+  }
+}
+
+function renderApprovedLinks(orders) {
+  const container = document.getElementById('approved-links-list');
+  if (!container) return;
+  
+  const linkOrders = (orders || []).filter(o => o.status === 'waiting_link' || o.status === 'link_approved');
+
+  if (linkOrders.length === 0) {
+    container.innerHTML = `
+      <div class="py-16 text-center text-slate-400 glass-card rounded-2xl p-8 border border-dashed border-slate-700">
+        <div class="w-16 h-16 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-3xl text-cyan-400/80 mb-3 shadow-inner">
+          <i class="fa-solid fa-cart-shopping"></i>
+        </div>
+        <h3 class="text-base font-bold text-white">Nessun link in attesa o approvato</h3>
+        <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto">Quando invii una richiesta da "Offerte Telegram", la troverai qui in attesa del link di Alex per procedere all'acquisto.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = linkOrders.map(o => {
+    const prodImg = o.product_image || 'https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80';
+    const isApproved = o.status === 'link_approved' && o.amazon_url;
+    const seller = o.seller_contact || '@alex8700';
+
+    return `
+      <div class="glass-card rounded-2xl p-5 border ${isApproved ? 'border-cyan-500/40 bg-gradient-to-r from-cyan-950/20 via-brand-surface to-brand-card' : 'border-amber-500/30'} flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg relative z-10 bg-brand-surface">
+        <!-- Sinistra: Foto Prodotto + Dati -->
+        <div class="flex items-start gap-4 flex-1">
+          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Contatto: ${seller}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
+            <img src="${prodImg}" alt="Foto Prodotto" class="max-w-full max-h-full object-contain p-1 group-hover:scale-110 transition-transform">
+            <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
+              <i class="fa-solid fa-magnifying-glass-plus text-base"></i>
+            </div>
+            <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] text-white font-bold">Foto</span>
+          </div>
+
+          <div class="flex-1">
+            <div class="flex flex-wrap items-center gap-2">
+              ${isApproved ? `
+                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
+                  <i class="fa-solid fa-circle-check text-emerald-400"></i> Approvato da Alex • Link Disponibile
+                </span>
+              ` : `
+                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 animate-pulse">
+                  <i class="fa-solid fa-hourglass-half text-amber-400"></i> In attesa di risposta da Alex
+                </span>
+              `}
+              <span class="text-xs font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+                ${seller}
+              </span>
+            </div>
+
+            <h3 class="text-sm md:text-base font-extrabold text-white mt-2 leading-snug">${escapeHtml(o.product_title || 'Articolo in promozione')}</h3>
+
+            ${isApproved && o.amazon_url ? `
+              <div class="mt-2.5 flex flex-wrap items-center gap-2">
+                <span class="text-[11px] text-slate-400 font-medium">Link Diretto:</span>
+                <a href="${o.amazon_url}" target="_blank" class="text-xs text-cyan-300 hover:text-cyan-200 underline font-mono truncate max-w-xs md:max-w-md flex items-center gap-1">
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${o.amazon_url}
+                </a>
+                <button onclick="copyToClipboard('${o.amazon_url}', 'Link Amazon copiato negli appunti!')" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs" title="Copia link">
+                  <i class="fa-regular fa-copy"></i>
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        </div>
+
+        <!-- Destra: Azioni -->
+        <div class="flex flex-wrap items-center gap-2 shrink-0 border-t lg:border-t-0 pt-3 lg:pt-0 border-brand-border">
+          ${isApproved ? `
+            <a href="${o.amazon_url}" target="_blank" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-950/60 transition-all active:scale-95">
+              <i class="fa-solid fa-cart-arrow-down text-sm"></i> Apri & Compra su Amazon
+            </a>
+            <button onclick="markOrderAsPurchased(${o.id}, '${escapeHtml(o.product_title || '')}')" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-amber-950/60 transition-all active:scale-95">
+              <i class="fa-solid fa-receipt text-sm"></i> Ho Acquistato
+            </button>
+            <button onclick="openManualLinkModal(${o.id}, '${escapeHtml(o.product_title || '')}', '${escapeHtml(o.amazon_url || '')}')" title="Modifica Link" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
+              <i class="fa-solid fa-pen text-xs"></i> Modifica Link
+            </button>
+          ` : `
+            <button onclick="openManualLinkModal(${o.id}, '${escapeHtml(o.product_title || '')}', '')" class="px-4 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-cyan-200 text-xs font-extrabold flex items-center gap-2 shadow-md transition-all active:scale-95">
+              <i class="fa-solid fa-link text-sm"></i> Inserisci Link Ricevuto
+            </button>
+            <button onclick="markOrderAsPurchased(${o.id}, '${escapeHtml(o.product_title || '')}')" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all">
+              <i class="fa-solid fa-forward-step text-amber-400"></i> Salta ad Acquisto
+            </button>
+          `}
+          <button onclick="confirmAndDeleteOrder(${o.id})" title="Annulla richiesta / Non disponibile" class="px-3 py-2.5 rounded-xl bg-slate-900 hover:bg-rose-900/30 border border-slate-800 hover:border-rose-500/40 text-slate-400 hover:text-rose-300 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-xmark"></i> Annulla
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openManualLinkModal(orderId, productTitle, currentLink = '') {
+  currentManualLinkId = orderId;
+  const nameEl = document.getElementById('modal-set-link-product-name');
+  const inputEl = document.getElementById('input-manual-amazon-link');
+  if (nameEl) nameEl.innerText = productTitle || 'Articolo';
+  if (inputEl) inputEl.value = currentLink || '';
+  openModal('modal-set-link');
+  if (inputEl) setTimeout(() => inputEl.focus(), 150);
+}
+
+async function submitManualAmazonLink() {
+  if (!currentManualLinkId) return;
+  const inputEl = document.getElementById('input-manual-amazon-link');
+  const url = inputEl ? inputEl.value.trim() : '';
+  if (!url) {
+    showToast('Inserisci un URL Amazon valido', true);
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/orders/${currentManualLinkId}/set-amazon-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amazon_url: url })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Link Amazon salvato con successo!');
+      closeModal('modal-set-link');
+      loadOrders();
+      loadStats();
+    } else {
+      showToast(data.detail || 'Errore salvataggio link', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
+  }
+}
+
+async function markOrderAsPurchased(orderId, productTitle) {
+  const orderNum = prompt(`Hai acquistato '${productTitle}' su Amazon?\n\nInserisci il numero d'ordine (es. 408-1234567-1234567) oppure premi OK per assegnare un numero temporaneo e inserirlo dopo tramite screenshot:`);
+  if (orderNum === null) return; // Annullato
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}/mark-purchased`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ order_number: orderNum.trim() || null })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Acquisto registrato! Spostato in "Da Confermare".');
+      loadOrders();
+      loadStats();
+      switchTab('confirmations');
+    } else {
+      showToast(data.detail || 'Errore registrazione acquisto', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
+  }
+}
+
+async function syncTelegramReplies(silent = false) {
+  try {
+    const res = await fetch('/api/telegram/sync-replies', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      if (!silent) {
+        showToast(data.message || 'Risposte di Alex sincronizzate!');
+      }
+      if (data.updated_count > 0) {
+        loadOrders();
+        loadStats();
+      }
+    } else if (!silent) {
+      showToast(data.error || 'Nessun nuovo messaggio da Alex', true);
+    }
+  } catch (err) {
+    if (!silent) console.error('Sync replies error:', err);
   }
 }
 
