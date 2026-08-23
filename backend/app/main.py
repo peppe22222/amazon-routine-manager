@@ -691,6 +691,13 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
     gemini_key = get_gemini_api_key(db)
     
     for o in orders:
+        # Se l'ordine ha un'immagine mancante o segnaposto, recupera l'immagine originale dell'offerta Telegram
+        if not o.product_image or 'unsplash' in (o.product_image or ''):
+            matching_offer = db.query(Offer).filter_by(title=o.product_title).first()
+            if matching_offer and matching_offer.image_url and 'unsplash' not in matching_offer.image_url:
+                o.product_image = matching_offer.image_url
+                updated_db = True
+
         if not o.review_target_date:
             base_date = o.confirmation_sent_at or o.order_date or now
             o.review_target_date = base_date + timedelta(days=10)
