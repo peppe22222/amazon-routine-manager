@@ -45,16 +45,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }, 20000);
 
-  // Sincronizza solo quando si riapre l'app o si torna sulla scheda del browser (senza refresh continuo fastidioso)
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      const token = localStorage.getItem('amz_auth_token');
-      if (token) {
-        loadAllData();
-      }
+  // Gestione comparsa pulsante 'Torna all'inizio' allo scroll
+  window.addEventListener('scroll', () => {
+    const btn = document.getElementById('btn-scroll-top');
+    if (!btn) return;
+    if (window.scrollY > 300) {
+      btn.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
+      btn.classList.add('translate-y-0', 'opacity-100', 'pointer-events-auto');
+    } else {
+      btn.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
+      btn.classList.remove('translate-y-0', 'opacity-100', 'pointer-events-auto');
     }
-  });
+  }, { passive: true });
 });
+
+function scrollToTop() {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth'
+  });
+}
 
 // ----------------- AUTHENTICATION & ACCESS CONTROL -----------------
 
