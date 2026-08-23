@@ -2632,54 +2632,63 @@ function updateSandboxBadge(isTest) {
   }
 }
 
+function getInputValue(id, fallback = '') {
+  const el = document.getElementById(id);
+  return el ? el.value : fallback;
+}
+
 async function loadSettings() {
   try {
     const res = await fetch('/api/settings');
     if (!res.ok) return;
     const s = await res.json();
 
-    const isTest = s.test_mode === 'true';
-    if (s.test_mode !== undefined) {
-      const chk = document.getElementById('set_test_mode');
-      if (chk) chk.checked = isTest;
-      updateSandboxBadge(isTest);
-    }
+    const isTest = s.test_mode !== 'false';
+    const chk = document.getElementById('set_test_mode');
+    if (chk) chk.checked = isTest;
+    updateSandboxBadge(isTest);
+
     if (s.telegram_phone) {
       const phoneInput = document.getElementById('set_telegram_phone');
       if (phoneInput) phoneInput.value = s.telegram_phone;
       const modalPhone = document.getElementById('tg-input-phone');
       if (modalPhone) modalPhone.value = s.telegram_phone;
     }
-    if (s.telegram_api_id) document.getElementById('set_telegram_api_id').value = s.telegram_api_id;
-    if (s.telegram_api_hash) document.getElementById('set_telegram_api_hash').value = s.telegram_api_hash;
-    if (s.test_recipient) document.getElementById('set_test_recipient').value = s.test_recipient;
-    if (s.email_user) document.getElementById('set_email_user').value = s.email_user;
-    if (s.email_password) document.getElementById('set_email_password').value = s.email_password;
-    if (s.review_days_wait) document.getElementById('set_review_days_wait').value = s.review_days_wait;
-    if (s.gemini_api_key) document.getElementById('set_gemini_api_key').value = s.gemini_api_key;
+    if (s.telegram_api_id && document.getElementById('set_telegram_api_id')) {
+      document.getElementById('set_telegram_api_id').value = s.telegram_api_id;
+    }
+    if (s.telegram_api_hash && document.getElementById('set_telegram_api_hash')) {
+      document.getElementById('set_telegram_api_hash').value = s.telegram_api_hash;
+    }
+    if (s.email_user && document.getElementById('set_email_user')) {
+      document.getElementById('set_email_user').value = s.email_user;
+    }
+    if (s.email_password && document.getElementById('set_email_password')) {
+      document.getElementById('set_email_password').value = s.email_password;
+    }
   } catch (err) {
     console.error('Errore caricamento impostazioni:', err);
   }
 }
 
 async function saveSettings() {
-  const newPwd = document.getElementById('set_new_password') ? document.getElementById('set_new_password').value.trim() : '';
+  const newPwdEl = document.getElementById('set_new_password');
+  const newPwd = newPwdEl ? newPwdEl.value.trim() : '';
   if (newPwd) {
     const pwdSuccess = await changeAdminPassword();
     if (!pwdSuccess) return;
   }
 
-  const isTest = document.getElementById('set_test_mode').checked;
+  const testModeEl = document.getElementById('set_test_mode');
+  const isTest = testModeEl ? testModeEl.checked : true;
+  
   const items = [
     { key: 'test_mode', value: isTest ? 'true' : 'false' },
-    { key: 'telegram_phone', value: (document.getElementById('set_telegram_phone') ? document.getElementById('set_telegram_phone').value : '') },
-    { key: 'telegram_api_id', value: document.getElementById('set_telegram_api_id').value },
-    { key: 'telegram_api_hash', value: document.getElementById('set_telegram_api_hash').value },
-    { key: 'test_recipient', value: document.getElementById('set_test_recipient').value },
-    { key: 'email_user', value: document.getElementById('set_email_user').value },
-    { key: 'email_password', value: document.getElementById('set_email_password').value },
-    { key: 'review_days_wait', value: document.getElementById('set_review_days_wait').value },
-    { key: 'gemini_api_key', value: document.getElementById('set_gemini_api_key').value }
+    { key: 'telegram_phone', value: getInputValue('set_telegram_phone') },
+    { key: 'telegram_api_id', value: getInputValue('set_telegram_api_id') },
+    { key: 'telegram_api_hash', value: getInputValue('set_telegram_api_hash') },
+    { key: 'email_user', value: getInputValue('set_email_user') },
+    { key: 'email_password', value: getInputValue('set_email_password') }
   ];
 
   try {
@@ -2690,10 +2699,13 @@ async function saveSettings() {
     });
     if (res.ok) {
       updateSandboxBadge(isTest);
-      showToast('Configurazione e sicurezza salvate!');
+      showToast(isTest ? '🧪 Modalità Sandbox (Test) salvata!' : '🟢 Modalità Live salvata!');
       closeModal('modal-settings');
+    } else {
+      showToast('Errore nel salvataggio', true);
     }
   } catch (err) {
+    console.error('Errore saveSettings:', err);
     showToast('Errore nel salvataggio impostazioni', true);
   }
 }
