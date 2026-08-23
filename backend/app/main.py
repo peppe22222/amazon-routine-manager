@@ -559,6 +559,15 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     if not offer:
         raise HTTPException(status_code=404, detail="Offerta non trovata")
     
+    # Controlla se questo prodotto era stato eliminato dall'utente in precedenza
+    deleted_entries = db.query(Setting).filter(Setting.key.like("deleted_product_%")).all()
+    for d in deleted_entries:
+        if d.value and d.value.strip() == offer.title.strip():
+            # L'utente aveva cancellato questo prodotto: non ricrearlo, rimuovi il blocco solo se lo richiede esplicitamente
+            db.delete(d)
+            db.commit()
+            break
+    
     offer.status = "requested"
     # REGOLA RIGOROSA: Alla richiesta lo stato è SEMPRE 'waiting_link' e il link è None finché Alex non risponde
     initial_status = "waiting_link"
@@ -970,16 +979,18 @@ def delete_order(order_id: int, db: Session = Depends(get_db)):
     prod_title = order.product_title
     order_num = order.order_number
     
-    # Se esiste un'offerta collegata, contrassegnala come "dismissed" per evitare che ritorni tra le nuove
+    # Segna le offerte collegate come "dismissed" usando SOLO match esatto del titolo
+    # (il vecchio match parziale con LIKE sui primi 25 caratteri cancellava offerte di altri prodotti!)
     matching_offers = db.query(Offer).filter(
-        or_(
-            Offer.title == prod_title,
-            Offer.title.like(f"%{prod_title[:25]}%") if len(prod_title) >= 25 else False
-        )
+        Offer.title == prod_title
     ).all()
     for off in matching_offers:
-        if off.status in ["new", "requested"]:
-            off.status = "dismissed"
+        off.status = "dismissed"
+
+    # Registra il titolo eliminato per impedire che venga ricreato automaticamente
+    deleted_key = f"deleted_product_{order_id}"
+    if not db.query(Setting).filter_by(key=deleted_key).first():
+        db.add(Setting(key=deleted_key, value=prod_title))
 
     # Assicura che il flag demo_initialized sia attivo per evitare che il riavvio del server ricrei demo
     if not db.query(Setting).filter_by(key="demo_initialized").first():
