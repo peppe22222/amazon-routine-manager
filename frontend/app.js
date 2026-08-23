@@ -986,10 +986,6 @@ function renderReviews(orders) {
               <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
                 <span class="review-progress-pct font-bold">0% completato</span>
                 <div class="flex items-center gap-2">
-                  <button onclick="fastForwardOrderTimer(${o.id})" title="Avanza timer per testare l'invio della recensione" class="text-[10px] text-purple-400 hover:text-purple-200 underline font-semibold transition-colors">
-                    ⏩ Salta 10gg (Test)
-                  </button>
-                  <span class="text-slate-600">•</span>
                   <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer a 10 giorni da adesso" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
                     🔄 Reset 10gg
                   </button>
