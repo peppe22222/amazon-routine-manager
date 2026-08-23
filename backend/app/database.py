@@ -82,7 +82,7 @@ def init_db():
     db = SessionLocal()
     try:
         defaults = {
-            "test_mode": "false",
+            "test_mode": "true",
             "telegram_api_id": "",
             "telegram_api_hash": "",
             "telegram_phone": "",
