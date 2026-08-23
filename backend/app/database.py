@@ -64,8 +64,12 @@ class Order(Base):
     confirmation_screen_url = Column(Text, nullable=True)
     confirmation_sent_at = Column(DateTime, nullable=True)
     
+    # Dati Consegna e Spedizione
+    estimated_delivery_date = Column(DateTime, nullable=True) # Data stimata di arrivo articolo
+    delivery_info = Column(String(100), nullable=True) # Testo estratto (es. 'In arrivo lunedì', '25 ago')
+    
     # Recensione
-    review_target_date = Column(DateTime, nullable=True) # Data ordine + 10 giorni
+    review_target_date = Column(DateTime, nullable=True) # Data consegna + 10 giorni
     review_title = Column(String(255), nullable=True)
     review_body = Column(Text, nullable=True)
     review_submitted_at = Column(DateTime, nullable=True)
@@ -88,6 +92,20 @@ class ActivityLog(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    
+    # Auto-migrazione colonne per SQLite esistente
+    try:
+        with engine.connect() as conn:
+            cursor = conn.connection.cursor()
+            cursor.execute("PRAGMA table_info(orders)")
+            cols = [col[1] for col in cursor.fetchall()]
+            if "estimated_delivery_date" not in cols:
+                cursor.execute("ALTER TABLE orders ADD COLUMN estimated_delivery_date DATETIME")
+            if "delivery_info" not in cols:
+                cursor.execute("ALTER TABLE orders ADD COLUMN delivery_info VARCHAR(100)")
+            conn.connection.commit()
+    except Exception as e:
+        print(f"[init_db migration note] {e}")
     
     # Inizializza impostazioni predefinite se non esistono
     db = SessionLocal()

@@ -1,6 +1,6 @@
 import os
 import io
-from datetime import datetime
+from datetime import datetime, timedelta
 from PIL import Image, ImageDraw, ImageFont
 
 BASE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -190,6 +190,117 @@ def generate_amazon_review_screenshot(order_number: str, product_title: str, rev
     return f"/screenshots/{filename}"
 
 
+def parse_delivery_date_text(ocr_text: str, base_date: datetime = None) -> tuple:
+    """
+    Estrapola la data stimata di consegna e la descrizione dal testo dello screenshot.
+    Riconosce espressioni come 'In arrivo lunedì', 'Consegna prevista: 25 agosto', 'In consegna domani', ecc.
+    Ritorna una tupla (datetime_consegna, descrizione_consegna).
+    """
+    import re
+    if not ocr_text:
+        return None, None
+    if base_date is None:
+        base_date = datetime.utcnow()
+
+    weekdays_map = {
+        'lunedì': 0, 'lunedi': 0, 'monday': 0, 'lun': 0,
+        'martedì': 1, 'martedi': 1, 'tuesday': 1, 'mar': 1,
+        'mercoledì': 2, 'mercoledi': 2, 'wednesday': 2, 'mer': 2,
+        'giovedì': 3, 'giovedi': 3, 'thursday': 3, 'gio': 3,
+        'venerdì': 4, 'venerdi': 4, 'friday': 4, 'ven': 4,
+        'sabato': 5, 'saturday': 5, 'sab': 5,
+        'domenica': 6, 'sunday': 6, 'dom': 6
+    }
+
+    months_map = {
+        'gen': 1, 'gennaio': 1, 'jan': 1,
+        'feb': 2, 'febbraio': 2,
+        'mar': 3, 'marzo': 3,
+        'apr': 4, 'aprile': 4,
+        'mag': 5, 'maggio': 5, 'may': 5,
+        'giu': 6, 'giugno': 6, 'jun': 6,
+        'lug': 7, 'luglio': 7, 'jul': 7,
+        'ago': 8, 'agosto': 8, 'aug': 8,
+        'set': 9, 'settembre': 9, 'sep': 9,
+        'ott': 10, 'ottobre': 10, 'oct': 10,
+        'nov': 11, 'novembre': 11,
+        'dic': 12, 'dicembre': 12, 'dec': 12
+    }
+
+    ref_date = base_date
+
+    # Cerca data dell'ordine se presente nell'intestazione email (es. "21 ago - 10:47")
+    order_dt_m = re.search(r'(\d{1,2})\s*(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic)[a-z]*(?:\s*-\s*(\d{1,2}):(\d{2}))?', ocr_text, re.IGNORECASE)
+    if order_dt_m:
+        try:
+            d = int(order_dt_m.group(1))
+            m_str = order_dt_m.group(2).lower()
+            m = months_map.get(m_str, ref_date.month)
+            h = int(order_dt_m.group(3)) if order_dt_m.group(3) else ref_date.hour
+            mn = int(order_dt_m.group(4)) if order_dt_m.group(4) else ref_date.minute
+            order_dt = datetime(ref_date.year, m, d, h, mn)
+            ref_date = order_dt
+        except Exception:
+            pass
+
+    # Ignora linee che sono solo la barra di stato/stepper Amazon (Ordinato Spedito In consegna Consegnato)
+    cleaned_lines = []
+    for line in ocr_text.splitlines():
+        l_str = line.strip()
+        if re.search(r'ordinato.*spedito.*consegn', l_str, re.IGNORECASE):
+            continue
+        if l_str.lower() in ['in consegna consegnato', 'spedito in consegna', 'ordinato spedito']:
+            continue
+        cleaned_lines.append(l_str)
+
+    cleaned_text = '\n'.join(cleaned_lines)
+
+    # Trova tutti i possibili match di arrivo/consegna
+    delivery_matches = re.finditer(r'(?:in arrivo|consegna(?: prevista)?|arriver[àa]|consegna stimata)[\s:]*([^\n\r\.\,]+)', cleaned_text, re.IGNORECASE)
+    
+    candidates = []
+    for dm in delivery_matches:
+        raw_val = dm.group(1).strip()
+        candidates.append(raw_val)
+
+    for raw in candidates:
+        raw_lower = raw.lower()
+        if 'domani' in raw_lower or 'tomorrow' in raw_lower:
+            dt = ref_date + timedelta(days=1)
+            return dt, 'Domani'
+        if 'oggi' in raw_lower or 'today' in raw_lower:
+            dt = ref_date
+            return dt, 'Oggi'
+
+        for w_name, w_idx in weekdays_map.items():
+            if re.search(r'\b' + re.escape(w_name) + r'\b', raw_lower):
+                cur_w = ref_date.weekday()
+                days_ahead = (w_idx - cur_w) % 7
+                if days_ahead == 0:
+                    days_ahead = 7
+                dt = ref_date + timedelta(days=days_ahead)
+                return dt, f'{w_name.capitalize()}'
+
+        m_num = re.search(r'\b([0-9]{1,2})\s*([a-zàèìòù]+)\b', raw_lower)
+        if m_num:
+            try:
+                day = int(m_num.group(1))
+                m_str = m_num.group(2).lower()
+                for name_prefix, idx in months_map.items():
+                    if m_str.startswith(name_prefix):
+                        dt = datetime(ref_date.year, idx, day, ref_date.hour, ref_date.minute)
+                        if dt < ref_date - timedelta(days=30):
+                            dt = datetime(ref_date.year + 1, idx, day, ref_date.hour, ref_date.minute)
+                        return dt, f'{day} {name_prefix.capitalize()}'
+            except Exception:
+                pass
+
+    if candidates:
+        return None, candidates[0]
+
+    return None, None
+
+
 def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str = None) -> dict:
     """
     Analizza uno screenshot di un ordine Amazon (ricevuta, conferma app, email)
@@ -197,6 +308,7 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
     - Numero Ordine Amazon (formato xxx-xxxxxxx-xxxxxxx)
     - Totale Pagato (€)
     - Titolo Prodotto
+    - Giorno / Data di Consegna / Arrivo stimata
     """
     import re
     import base64
@@ -207,6 +319,8 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
         "order_number": None,
         "price_paid": None,
         "product_title": None,
+        "estimated_delivery_date": None,
+        "delivery_info": None,
         "method": "none"
     }
 
@@ -225,6 +339,8 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
                 "1. 'order_number': il numero d'ordine Amazon reale a 17 cifre nel formato 'xxx-xxxxxxx-xxxxxxx' (es. '404-1867984-8717122'). Se non presente scrivi null.\n"
                 "2. 'price_paid': il totale complessivo pagato su Amazon in euro come numero float (es. 22.99 o 100.00). Se non presente scrivi null.\n"
                 "3. 'product_title': il nome o descrizione dell'articolo ordinato. Se non presente scrivi null.\n"
+                "4. 'delivery_info': il testo che indica la data o giorno stimato di arrivo/consegna (es. 'In arrivo lunedì', 'Consegna prevista: 25 agosto', 'In consegna domani', ecc.). Se non presente scrivi null.\n"
+                "5. 'raw_text': eventuale testo rilevante trovato nell'immagine.\n"
                 "Rispondi ESCLUSIVAMENTE con il JSON."
             )
             payload = {
@@ -255,6 +371,14 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
                         pass
                 if parsed.get("product_title"):
                     result["product_title"] = parsed["product_title"].strip()
+                
+                delivery_raw = parsed.get("delivery_info")
+                if delivery_raw:
+                    dt, d_info = parse_delivery_date_text(str(delivery_raw) + " " + str(parsed.get("raw_text", "")))
+                    if dt:
+                        result["estimated_delivery_date"] = dt.isoformat()
+                    result["delivery_info"] = d_info or delivery_raw
+
                 result["method"] = "gemini_vision"
                 return result
         except Exception as e:
@@ -293,6 +417,13 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
                 except ValueError:
                     pass
 
+            # Cerca giorno/data di consegna
+            dt, d_info = parse_delivery_date_text(ocr_text)
+            if dt:
+                result["estimated_delivery_date"] = dt.isoformat()
+            if d_info:
+                result["delivery_info"] = d_info
+
             if result["order_number"]:
                 return result
     except Exception as e:
@@ -326,6 +457,13 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
                         break
                 except ValueError:
                     pass
+
+        # Cerca giorno/data di consegna
+        dt, d_info = parse_delivery_date_text(ocr_text)
+        if dt:
+            result["estimated_delivery_date"] = dt.isoformat()
+        if d_info:
+            result["delivery_info"] = d_info
     except Exception as e:
         print(f"[OCR Tesseract Error] {e}")
 

@@ -52,6 +52,8 @@ def save_orders_backup(db: Session):
                 "refund_amount": o.refund_amount,
                 "status": o.status,
                 "order_date": o.order_date.isoformat() if o.order_date else None,
+                "estimated_delivery_date": o.estimated_delivery_date.isoformat() if o.estimated_delivery_date else None,
+                "delivery_info": o.delivery_info,
                 "confirmation_screen_url": o.confirmation_screen_url,
                 "confirmation_sent_at": o.confirmation_sent_at.isoformat() if o.confirmation_sent_at else None,
                 "review_target_date": o.review_target_date.isoformat() if o.review_target_date else None,
@@ -91,6 +93,8 @@ def restore_orders_backup(db: Session) -> int:
                     refund_amount=item.get("refund_amount", 0.0),
                     status=item.get("status", "waiting_link"),
                     order_date=datetime.fromisoformat(item["order_date"]) if item.get("order_date") else datetime.utcnow(),
+                    estimated_delivery_date=datetime.fromisoformat(item["estimated_delivery_date"]) if item.get("estimated_delivery_date") else None,
+                    delivery_info=item.get("delivery_info"),
                     confirmation_screen_url=item.get("confirmation_screen_url"),
                     confirmation_sent_at=datetime.fromisoformat(item["confirmation_sent_at"]) if item.get("confirmation_sent_at") else None,
                     review_target_date=datetime.fromisoformat(item["review_target_date"]) if item.get("review_target_date") else None,
@@ -138,6 +142,8 @@ def sync_client_orders_backup(payload: ClientSyncPayload, db: Session = Depends(
                 refund_amount=float(item.get("refund_amount") or 0.0),
                 status=item.get("status") or "waiting_link",
                 order_date=datetime.fromisoformat(item["order_date"]) if item.get("order_date") else now,
+                estimated_delivery_date=datetime.fromisoformat(item["estimated_delivery_date"]) if item.get("estimated_delivery_date") else None,
+                delivery_info=item.get("delivery_info"),
                 confirmation_screen_url=item.get("confirmation_screen_url"),
                 confirmation_sent_at=datetime.fromisoformat(item["confirmation_sent_at"]) if item.get("confirmation_sent_at") else None,
                 review_target_date=datetime.fromisoformat(item["review_target_date"]) if item.get("review_target_date") else None,
@@ -824,8 +830,11 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
                 updated_db = True
 
         if not o.review_target_date:
-            base_date = o.confirmation_sent_at or o.order_date or now
-            o.review_target_date = base_date + timedelta(days=10)
+            if o.estimated_delivery_date:
+                o.review_target_date = o.estimated_delivery_date + timedelta(days=10)
+            else:
+                base_date = o.confirmation_sent_at or o.order_date or now
+                o.review_target_date = base_date + timedelta(days=10)
             updated_db = True
             
         # Rigenera automaticamente se mancante o se era una vecchia recensione generica o fuori tema
@@ -862,6 +871,8 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             "refund_amount": o.refund_amount,
             "status": o.status,
             "order_date": o.order_date.isoformat() if o.order_date else None,
+            "estimated_delivery_date": o.estimated_delivery_date.isoformat() if o.estimated_delivery_date else None,
+            "delivery_info": o.delivery_info,
             "confirmation_screen_url": o.confirmation_screen_url,
             "confirmation_sent_at": o.confirmation_sent_at.isoformat() if o.confirmation_sent_at else None,
             "review_target_date": o.review_target_date.isoformat() if o.review_target_date else None,
@@ -964,7 +975,10 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
     now = datetime.utcnow()
     order.status = "waiting_review"
     order.confirmation_sent_at = now
-    order.review_target_date = now + timedelta(days=10)
+    if order.estimated_delivery_date:
+        order.review_target_date = order.estimated_delivery_date + timedelta(days=10)
+    else:
+        order.review_target_date = now + timedelta(days=10)
     
     if not order.review_title or not order.review_body:
         rev_data = generate_review(order.product_title, gemini_api_key=get_gemini_api_key(db))
@@ -1089,9 +1103,15 @@ def reset_order_timer(order_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     now = datetime.utcnow()
     order.confirmation_sent_at = now
-    order.review_target_date = now + timedelta(days=10)
+    if order.estimated_delivery_date and order.estimated_delivery_date > now:
+        order.review_target_date = order.estimated_delivery_date + timedelta(days=10)
+        msg = f"Timer reimpostato: 10 giorni a partire dalla consegna ({order.delivery_info or 'prevista'})!"
+    else:
+        order.review_target_date = now + timedelta(days=10)
+        msg = "Timer reimpostato a 10 giorni da adesso!"
     db.commit()
-    return {"success": True, "message": "Timer reimpostato a 10 giorni da adesso!"}
+    save_orders_backup(db)
+    return {"success": True, "message": msg}
 
 @app.get("/api/orders/{order_id}/review-screen")
 def get_order_review_screen(order_id: int, db: Session = Depends(get_db)):
@@ -1135,16 +1155,24 @@ def upload_order_screenshot(order_id: int, payload: UploadScreenshotPayload, db:
         
     order.confirmation_screen_url = f"/screenshots/{filename}"
     
-    # Estrazione automatica del Numero Ordine e del Prezzo
+    # Estrazione automatica del Numero Ordine, del Prezzo e della Data di Consegna
     extracted_num = (payload.recognized_order_number or "").strip()
     extracted_price = payload.recognized_price
+    extracted_delivery_date = None
+    extracted_delivery_info = None
 
-    if not extracted_num or not extracted_price:
-        extracted = extract_amazon_order_from_screenshot(img_bytes, gemini_api_key=get_gemini_api_key(db))
-        if not extracted_num:
-            extracted_num = extracted.get("order_number")
-        if not extracted_price:
-            extracted_price = extracted.get("price_paid")
+    extracted = extract_amazon_order_from_screenshot(img_bytes, gemini_api_key=get_gemini_api_key(db))
+    if not extracted_num:
+        extracted_num = extracted.get("order_number")
+    if not extracted_price:
+        extracted_price = extracted.get("price_paid")
+    if extracted.get("estimated_delivery_date"):
+        try:
+            extracted_delivery_date = datetime.fromisoformat(extracted["estimated_delivery_date"])
+        except Exception:
+            pass
+    if extracted.get("delivery_info"):
+        extracted_delivery_info = extracted["delivery_info"]
     
     if extracted_num and len(extracted_num) >= 5:
         # Se esiste già un altro ordine con questo numero, rinominalo
@@ -1157,14 +1185,25 @@ def upload_order_screenshot(order_id: int, payload: UploadScreenshotPayload, db:
     if extracted_price and extracted_price > 0:
         order.price_paid = extracted_price
         order.refund_amount = compute_order_refund(order.price_paid, order.product_title, db)
+
+    if extracted_delivery_date:
+        order.estimated_delivery_date = extracted_delivery_date
+    if extracted_delivery_info:
+        order.delivery_info = extracted_delivery_info
+
+    if order.estimated_delivery_date:
+        order.review_target_date = order.estimated_delivery_date + timedelta(days=10)
         
     db.commit()
+    save_orders_backup(db)
     
     msg_parts = ["Screenshot caricato con successo!"]
     if extracted_num:
-        msg_parts.append(f"Riconosciuto N° Ordine: {extracted_num}")
+        msg_parts.append(f"N° Ordine: {extracted_num}")
     if extracted_price:
-        msg_parts.append(f"Spesa: €{extracted_price:.2f} (Rimborso PayPal: €{order.refund_amount:.2f})")
+        msg_parts.append(f"Spesa: €{extracted_price:.2f} (Rimborso: €{order.refund_amount:.2f})")
+    if order.delivery_info:
+        msg_parts.append(f"🚚 Consegna: {order.delivery_info} (+10gg per recensione)")
     
     return {
         "success": True,
@@ -1172,6 +1211,9 @@ def upload_order_screenshot(order_id: int, payload: UploadScreenshotPayload, db:
         "order_number": order.order_number,
         "price_paid": order.price_paid,
         "refund_amount": order.refund_amount,
+        "estimated_delivery_date": order.estimated_delivery_date.isoformat() if order.estimated_delivery_date else None,
+        "delivery_info": order.delivery_info,
+        "review_target_date": order.review_target_date.isoformat() if order.review_target_date else None,
         "extracted": extracted,
         "message": " • ".join(msg_parts)
     }
@@ -1268,6 +1310,8 @@ def create_order_with_original_screenshot(payload: CreateOrderWithScreenshotPayl
     filename = f"orig_screen_custom_{int(datetime.utcnow().timestamp())}.jpg"
     file_path = os.path.join(SCREENSHOTS_DIR, filename)
     
+    extracted_del_date = None
+    extracted_del_info = None
     if payload.image_base64:
         raw_b64 = payload.image_base64
         if "," in raw_b64:
@@ -1276,6 +1320,21 @@ def create_order_with_original_screenshot(payload: CreateOrderWithScreenshotPayl
         with open(file_path, "wb") as f:
             f.write(img_bytes)
         screen_url = f"/screenshots/{filename}"
+        
+        extracted = extract_amazon_order_from_screenshot(img_bytes, gemini_api_key=get_gemini_api_key(db))
+        if (not payload.order_number or "408-" in order_num) and extracted.get("order_number"):
+            order_num = extracted["order_number"]
+        if (not payload.price or payload.price == 0.0) and extracted.get("price_paid"):
+            payload.price = extracted["price_paid"]
+        if (not payload.product_title or payload.product_title in ["Articolo da Screenshot", "Prodotto da Ricevuta"]) and extracted.get("product_title"):
+            payload.product_title = extracted["product_title"]
+        if extracted.get("estimated_delivery_date"):
+            try:
+                extracted_del_date = datetime.fromisoformat(extracted["estimated_delivery_date"])
+            except Exception:
+                pass
+        if extracted.get("delivery_info"):
+            extracted_del_info = extracted["delivery_info"]
     else:
         screen_url = generate_amazon_order_screenshot(order_num, payload.product_title, payload.price)
         
@@ -1288,7 +1347,13 @@ def create_order_with_original_screenshot(payload: CreateOrderWithScreenshotPayl
         is_test=True
     )
     order.confirmation_screen_url = screen_url
+    if extracted_del_date:
+        order.estimated_delivery_date = extracted_del_date
+        order.review_target_date = extracted_del_date + timedelta(days=10)
+    if extracted_del_info:
+        order.delivery_info = extracted_del_info
     db.commit()
+    save_orders_backup(db)
     
     return {
         "success": True,
