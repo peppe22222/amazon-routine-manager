@@ -742,10 +742,13 @@ class TelegramManager:
             try:
                 client = await self._ensure_connected_client(db)
                 if client and await client.is_user_authorized():
-                    file_path = self._find_screenshot_file(offer.image_url)
+                    file_to_send = self._find_screenshot_file(offer.image_url) or (offer.image_url if offer.image_url and offer.image_url.startswith('http') else None)
                     test_notice = f"🧪 *[TEST SANDBOX - Copia per te]*\n(Nessun messaggio inviato ad Alex)\n\n{message_text}"
-                    if file_path:
-                        await client.send_file('me', file_path, caption=test_notice)
+                    if file_to_send:
+                        try:
+                            await client.send_file('me', file_to_send, caption=test_notice)
+                        except Exception:
+                            await client.send_message('me', test_notice)
                     else:
                         await client.send_message('me', test_notice)
             except Exception as e:
@@ -799,10 +802,13 @@ class TelegramManager:
             try:
                 client = await self._ensure_connected_client(db)
                 if client and await client.is_user_authorized():
-                    file_path = self._find_screenshot_file(order.confirmation_screen_url)
+                    file_to_send = self._find_screenshot_file(order.confirmation_screen_url) or (order.confirmation_screen_url if order.confirmation_screen_url and order.confirmation_screen_url.startswith('http') else None)
                     test_notice = f"🧪 *[TEST SANDBOX - Screenshot per te]*\n(Nessun messaggio inviato ad Alex)\n\n{caption_text}"
-                    if file_path:
-                        await client.send_file('me', file_path, caption=test_notice)
+                    if file_to_send:
+                        try:
+                            await client.send_file('me', file_to_send, caption=test_notice)
+                        except Exception:
+                            await client.send_message('me', test_notice)
                     else:
                         await client.send_message('me', test_notice)
             except Exception as e:
@@ -870,10 +876,13 @@ class TelegramManager:
                         order.review_screen_url = review_url
                         db.commit()
 
-                    file_path = self._find_screenshot_file(review_url)
+                    file_to_send = self._find_screenshot_file(review_url) or (review_url if review_url and review_url.startswith('http') else None)
                     test_notice = f"🧪 *[TEST SANDBOX - Recensione per te]*\n(Nessun messaggio inviato ad Alex)\n\n{caption_text}"
-                    if file_path:
-                        await client.send_file('me', file_path, caption=test_notice)
+                    if file_to_send:
+                        try:
+                            await client.send_file('me', file_to_send, caption=test_notice)
+                        except Exception:
+                            await client.send_message('me', test_notice)
                     else:
                         await client.send_message('me', test_notice)
             except Exception as e:
