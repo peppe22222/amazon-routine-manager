@@ -403,8 +403,32 @@ CATEGORIES = {
             "Ottimo compagno per monitorare la salute e le notifiche al polso."
         ]
     },
+    "powerbank_batterie_portatili": {
+        "keywords": ["power bank", "powerbank", "batteria portatile", "caricatore portatile", "caricabatterie portatile", "batteria esterna", "20000mah", "10000mah", "30000mah", "pd3.0", "qc4.0", "quick charge", "power delivery"],
+        "titles": [
+            "Power Bank 20000mAh potentissimo: ricarica rapida PD 22.5W, display percentuale e autonomia infinita!",
+            "Capienza reale da 20000mAh, ricarica ultra-veloce PD 3.0/QC 4.0 e zero surriscaldamento",
+            "Indispensabile per viaggi e lavoro: ricarica smartphone e tablet più volte a piena velocità",
+            "Materiali solidi, porte multiple USB-C/USB-A e protocolli di ricarica rapida 22.5W impeccabili"
+        ],
+        "openings": [
+            "Utilizzo quotidianamente questo Power Bank per alimentare smartphone, cuffie e tablet fuori casa e le prestazioni sono eccezionali.",
+            "Arrivato perfettamente imballato, pre-caricato e corredato di cavo di ricarica ad alta velocità.",
+            "Fin dal primo utilizzo si nota l'elevata densità energetica e la cura costruttiva nei dettagli e nelle porte di connessione."
+        ],
+        "bodies": [
+            "La capacità da 20000mAh è reale ed eroga una riserva di carica abbondante, permettendo di ricaricare completamente un moderno smartphone per 4-5 volte consecutive senza cali di tensione.",
+            "I protocolli di ricarica rapida Power Delivery 3.0 e Quick Charge 4.0 a 22.5W riconoscono all'istante il dispositivo collegato erogando la massima potenza disponibile per una carica dal 20% all'80% in circa mezz'ora.",
+            "Le porte di uscita multiple (USB-C bidirezionale e USB-A) consentono di ricaricare più dispositivi contemporaneamente, mentre i circuiti di protezione intelligente evitano surriscaldamenti e sbalzi di tensione mantenendo il corpo fresco al tatto."
+        ],
+        "closings": [
+            "Un Power Bank affidabile, capiente e compatto da portare sempre nello zaino o in valigia. 5 stelle strameritate!",
+            "Rapporto qualità-prezzo imbattibile per capacità reale e velocità di ricarica rapida. Consigliatissimo!",
+            "Mai più con la batteria a terra: prodotto eccellente e indispensabile."
+        ]
+    },
     "accessori_smartphone_cavi": {
-        "keywords": ["powerbank", "caricatore", "caricabatterie", "cavo usb", "cavo type-c", "cavo lightning", "cover", "pellicola", "vetro temperato", "supporto smartphone", "supporto tablet", "hub usb", "docking station", "chiavetta usb", "ssd esterno", "scheda sd"],
+        "keywords": ["caricatore", "caricabatterie", "cavo usb", "cavo type-c", "cavo lightning", "cover", "pellicola", "vetro temperato", "supporto smartphone", "supporto tablet", "hub usb", "docking station", "chiavetta usb", "ssd esterno", "scheda sd"],
         "titles": [
             "Ricarica ultra-rapida, materiali robusti e connettività impeccabile!",
             "Compatto, resistente e affidabile: risolve ogni esigenza di ricarica e connessione",

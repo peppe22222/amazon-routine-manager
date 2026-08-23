@@ -856,6 +856,9 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             or "I materiali impiegati sono resistenti e piacevoli al tatto" in (o.review_body or "")
             or "sicurezza elettrica" in (o.review_body or "")
             or "risolve ogni esigenza di ricarica" in (o.review_title or "")
+            or ("polso" in (o.review_title or "").lower() and "smartwatch" not in (o.product_title or "").lower() and "orologio" not in (o.product_title or "").lower())
+            or ("polso" in (o.review_body or "").lower() and "smartwatch" not in (o.product_title or "").lower() and "orologio" not in (o.product_title or "").lower())
+            or ("power" in (o.product_title or "").lower() and ("polso" in (o.review_title or "").lower() or "polso" in (o.review_body or "").lower() or "sportive" in (o.review_title or "").lower()))
         )
         if is_old_generic:
             rev_data = generate_review(o.product_title, gemini_api_key=gemini_key)
