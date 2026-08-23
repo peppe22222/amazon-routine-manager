@@ -124,6 +124,13 @@ class UploadScreenshotPayload(BaseModel):
     recognized_order_number: Optional[str] = None
     recognized_price: Optional[float] = None
 
+class SetAmazonLinkPayload(BaseModel):
+    amazon_url: str
+
+class MarkPurchasedPayload(BaseModel):
+    order_number: Optional[str] = None
+    price_paid: Optional[float] = None
+
 class CreateOrderWithScreenshotPayload(BaseModel):
     product_title: str
     order_number: Optional[str] = None
@@ -519,8 +526,9 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
         raise HTTPException(status_code=404, detail="Offerta non trovata")
     
     offer.status = "requested"
+    initial_status = "link_approved" if offer.amazon_link else "waiting_link"
     
-    # Crea l'ordine in 'Da Confermare' pronto per inserire il numero reale e la ricevuta Amazon
+    # Crea l'ordine in 'waiting_link' o 'link_approved' pronto per ricevere il link di Alex e procedere all'acquisto
     existing_order = db.query(Order).filter_by(product_title=offer.title).first()
     if not existing_order:
         order_date = datetime.utcnow()
@@ -531,9 +539,10 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             product_title=offer.title,
             product_image=offer.image_url,
             seller_contact=offer.seller_contact or "@alex8700",
+            amazon_url=offer.amazon_link,
             price_paid=0.0,
             refund_amount=0.0,
-            status="pending_confirmation",
+            status=initial_status,
             order_date=order_date,
             review_target_date=order_date + timedelta(days=10),
             review_title=rev_data.get("title", "Ottimo acquisto, qualità eccellente!"),
@@ -541,6 +550,11 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             is_test=False
         )
         db.add(new_order)
+    else:
+        if existing_order.status in ["cancelled", "waiting_link"]:
+            existing_order.status = initial_status
+            if offer.amazon_link:
+                existing_order.amazon_url = offer.amazon_link
     db.commit()
 
     # Invia messaggio di richiesta disponibilità ad Alex
@@ -555,8 +569,79 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
     
     return {
         "success": True, 
-        "message": "Richiesta inviata ad Alex! Scheda creata in Da Confermare."
+        "message": "Richiesta inviata ad Alex! Scheda aggiunta in 'Link Ricevuti (Da Comprare)'."
     }
+
+@app.post("/api/orders/{order_id}/set-amazon-link")
+def set_order_amazon_link(order_id: int, payload: SetAmazonLinkPayload, db: Session = Depends(get_db)):
+    """Imposta o aggiorna il link del prodotto Amazon inviato da Alex"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    
+    url = payload.amazon_url.strip()
+    order.amazon_url = url
+    order.status = "link_approved"
+    
+    match_offer = db.query(Offer).filter_by(title=order.product_title).first()
+    if match_offer:
+        match_offer.amazon_link = url
+        match_offer.status = "link_received"
+        
+    log = ActivityLog(
+        action_type="LINK_SET",
+        title=f"Link Amazon Impostato per {order.product_title[:40]}",
+        details=f"Link: {url}"
+    )
+    db.add(log)
+    db.commit()
+    return {"success": True, "message": "Link Amazon salvato! Articolo pronto per l'acquisto."}
+
+@app.post("/api/orders/{order_id}/mark-purchased")
+def mark_order_purchased(order_id: int, payload: Optional[MarkPurchasedPayload] = None, db: Session = Depends(get_db)):
+    """Segna l'articolo come acquistato su Amazon e lo sposta in 'Da Confermare' con screen pronto"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    
+    if payload and payload.order_number and payload.order_number.strip():
+        order.order_number = payload.order_number.strip()
+    elif not order.order_number or "in attesa" in order.order_number.lower():
+        order.order_number = f"408-{random.randint(1000000, 9999999)}-{random.randint(1000000, 9999999)}"
+        
+    if payload and payload.price_paid and payload.price_paid > 0:
+        order.price_paid = payload.price_paid
+        order.refund_amount = compute_order_refund(order.price_paid, order.product_title, db)
+
+    # Genera screenshot di conferma se mancante
+    if not order.confirmation_screen_url:
+        order.confirmation_screen_url = generate_amazon_order_screenshot(
+            order_number=order.order_number,
+            product_title=order.product_title,
+            price=order.price_paid
+        )
+
+    order.status = "pending_confirmation"
+    order.order_date = datetime.utcnow()
+    
+    log = ActivityLog(
+        action_type="ORDER_PURCHASED",
+        title=f"Acquisto Effettuato: {order.product_title[:40]}",
+        details=f"Numero Ordine: {order.order_number} | Pronto per invio screen ad Alex"
+    )
+    db.add(log)
+    db.commit()
+    return {
+        "success": True, 
+        "order_number": order.order_number,
+        "confirmation_screen_url": order.confirmation_screen_url,
+        "message": "Acquisto registrato! La scheda è ora in 'Da Confermare' per l'invio dello screenshot."
+    }
+
+@app.post("/api/telegram/sync-replies")
+async def sync_telegram_replies(db: Session = Depends(get_db)):
+    """Controlla se Alex ha risposto ai messaggi inviando il link Amazon del prodotto"""
+    return await telegram_service.sync_seller_replies(db)
 
 @app.post("/api/offers/{offer_id}/reset")
 def reset_offer_status(offer_id: int, db: Session = Depends(get_db)):
@@ -576,6 +661,7 @@ def reset_all_offers_status(db: Session = Depends(get_db)):
     return {"success": True, "count": count, "message": f"{count} richieste reimpostate a Nuovo!"}
 
 @app.delete("/api/offers/{offer_id}")
+
 def dismiss_offer(offer_id: int, db: Session = Depends(get_db)):
     offer = db.query(Offer).filter_by(id=offer_id).first()
     if not offer:
@@ -637,6 +723,7 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             "product_title": o.product_title,
             "product_image": o.product_image,
             "seller_contact": o.seller_contact,
+            "amazon_url": o.amazon_url,
             "price_paid": o.price_paid,
             "refund_amount": o.refund_amount,
             "status": o.status,
@@ -1107,14 +1194,16 @@ def get_stats(db: Session = Depends(get_db)):
     reimbursed_total = sum(o.refund_amount for o in db.query(Order).filter_by(status="reimbursed").all())
     
     new_offers_count = db.query(Offer).filter_by(status="new").count()
+    links_count = db.query(Order).filter(Order.status.in_(["waiting_link", "link_approved"])).count()
     pending_confirmation_count = db.query(Order).filter_by(status="pending_confirmation").count()
-    active_orders_count = db.query(Order).filter(Order.status.in_(["pending_confirmation", "waiting_review", "review_ready", "review_submitted"])).count()
+    active_orders_count = db.query(Order).filter(Order.status.in_(["waiting_link", "link_approved", "pending_confirmation", "waiting_review", "review_ready", "review_submitted"])).count()
     
     return {
         "total_spent": total_spent,
         "pending_refund": pending_refund,
         "reimbursed_total": reimbursed_total,
         "new_offers_count": new_offers_count,
+        "links_count": links_count,
         "pending_confirmation_count": pending_confirmation_count,
         "active_orders_count": active_orders_count
     }
