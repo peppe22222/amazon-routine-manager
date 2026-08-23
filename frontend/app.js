@@ -198,13 +198,13 @@ function switchTab(tabId) {
   const target = document.getElementById(`tab-${tabId}`);
   if (target) target.classList.remove('hidden');
 
-  // Aggiorna stile bottoni desktop
+  // Aggiorna stile bottoni pillole
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.className = 'tab-btn px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all';
+    btn.className = 'tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95';
   });
   const activeBtn = document.getElementById(`tab-btn-${tabId}`);
   if (activeBtn) {
-    activeBtn.className = 'tab-btn px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm';
+    activeBtn.className = 'tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm transition-all active:scale-95';
   }
 
   // Aggiorna stile bottoni mobile
