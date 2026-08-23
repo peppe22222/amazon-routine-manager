@@ -105,7 +105,7 @@ class SimulateOrderPayload(BaseModel):
     product_image: Optional[str] = None
 
 class TelegramChannelPayload(BaseModel):
-    channel_name: str
+    channel_name: Optional[str] = None
 
 class TelegramSendCodePayload(BaseModel):
     phone: Optional[str] = None
