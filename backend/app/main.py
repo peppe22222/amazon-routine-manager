@@ -446,6 +446,7 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
             )
             db.add(log)
             db.commit()
+            prune_old_unrequested_offers(db)
 
         return {
             "success": True,
@@ -644,9 +645,59 @@ def cleanup_unwanted_demo_offers(db: Session):
     except Exception as e:
         print(f"[Cleanup Error] {e}")
 
+def prune_old_unrequested_offers(db: Session, max_new_offers: int = 50):
+    """
+    Mantiene il feed delle offerte snello e aggiornato:
+    Quando arrivano nuove offerte, gli articoli più vecchi in fondo alla lista con stato 'new'
+    vengono rimossi automaticamente.
+    GLI ARTICOLI RICHIESTI, CON LINK O ACQUISTATI/IN ORDINE VENGONO SEMPRE PRESERVATI.
+    """
+    try:
+        s = db.query(Setting).filter_by(key="max_feed_offers").first()
+        if s and s.value and s.value.isdigit():
+            max_new_offers = max(20, int(s.value))
+            
+        orders = db.query(Order).filter(Order.status != "cancelled").all()
+        
+        unrequested_offers = (
+            db.query(Offer)
+            .filter(Offer.status == "new")
+            .order_by(desc(Offer.created_at), desc(Offer.id))
+            .all()
+        )
+        
+        to_keep = []
+        to_prune = []
+        
+        for off in unrequested_offers:
+            # Se corrisponde a un ordine reale, non toccarlo mai
+            if find_matching_order_for_offer(off.title, orders):
+                continue
+            if len(to_keep) < max_new_offers:
+                to_keep.append(off)
+            else:
+                to_prune.append(off)
+                
+        if to_prune:
+            for old_off in to_prune:
+                # Rimuovi file immagine se è uno screenshot temporaneo locale e non usato altrove
+                if old_off.image_url and old_off.image_url.startswith("/screenshots/tg_"):
+                    img_path = os.path.join(DATA_DIR, "screenshots", os.path.basename(old_off.image_url))
+                    if os.path.exists(img_path):
+                        try:
+                            os.remove(img_path)
+                        except Exception:
+                            pass
+                db.delete(old_off)
+            db.commit()
+            print(f"[Auto-Prune] Rimossi {len(to_prune)} articoli vecchi in fondo alla lista per fare spazio alle nuove offerte.")
+    except Exception as e:
+        print(f"[Prune Error] {e}")
+
 @app.get("/api/offers")
 def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db: Session = Depends(get_db)):
     cleanup_unwanted_demo_offers(db)
+    prune_old_unrequested_offers(db)
     
     query = db.query(Offer)
     if not include_dismissed:

@@ -786,12 +786,58 @@ class TelegramManager:
             )
             db.add(log)
             db.commit()
+            self.prune_old_offers(db)
 
         return {
             "success": True,
             "count": imported_count,
             "message": f"Sincronizzazione completata: {imported_count} nuove offerte importate da {channel_title}!"
         }
+
+    def prune_old_offers(self, db: Session, max_new_offers: int = 50):
+        """
+        Rimuove automaticamente gli articoli più vecchi in fondo alla lista con stato 'new'
+        quando arrivano nuovi post, proteggendo sempre ordini e articoli già richiesti/acquistati.
+        """
+        try:
+            s = db.query(Setting).filter_by(key="max_feed_offers").first()
+            if s and s.value and s.value.isdigit():
+                max_new_offers = max(20, int(s.value))
+                
+            orders = db.query(Order).filter(Order.status != "cancelled").all()
+            unrequested = (
+                db.query(Offer)
+                .filter(Offer.status == "new")
+                .order_by(desc(Offer.created_at), desc(Offer.id))
+                .all()
+            )
+            
+            to_keep = []
+            to_prune = []
+            for off in unrequested:
+                if any(o.product_title and is_title_duplicate(off.title, o.product_title) for o in orders):
+                    continue
+                if len(to_keep) < max_new_offers:
+                    to_keep.append(off)
+                else:
+                    to_prune.append(off)
+                    
+            if to_prune:
+                base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                screenshots_dir = os.path.join(base_dir, "data", "screenshots")
+                for old_off in to_prune:
+                    if old_off.image_url and old_off.image_url.startswith("/screenshots/tg_"):
+                        fn = os.path.basename(old_off.image_url)
+                        fp = os.path.join(screenshots_dir, fn)
+                        if os.path.exists(fp):
+                            try:
+                                os.remove(fp)
+                            except Exception:
+                                pass
+                    db.delete(old_off)
+                db.commit()
+        except Exception as e:
+            print(f"[Prune Offers Error] {e}")
 
         return {
             "success": True,
