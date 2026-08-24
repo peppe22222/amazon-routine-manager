@@ -106,12 +106,11 @@
 <body class="min-h-screen flex flex-col pb-24 md:pb-8 custom-scrollbar">
 
   <!-- ========================================================================= -->
-  <!-- PULL-TO-REFRESH INDICATOR (SWIPE IN BASSO PER SINCRONIZZARE) -->
+  <!-- PULL-TO-REFRESH (ROTELLINA STILE APPLE / IOS) -->
   <!-- ========================================================================= -->
   <div id="ptr-indicator" class="fixed top-0 left-0 right-0 z-50 flex items-center justify-center pointer-events-none transition-transform duration-200" style="transform: translateY(-100%);">
-    <div class="glass-panel px-4 py-2.5 rounded-full shadow-2xl border border-emerald-500/50 bg-slate-950/95 backdrop-blur-xl flex items-center gap-2.5 text-xs font-extrabold text-emerald-300">
-      <i id="ptr-icon" class="fa-solid fa-arrow-down transition-transform duration-200 text-emerald-400"></i>
-      <span id="ptr-text">Trascina in basso per sincronizzare...</span>
+    <div class="w-10 h-10 rounded-full shadow-2xl border border-emerald-500/30 bg-slate-900/90 backdrop-blur-xl flex items-center justify-center shadow-emerald-950/60">
+      <i id="ptr-icon" class="fa-solid fa-circle-notch text-lg text-emerald-400 transition-transform duration-75"></i>
     </div>
   </div>
 

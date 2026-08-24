@@ -88,20 +88,21 @@ async function triggerManualFullSync(btn) {
 function initPullToRefresh() {
   const ptrIndicator = document.getElementById('ptr-indicator');
   const ptrIcon = document.getElementById('ptr-icon');
-  const ptrText = document.getElementById('ptr-text');
-  if (!ptrIndicator || !ptrIcon || !ptrText) return;
+  if (!ptrIndicator || !ptrIcon) return;
 
   let startY = 0;
   let currentY = 0;
   let isPulling = false;
   let isRefreshing = false;
-  const triggerThreshold = 65;
+  let thresholdVibrated = false;
+  const triggerThreshold = 55;
 
   window.addEventListener('touchstart', (e) => {
     const hasOpenModal = !!document.querySelector('.modal:not(.hidden), #modal-lightbox:not(.hidden), #auth-lock-screen:not(.hidden)');
     if (window.scrollY <= 2 && !isRefreshing && !hasOpenModal && e.touches.length === 1) {
       startY = e.touches[0].clientY;
       isPulling = true;
+      thresholdVibrated = false;
     }
   }, { passive: true });
 
@@ -111,16 +112,18 @@ function initPullToRefresh() {
     const deltaY = currentY - startY;
 
     if (deltaY > 0 && window.scrollY <= 2) {
-      const pullDistance = Math.min(deltaY * 0.45, 95);
+      const pullDistance = Math.min(deltaY * 0.42, 80);
       ptrIndicator.style.transition = 'none';
-      ptrIndicator.style.transform = `translateY(${pullDistance + 12}px)`;
+      ptrIndicator.style.transform = `translateY(${pullDistance + 10}px)`;
 
-      if (pullDistance >= triggerThreshold) {
-        ptrIcon.style.transform = 'rotate(180deg)';
-        ptrText.innerText = 'Rilascia per sincronizzare...';
-      } else {
-        ptrIcon.style.transform = 'rotate(0deg)';
-        ptrText.innerText = 'Trascina in basso per sincronizzare...';
+      // Rotazione dinamica proporzionale al trascinamento (stile Apple iOS)
+      const rotation = pullDistance * 4.5;
+      ptrIcon.className = 'fa-solid fa-circle-notch text-lg text-emerald-400';
+      ptrIcon.style.transform = `rotate(${rotation}deg)`;
+
+      if (pullDistance >= triggerThreshold && !thresholdVibrated) {
+        thresholdVibrated = true;
+        if (navigator.vibrate) navigator.vibrate(15);
       }
     } else {
       ptrIndicator.style.transform = 'translateY(-100%)';
@@ -134,15 +137,17 @@ function initPullToRefresh() {
     }
     isPulling = false;
     const deltaY = currentY - startY;
-    const pullDistance = Math.min(deltaY * 0.45, 95);
+    const pullDistance = Math.min(deltaY * 0.42, 80);
 
     if (pullDistance >= triggerThreshold && window.scrollY <= 2) {
       isRefreshing = true;
-      ptrIndicator.style.transition = 'transform 0.25s ease-out';
-      ptrIndicator.style.transform = 'translateY(55px)';
-      ptrIcon.className = 'fa-solid fa-rotate-right fa-spin text-emerald-400';
-      ptrText.innerText = 'Sincronizzazione in corso...';
-      if (navigator.vibrate) navigator.vibrate(35);
+      ptrIndicator.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      ptrIndicator.style.transform = 'translateY(48px)';
+      
+      // Animazione rotellina continua stile iOS
+      ptrIcon.className = 'fa-solid fa-circle-notch fa-spin text-lg text-emerald-400';
+      ptrIcon.style.transform = '';
+      if (navigator.vibrate) navigator.vibrate(25);
 
       try {
         await Promise.all([
@@ -150,23 +155,21 @@ function initPullToRefresh() {
           syncTelegramReplies(true),
           syncActiveChannel(true)
         ]);
-        ptrIcon.className = 'fa-solid fa-circle-check text-emerald-400';
-        ptrText.innerText = 'Sincronizzazione completata!';
-        if (navigator.vibrate) navigator.vibrate([20, 30, 20]);
+        ptrIcon.className = 'fa-solid fa-check text-base text-emerald-400';
+        if (navigator.vibrate) navigator.vibrate([15, 30]);
       } catch (err) {
-        ptrText.innerText = 'Sincronizzazione terminata';
+        // Silently complete
       }
 
       setTimeout(() => {
-        ptrIndicator.style.transition = 'transform 0.3s ease-in';
+        ptrIndicator.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
         ptrIndicator.style.transform = 'translateY(-100%)';
         setTimeout(() => {
-          ptrIcon.className = 'fa-solid fa-arrow-down transition-transform duration-200 text-emerald-400';
+          ptrIcon.className = 'fa-solid fa-circle-notch text-lg text-emerald-400';
           ptrIcon.style.transform = 'rotate(0deg)';
-          ptrText.innerText = 'Trascina in basso per sincronizzare...';
           isRefreshing = false;
         }, 300);
-      }, 700);
+      }, 500);
     } else {
       ptrIndicator.style.transition = 'transform 0.25s ease-out';
       ptrIndicator.style.transform = 'translateY(-100%)';
