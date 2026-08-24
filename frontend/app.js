@@ -499,12 +499,17 @@ async function loadOffers() {
                 </div>
               ` : ''}
 
-              <!-- Titolo Prodotto con tasto Modifica Rapida -->
+              <!-- Titolo Prodotto con Espansione al tocco e tasto Modifica Rapida -->
               <div class="flex items-start justify-between gap-2">
-                <h3 class="text-sm md:text-base font-extrabold text-white leading-snug flex-1">
-                  ${escapeHtml(o.title)}
-                </h3>
-                <button onclick="quickEditOfferTitle(${o.id}, '${escapeHtml(o.title).replace(/'/g, "\\'")}')" title="Modifica Nome Articolo" class="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-emerald-400 border border-slate-700 text-xs transition-colors shrink-0">
+                <div class="flex-1 min-w-0 cursor-pointer select-none group/title" onclick="toggleOfferTitleExpand(this)" title="Tocca per espandere / comprimere il titolo">
+                  <h3 class="offer-title-text text-sm md:text-[15px] font-bold text-slate-100 leading-snug line-clamp-2 transition-colors group-hover/title:text-emerald-300">
+                    ${escapeHtml(o.title)}
+                  </h3>
+                  <span class="offer-expand-hint text-[10px] text-slate-400 font-semibold group-hover/title:text-emerald-400 mt-0.5 inline-flex items-center gap-1">
+                    <i class="fa-solid fa-chevron-down text-[8px]"></i> Tocca per espandere
+                  </span>
+                </div>
+                <button onclick="event.stopPropagation(); quickEditOfferTitle(${o.id}, '${escapeHtml(o.title).replace(/'/g, "\\'")}')" title="Modifica Nome Articolo" class="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 border border-slate-700/80 text-xs transition-colors shrink-0 shadow-sm">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
               </div>
@@ -580,6 +585,21 @@ async function loadOffers() {
 
   } catch (err) {
     console.error('Errore caricamento offerte:', err);
+  }
+}
+
+function toggleOfferTitleExpand(container) {
+  if (!container) return;
+  const titleEl = container.querySelector('.offer-title-text');
+  const hintEl = container.querySelector('.offer-expand-hint');
+  if (!titleEl) return;
+  const isClamped = titleEl.classList.contains('line-clamp-2');
+  if (isClamped) {
+    titleEl.classList.remove('line-clamp-2');
+    if (hintEl) hintEl.innerHTML = '<i class="fa-solid fa-chevron-up text-[8px]"></i> Comprimi';
+  } else {
+    titleEl.classList.add('line-clamp-2');
+    if (hintEl) hintEl.innerHTML = '<i class="fa-solid fa-chevron-down text-[8px]"></i> Tocca per espandere';
   }
 }
 
