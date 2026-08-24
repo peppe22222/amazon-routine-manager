@@ -1218,10 +1218,11 @@ class TelegramManager:
                     if amz_urls:
                         best_url = amz_urls[0]
                         
-                        # Trova solo ed esclusivamente l'ordine la cui richiesta è avvenuta PRIMA dell'invio di questo messaggio
+                        # Trova l'ordine in attesa inviato per questo articolo (con tolleranza orologio server/Telegram di 120s)
                         target_order = None
                         for o in pending_orders:
-                            if o.order_date and o.order_date <= msg_date_utc and (not o.amazon_url):
+                            req_time = o.order_date or datetime.utcnow()
+                            if (req_time - timedelta(seconds=120)) <= msg_date_utc and (not o.amazon_url):
                                 target_order = o
                                 break
 
