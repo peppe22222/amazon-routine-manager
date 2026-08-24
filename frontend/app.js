@@ -322,19 +322,33 @@ async function loadOffers() {
     container.innerHTML = offers.map(o => {
       const imgUrl = o.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80';
       const isRequested = o.status === 'requested';
+      const isPurchased = (o.is_purchased === true || o.status === 'purchased' || ['waiting_review', 'review_ready', 'review_submitted', 'reimbursed', 'pending_confirmation', 'confirmed_sent'].includes(o.order_status));
 
       return `
-        <div class="glass-card rounded-2xl overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:border-emerald-500/50">
+        <div class="glass-card rounded-2xl overflow-hidden flex flex-col justify-between transition-all duration-200 hover:-translate-y-1 hover:shadow-xl ${
+          isPurchased 
+            ? 'border-2 border-emerald-500/80 shadow-lg shadow-emerald-950/60 bg-gradient-to-b from-emerald-950/30 via-slate-900/90 to-slate-900 ring-1 ring-emerald-400/40' 
+            : 'hover:border-emerald-500/50'
+        }">
           
           <!-- Product Image Container with Complete Visibility (No Cropping) -->
           <div class="relative w-full h-64 bg-slate-950 flex items-center justify-center overflow-hidden group cursor-pointer border-b border-slate-800" onclick="openLightboxFromSrc('${imgUrl}', '${escapeHtml(o.title)}', 'Condizioni: ${escapeHtml(o.price_info || '')}')">
             <img src="${imgUrl}" alt="${escapeHtml(o.title)}" class="max-h-full max-w-full w-auto h-auto object-contain p-2 group-hover:scale-105 transition-transform duration-300">
             
             <!-- Badges top -->
-            <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none">
-              <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 shadow-md flex items-center gap-1">
-                <i class="fa-solid fa-check"></i> ${o.refund_pct || 100}% RIMBORSO
-              </span>
+            <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none gap-1.5">
+              ${isPurchased ? `
+                <span class="text-[11px] md:text-xs font-black px-3 py-1 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-lg flex items-center gap-1.5 ring-2 ring-emerald-300/40 tracking-wide animate-pulse">
+                  <i class="fa-solid fa-circle-check text-slate-950"></i> GIÀ ACQUISTATO
+                </span>
+                <span class="text-[10px] md:text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-slate-900/95 backdrop-blur-md text-emerald-300 border border-emerald-500/50 shadow-md flex items-center gap-1">
+                  <i class="fa-solid fa-star text-amber-400"></i> ${escapeHtml(o.order_status_label || 'In Recensioni 5★')}
+                </span>
+              ` : `
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 shadow-md flex items-center gap-1">
+                  <i class="fa-solid fa-check"></i> ${o.refund_pct || 100}% RIMBORSO
+                </span>
+              `}
             </div>
 
             <!-- Zoom Prompt Overlay -->
@@ -346,6 +360,17 @@ async function loadOffers() {
 
           <!-- Card Content Body -->
           <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+              <!-- Banner Già Acquistato se presente -->
+              ${isPurchased ? `
+                <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-between gap-2 text-xs">
+                  <div class="flex items-center gap-2 text-emerald-300 font-bold min-w-0">
+                    <i class="fa-solid fa-bag-shopping text-emerald-400 shrink-0"></i>
+                    <span class="truncate">Hai già comprato questo articolo (${escapeHtml(o.order_status_label || 'In Recensioni')})</span>
+                  </div>
+                  ${o.order_id ? `<button onclick="goToOrderDetails(${o.order_id}, '${o.order_target_tab || 'reviews'}')" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-[11px] shadow transition-all flex items-center gap-1 shrink-0"><i class="fa-solid fa-arrow-right"></i> Apri</button>` : ''}
+                </div>
+              ` : ''}
+
               <!-- Titolo Prodotto con tasto Modifica Rapida -->
               <div class="flex items-start justify-between gap-2">
                 <h3 class="text-sm md:text-base font-extrabold text-white leading-snug flex-1">
@@ -375,41 +400,43 @@ async function loadOffers() {
             </div>
 
             <!-- Bottoni Azione -->
-            <div class="pt-3 border-t border-brand-border flex items-center gap-2">
-              ${(isRequested || o.status === 'link_received' || o.status === 'purchased')
-                ? `
-                  <div class="flex-1 flex items-center gap-1.5">
-                    <button disabled class="flex-1 py-2.5 px-2.5 rounded-xl ${
-                      o.status === 'purchased'
-                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        : (o.status === 'link_received' ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/40' : 'bg-blue-600/20 text-blue-300 border border-blue-500/40')
-                    } text-xs font-extrabold flex items-center justify-center gap-1.5 truncate shadow-sm">
-                      <i class="fa-solid ${
-                        o.status === 'purchased'
-                          ? 'fa-bag-shopping text-amber-400'
-                          : (o.status === 'link_received' ? 'fa-cart-arrow-down text-cyan-400' : 'fa-check-double text-blue-400')
-                      }"></i> ${
-                        o.status === 'purchased'
-                          ? 'Acquistato'
-                          : (o.status === 'link_received' ? 'Link Ricevuto / Da Comprare' : 'Richiesta Inviata')
-                      }
-                    </button>
-                    <button onclick="resetOffer(${o.id})" title="Reimposta e riabilita tasto richiesta" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition-all shrink-0">
-                      <i class="fa-solid fa-rotate-left"></i> Reset
-                    </button>
-                  </div>
-                `
-                : `
-                  <button data-hold-id="${o.id}" 
-                          class="hold-to-confirm-btn relative overflow-hidden select-none flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
-                          style="touch-action: pan-y; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
-                    <div class="hold-bar absolute inset-y-0 left-0 bg-emerald-300/40 w-0 pointer-events-none rounded-xl"></div>
-                    <span class="hold-label relative z-10 flex items-center gap-1.5 pointer-events-none">
-                      <i class="fa-solid fa-fingerprint text-emerald-200 text-sm"></i> Tieni premuto per inviare
-                    </span>
+            <div class="pt-3 border-t border-brand-border flex items-center gap-2 p-4 pt-0">
+              ${isPurchased ? `
+                <div class="flex-1 flex items-center gap-1.5">
+                  <button onclick="goToOrderDetails(${o.order_id || 0}, '${o.order_target_tab || 'reviews'}')" class="flex-1 py-2.5 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/50 text-xs font-black flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98] cursor-pointer">
+                    <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i>
+                    <span>Già Comprato (${escapeHtml(o.order_status_label || 'In Recensioni')})</span>
+                    <i class="fa-solid fa-arrow-right text-[10px] opacity-70"></i>
                   </button>
-                `
-              }
+                  <button onclick="resetOffer(${o.id})" title="Reimposta e riabilita tasto richiesta" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition-all shrink-0">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                  </button>
+                </div>
+              ` : (isRequested || o.status === 'link_received') ? `
+                <div class="flex-1 flex items-center gap-1.5">
+                  <button disabled class="flex-1 py-2.5 px-2.5 rounded-xl ${
+                    o.status === 'link_received' ? 'bg-cyan-600/20 text-cyan-300 border border-cyan-500/40' : 'bg-blue-600/20 text-blue-300 border border-blue-500/40'
+                  } text-xs font-extrabold flex items-center justify-center gap-1.5 truncate shadow-sm">
+                    <i class="fa-solid ${
+                      o.status === 'link_received' ? 'fa-cart-arrow-down text-cyan-400' : 'fa-check-double text-blue-400'
+                    }"></i> ${
+                      o.status === 'link_received' ? 'Link Ricevuto / Da Comprare' : 'Richiesta Inviata'
+                    }
+                  </button>
+                  <button onclick="resetOffer(${o.id})" title="Reimposta e riabilita tasto richiesta" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold flex items-center gap-1 transition-all shrink-0">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                  </button>
+                </div>
+              ` : `
+                <button data-hold-id="${o.id}" 
+                        class="hold-to-confirm-btn relative overflow-hidden select-none flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-950/40 flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
+                        style="touch-action: pan-y; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;">
+                  <div class="hold-bar absolute inset-y-0 left-0 bg-emerald-300/40 w-0 pointer-events-none rounded-xl"></div>
+                  <span class="hold-label relative z-10 flex items-center gap-1.5 pointer-events-none">
+                    <i class="fa-solid fa-fingerprint text-emerald-200 text-sm"></i> Tieni premuto per inviare
+                  </span>
+                </button>
+              `}
               <button onclick="dismissOffer(${o.id})" title="Rimuovi offerta" class="w-10 h-10 rounded-xl bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-400 border border-slate-700/80 flex items-center justify-center transition-all shrink-0">
                 <i class="fa-regular fa-trash-can text-sm"></i>
               </button>
@@ -426,6 +453,21 @@ async function loadOffers() {
   } catch (err) {
     console.error('Errore caricamento offerte:', err);
   }
+}
+
+function goToOrderDetails(orderId, targetTab = 'reviews') {
+  switchTab(targetTab);
+  if (!orderId) return;
+  setTimeout(() => {
+    const el = document.querySelector(`[data-order-id="${orderId}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.classList.add('ring-4', 'ring-emerald-400', 'shadow-2xl', 'transition-all', 'duration-500');
+      setTimeout(() => {
+        el.classList.remove('ring-4', 'ring-emerald-400', 'shadow-2xl');
+      }, 3000);
+    }
+  }, 250);
 }
 
 // ----------------- ENHANCED HOLD TO CONFIRM (1.5s + Dynamic Color Glow) -----------------

@@ -578,15 +578,212 @@ def consolidate_offer_albums(db: Session):
     except Exception as e:
         pass
 
+def find_matching_order_for_offer(offer_title: str, orders: List[Order]) -> Optional[Order]:
+    """Trova in modo intelligente l'ordine corrispondente a un'offerta tramite titolo esatto, duplicato o parole chiave"""
+    if not offer_title or not orders:
+        return None
+    
+    t_clean = offer_title.strip().lower()
+    
+    # 1. Corrispondenza esatta
+    for o in orders:
+        if o.product_title and o.product_title.strip().lower() == t_clean:
+            return o
+            
+    # 2. Corrispondenza duplicato intelligente
+    for o in orders:
+        if o.product_title and is_title_duplicate(offer_title, o.product_title):
+            return o
+            
+    # 3. Corrispondenza chiave normalizzata
+    k_offer = normalize_text_key(offer_title)
+    for o in orders:
+        if o.product_title:
+            k_order = normalize_text_key(o.product_title)
+            if k_offer and k_order and (k_offer in k_order or k_order in k_offer):
+                return o
+                
+    # 4. Corrispondenza per parole chiave primarie
+    words_offer = set(k_offer.split())
+    if words_offer:
+        for o in orders:
+            if o.product_title:
+                words_order = set(normalize_text_key(o.product_title).split())
+                if words_order:
+                    common = words_offer.intersection(words_order)
+                    # Caso speciale: Barattolo Caffè
+                    if ("barattolo" in common or "caffè" in common or "caffe" in common) and ("barattolo" in words_offer or "caffè" in words_offer or "caffe" in words_offer):
+                        return o
+                    # Caso speciale: Power Bank
+                    if ("power" in common or "bank" in common or "powerbank" in common) and ("power" in words_offer or "powerbank" in words_offer):
+                        return o
+                    # Caso speciale: Lavatappeti
+                    if ("lavatappeti" in common or "divani" in common or "tappeti" in common) and ("lavatappeti" in words_offer or "divani" in words_offer):
+                        return o
+                    # Caso speciale: Comodino
+                    if ("comodino" in common) and ("comodino" in words_offer):
+                        return o
+                    # Caso speciale: Auricolari
+                    if ("auricolari" in common or "cuffie" in common) and ("auricolari" in words_offer or "cuffie" in words_offer):
+                        return o
+                    if len(common) >= 2 and (len(common) / min(len(words_offer), len(words_order))) >= 0.5:
+                        return o
+                        
+    return None
+
+def seed_default_offers_if_empty(db: Session):
+    """Assicura la presenza delle offerte predefinite collegate agli ordini se il database offerte è vuoto"""
+    if db.query(Offer).count() == 0:
+        default_offers = [
+            Offer(
+                title="Barattolo per Caffè Ermetico in Acciaio Inox, 1.2 L con Cucchiaio Dosatore",
+                price_info="100% rimborso (tasse coperte)",
+                seller_contact="@alex8700",
+                image_url="/screenshots/prod_barattolo_caffe.jpg",
+                refund_pct=100.0,
+                taxes_covered=True,
+                channel_name="Articoli Addicted",
+                status="purchased",
+                created_at=datetime.utcnow() - timedelta(hours=3)
+            ),
+            Offer(
+                title="Power Bank 20000mAh PD3.0 QC4.0 22.5W Ricarica Rapida",
+                price_info="100% rimborso (tasse coperte)",
+                seller_contact="@alex8700",
+                image_url="/screenshots/prod_powerbank_20000mah.jpg",
+                refund_pct=100.0,
+                taxes_covered=True,
+                channel_name="Articoli Addicted",
+                status="purchased",
+                created_at=datetime.utcnow() - timedelta(hours=5)
+            ),
+            Offer(
+                title="Comodino Moderno Cilindrico 2 Ripiani con Vano Nascosto",
+                price_info="si paga 8,00€ - 10% (tasse coperte)",
+                seller_contact="@venditore_arredo",
+                image_url="https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80",
+                refund_pct=100.0,
+                taxes_covered=True,
+                channel_name="Articoli Addicted",
+                status="new",
+                created_at=datetime.utcnow() - timedelta(hours=1)
+            ),
+            Offer(
+                title="Lavatappeti e Divani Portatile ad Aspirazione Profonda 650W",
+                price_info="si paga 20,00€ (tasse da verificare)",
+                seller_contact="@venditore_elettro",
+                image_url="https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80",
+                refund_pct=100.0,
+                taxes_covered=False,
+                channel_name="Articoli Addicted",
+                status="new",
+                created_at=datetime.utcnow() - timedelta(minutes=45)
+            ),
+            Offer(
+                title="Auricolari Bluetooth 5.3 con Cancellazione Rumore ANC e Custodia Ricarica",
+                price_info="100% rimborso (nessuna commissione)",
+                seller_contact="@tech_promo_deals",
+                image_url="https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&q=80",
+                refund_pct=100.0,
+                taxes_covered=True,
+                channel_name="Articoli Addicted",
+                status="new",
+                created_at=datetime.utcnow() - timedelta(minutes=20)
+            )
+        ]
+        db.add_all(default_offers)
+        db.commit()
+
 @app.get("/api/offers")
 def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db: Session = Depends(get_db)):
+    seed_default_offers_if_empty(db)
+    
     query = db.query(Offer)
     if not include_dismissed:
         query = query.filter(Offer.status != "dismissed")
     if status:
         query = query.filter_by(status=status)
-    query = query.order_by(desc(Offer.created_at), desc(Offer.id))
-    return query.all()
+    raw_offers = query.order_by(desc(Offer.created_at), desc(Offer.id)).all()
+    
+    # Carica tutti gli ordini attivi per sincronizzare in tempo reale lo stato di acquisto
+    orders = db.query(Order).filter(Order.status != "cancelled").all()
+    
+    res = []
+    for o in raw_offers:
+        matching_order = find_matching_order_for_offer(o.title, orders)
+        
+        is_purchased = False
+        eff_status = o.status
+        order_id = None
+        order_number = None
+        order_status = None
+        order_status_label = None
+        order_target_tab = None
+        
+        if matching_order:
+            order_id = matching_order.id
+            order_number = matching_order.order_number
+            order_status = matching_order.status
+            
+            if matching_order.status in ["waiting_review", "review_ready", "review_submitted", "reimbursed", "pending_confirmation", "confirmed_sent"]:
+                is_purchased = True
+                eff_status = "purchased"
+                
+                if matching_order.status == "waiting_review":
+                    order_status_label = "In Recensioni 5★"
+                    order_target_tab = "reviews"
+                elif matching_order.status == "review_ready":
+                    order_status_label = "Recensione Pronta"
+                    order_target_tab = "reviews"
+                elif matching_order.status == "review_submitted":
+                    order_status_label = "In Attesa Rimborso"
+                    order_target_tab = "reviews"
+                elif matching_order.status == "reimbursed":
+                    order_status_label = "Rimborsato PayPal"
+                    order_target_tab = "refunds"
+                elif matching_order.status == "pending_confirmation":
+                    order_status_label = "Da Confermare Screen"
+                    order_target_tab = "confirmations"
+                elif matching_order.status == "confirmed_sent":
+                    order_status_label = "Screen Inviato ad Alex"
+                    order_target_tab = "confirmations"
+            elif matching_order.status == "link_approved":
+                eff_status = "link_received"
+                order_status_label = "Link Ricevuto (Da Comprare)"
+                order_target_tab = "approved_links"
+            elif matching_order.status == "waiting_link":
+                eff_status = "requested"
+                order_status_label = "Richiesta Inviata"
+                order_target_tab = "approved_links"
+                
+            # Mantieni aggiornato lo stato nel DB se era errato o disallineato
+            if o.status != eff_status and eff_status in ["purchased", "link_received", "requested"]:
+                o.status = eff_status
+                db.commit()
+
+        res.append({
+            "id": o.id,
+            "title": o.title,
+            "description": o.description,
+            "image_url": o.image_url,
+            "price_info": o.price_info,
+            "refund_pct": o.refund_pct,
+            "taxes_covered": o.taxes_covered,
+            "channel_name": o.channel_name,
+            "seller_contact": o.seller_contact,
+            "message_id": o.message_id,
+            "status": eff_status,
+            "amazon_link": o.amazon_link,
+            "created_at": o.created_at.isoformat() if o.created_at else None,
+            "is_purchased": is_purchased,
+            "order_id": order_id,
+            "order_number": order_number,
+            "order_status": order_status,
+            "order_status_label": order_status_label,
+            "order_target_tab": order_target_tab
+        })
+        
+    return res
 
 def compute_order_refund(price_paid: float, product_title: str, db: Session) -> float:
     """
