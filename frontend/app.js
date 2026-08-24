@@ -30,6 +30,7 @@ function loadAllData() {
 document.addEventListener('DOMContentLoaded', async () => {
   initLightboxEvents();
   handleIncomingSharedLink();
+  initPullToRefresh();
   const isAuth = await checkAuth();
   if (isAuth) {
     loadAllData();
@@ -59,6 +60,97 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }, { passive: true });
 });
+
+// ----------------- PULL TO REFRESH (SWIPE IN BASSO SU IPHONE / MOBILE) -----------------
+
+function initPullToRefresh() {
+  const ptrIndicator = document.getElementById('ptr-indicator');
+  const ptrIcon = document.getElementById('ptr-icon');
+  const ptrText = document.getElementById('ptr-text');
+  if (!ptrIndicator || !ptrIcon || !ptrText) return;
+
+  let startY = 0;
+  let currentY = 0;
+  let isPulling = false;
+  let isRefreshing = false;
+  const triggerThreshold = 65;
+
+  window.addEventListener('touchstart', (e) => {
+    const hasOpenModal = !!document.querySelector('.modal:not(.hidden), #modal-lightbox:not(.hidden), #auth-lock-screen:not(.hidden)');
+    if (window.scrollY <= 2 && !isRefreshing && !hasOpenModal && e.touches.length === 1) {
+      startY = e.touches[0].clientY;
+      isPulling = true;
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (!isPulling || isRefreshing || e.touches.length !== 1) return;
+    currentY = e.touches[0].clientY;
+    const deltaY = currentY - startY;
+
+    if (deltaY > 0 && window.scrollY <= 2) {
+      const pullDistance = Math.min(deltaY * 0.45, 95);
+      ptrIndicator.style.transition = 'none';
+      ptrIndicator.style.transform = `translateY(${pullDistance + 12}px)`;
+
+      if (pullDistance >= triggerThreshold) {
+        ptrIcon.style.transform = 'rotate(180deg)';
+        ptrText.innerText = 'Rilascia per sincronizzare...';
+      } else {
+        ptrIcon.style.transform = 'rotate(0deg)';
+        ptrText.innerText = 'Trascina in basso per sincronizzare...';
+      }
+    } else {
+      ptrIndicator.style.transform = 'translateY(-100%)';
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchend', async () => {
+    if (!isPulling || isRefreshing) {
+      isPulling = false;
+      return;
+    }
+    isPulling = false;
+    const deltaY = currentY - startY;
+    const pullDistance = Math.min(deltaY * 0.45, 95);
+
+    if (pullDistance >= triggerThreshold && window.scrollY <= 2) {
+      isRefreshing = true;
+      ptrIndicator.style.transition = 'transform 0.25s ease-out';
+      ptrIndicator.style.transform = 'translateY(55px)';
+      ptrIcon.className = 'fa-solid fa-rotate-right fa-spin text-emerald-400';
+      ptrText.innerText = 'Sincronizzazione in corso...';
+      if (navigator.vibrate) navigator.vibrate(35);
+
+      try {
+        await Promise.all([
+          loadAllData(),
+          syncTelegramReplies(true),
+          syncActiveChannel(true)
+        ]);
+        ptrIcon.className = 'fa-solid fa-circle-check text-emerald-400';
+        ptrText.innerText = 'Sincronizzazione completata!';
+        if (navigator.vibrate) navigator.vibrate([20, 30, 20]);
+      } catch (err) {
+        ptrText.innerText = 'Sincronizzazione terminata';
+      }
+
+      setTimeout(() => {
+        ptrIndicator.style.transition = 'transform 0.3s ease-in';
+        ptrIndicator.style.transform = 'translateY(-100%)';
+        setTimeout(() => {
+          ptrIcon.className = 'fa-solid fa-arrow-down transition-transform duration-200 text-emerald-400';
+          ptrIcon.style.transform = 'rotate(0deg)';
+          ptrText.innerText = 'Trascina in basso per sincronizzare...';
+          isRefreshing = false;
+        }, 300);
+      }, 700);
+    } else {
+      ptrIndicator.style.transition = 'transform 0.25s ease-out';
+      ptrIndicator.style.transform = 'translateY(-100%)';
+    }
+  });
+}
 
 function scrollToTop() {
   window.scrollTo({
