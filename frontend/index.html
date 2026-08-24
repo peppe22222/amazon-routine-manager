@@ -269,6 +269,7 @@
       <button onclick="switchTab('reviews')" id="tab-btn-reviews" class="tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95">
         <i class="fa-solid fa-star text-amber-400"></i>
         <span>Recensioni 5★</span>
+        <span id="badge-reviews-ready-count" class="hidden text-[11px] px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200 border border-rose-500/50 font-black animate-pulse">0</span>
       </button>
       
       <button onclick="switchTab('refunds')" id="tab-btn-refunds" class="tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95">
@@ -412,9 +413,10 @@
       <span class="text-[10px] font-bold mt-1 tracking-tight">Conferma</span>
       <span id="mob-badge-confirm" class="hidden absolute top-0.5 right-4 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-brand-bg shadow-sm"></span>
     </button>
-    <button onclick="switchTab('reviews')" id="mob-btn-reviews" class="flex flex-col items-center flex-1 py-1 text-slate-400 transition-all active:scale-90">
+    <button onclick="switchTab('reviews')" id="mob-btn-reviews" class="flex flex-col items-center flex-1 py-1 text-slate-400 relative transition-all active:scale-90">
       <i class="fa-solid fa-star text-lg"></i>
       <span class="text-[10px] font-bold mt-1 tracking-tight">Recensioni</span>
+      <span id="mob-badge-reviews" class="hidden absolute top-0.5 right-4 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-brand-bg shadow-sm animate-pulse"></span>
     </button>
     <button onclick="switchTab('refunds')" id="mob-btn-refunds" class="flex flex-col items-center flex-1 py-1 text-slate-400 transition-all active:scale-90">
       <i class="fa-solid fa-hand-holding-dollar text-lg"></i>

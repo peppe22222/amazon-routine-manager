@@ -1229,6 +1229,7 @@ function renderReviews(orders) {
   const reviewOrders = (orders || []).filter(o => ['waiting_review', 'review_ready', 'review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status));
 
   if (reviewOrders.length === 0) {
+    updateAppBadging(0);
     container.innerHTML = `
       <div class="col-span-full py-16 text-center text-slate-400 glass-card rounded-2xl p-8 border border-dashed border-slate-700">
         <div class="w-16 h-16 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-3xl text-purple-400/80 mb-3 shadow-inner">
@@ -1387,6 +1388,8 @@ function updateReviewLiveTimers() {
 
   const now = Date.now();
 
+  let readyCount = 0;
+
   cards.forEach(card => {
     const targetIso = card.dataset.targetDate;
     const startIso = card.dataset.startDate;
@@ -1454,6 +1457,7 @@ function updateReviewLiveTimers() {
     }
 
     if (isReady) {
+      readyCount++;
       if (badgeEl) {
         badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
         badgeEl.innerText = '⭐ RECENSIONE PRONTA!';
@@ -1517,6 +1521,36 @@ function updateReviewLiveTimers() {
       }
     }
   });
+
+  updateAppBadging(readyCount);
+}
+
+function updateAppBadging(readyCount) {
+  const mobBadge = document.getElementById('mob-badge-reviews');
+  const deskBadge = document.getElementById('badge-reviews-ready-count');
+
+  if (readyCount > 0) {
+    if (mobBadge) mobBadge.classList.remove('hidden');
+    if (deskBadge) {
+      deskBadge.classList.remove('hidden');
+      deskBadge.innerText = readyCount;
+    }
+    // Aggiorna Badge rosso nativo sull'icona dell'iPhone / App PWA
+    try {
+      if ('setAppBadge' in navigator) {
+        navigator.setAppBadge(readyCount).catch(() => {});
+      }
+    } catch (e) {}
+  } else {
+    if (mobBadge) mobBadge.classList.add('hidden');
+    if (deskBadge) deskBadge.classList.add('hidden');
+    // Rimuove Badge rosso nativo da icona iPhone
+    try {
+      if ('clearAppBadge' in navigator) {
+        navigator.clearAppBadge().catch(() => {});
+      }
+    } catch (e) {}
+  }
 }
 
 async function fastForwardOrderTimer(orderId) {
