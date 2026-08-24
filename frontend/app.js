@@ -1244,14 +1244,20 @@ function renderReviews(orders) {
   container.innerHTML = reviewOrders.map(o => {
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80';
     
-    // Rileva se il pacco è già stato consegnato (oppure se la data stimata è oggi o passata)
-    const isDelivered = (o.delivery_info === 'Consegnato' || (o.estimated_delivery_date && new Date(o.estimated_delivery_date) <= new Date()));
+    // Rileva se il pacco è già stato consegnato (data stimata oggi o passata, oppure stato di consegna)
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0,0,0,0);
+    const estDeliveryMidnight = o.estimated_delivery_date ? new Date(o.estimated_delivery_date) : null;
+    if (estDeliveryMidnight) estDeliveryMidnight.setHours(0,0,0,0);
+    const isTodayOrPast = estDeliveryMidnight !== null && estDeliveryMidnight.getTime() <= todayMidnight.getTime();
+    const isDelivered = (o.delivery_info === 'Consegnato' || isTodayOrPast || o.status === 'waiting_review');
     
-    // Il punto di partenza dei 10 giorni esatti è la consegna (o conferma)
+    // Il punto di partenza dei 10 giorni esatti è la consegna
     const startIso = o.estimated_delivery_date || o.confirmation_sent_at || o.order_date || new Date().toISOString();
     let targetIso = o.review_target_date;
-    if (!targetIso || targetIso.includes('09-03') && isDelivered) {
-      targetIso = new Date(new Date(startIso).getTime() + 10 * 86400000).toISOString();
+    if (!targetIso || isDelivered) {
+      const baseStartMs = Math.min(Date.now(), new Date(startIso).getTime());
+      targetIso = new Date(baseStartMs + 10 * 86400000).toISOString();
     }
     const isSubmitted = o.status === 'review_submitted' || o.status === 'reimbursed';
 
@@ -1398,6 +1404,9 @@ function updateReviewLiveTimers() {
         startMs = now - 3600000; // Consegnato oggi
       }
       targetMs = startMs + 10 * 86400000;
+      if (targetMs > now + 10 * 86400000) {
+        targetMs = now + 10 * 86400000 - 3600000;
+      }
     }
 
     const totalDurationMs = 10 * 86400000; // 10 giorni = 240 ore
@@ -1492,7 +1501,7 @@ function updateReviewLiveTimers() {
         progressBarEl.style.width = `${progressPct}%`;
       }
       if (progressPctEl) {
-        const delivNote = isDelivered ? ' • 📦 Consegnato' : (deliveryInfo ? ` • 🚚 Arrivo: ${deliveryInfo}` : '');
+        const delivNote = isDelivered ? ' • 📦 Consegnato' : (deliveryInfo && deliveryInfo !== 'Consegnato' ? ` • 🚚 Arrivo: ${deliveryInfo}` : ' • 📦 Consegnato');
         progressPctEl.innerText = `${progressPct}% trascorso (${days} giorni e ${hours}h rimasti${delivNote})`;
       }
 

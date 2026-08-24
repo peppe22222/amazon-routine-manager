@@ -1115,18 +1115,20 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             updated_db = True
 
         # Normalizzazione automatica: se la data di consegna è passata o odierna, è Consegnato
-        if o.estimated_delivery_date and o.estimated_delivery_date <= now:
-            if o.delivery_info in ["Domani", "Oggi", "In consegna", None]:
+        if o.estimated_delivery_date:
+            if o.estimated_delivery_date.date() <= now.date():
                 o.delivery_info = "Consegnato"
+                if o.estimated_delivery_date > now:
+                    o.estimated_delivery_date = now - timedelta(hours=2)
                 updated_db = True
 
         # Per gli ordini già consegnati, assicurati che la data target sia esattamente 10 giorni dalla consegna
         if o.delivery_info == "Consegnato":
             if not o.estimated_delivery_date or o.estimated_delivery_date > now:
-                o.estimated_delivery_date = now - timedelta(hours=1)
+                o.estimated_delivery_date = now - timedelta(hours=2)
                 updated_db = True
             expected_target = o.estimated_delivery_date + timedelta(days=10)
-            if not o.review_target_date or abs((o.review_target_date - expected_target).total_seconds()) > 3600:
+            if not o.review_target_date or abs((o.review_target_date - expected_target).total_seconds()) > 60:
                 o.review_target_date = expected_target
                 updated_db = True
 
