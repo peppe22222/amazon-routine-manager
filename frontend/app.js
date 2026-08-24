@@ -61,6 +61,28 @@ document.addEventListener('DOMContentLoaded', async () => {
   }, { passive: true });
 });
 
+async function triggerManualFullSync(btn) {
+  const icon = btn ? btn.querySelector('i') : null;
+  if (icon) icon.classList.add('fa-spin');
+  showToast('Sincronizzazione in corso...');
+  try {
+    await Promise.all([
+      loadAllData(),
+      syncTelegramReplies(true),
+      syncActiveChannel(true)
+    ]);
+    showToast('Sincronizzazione completata!');
+  } catch (err) {
+    showToast('Sincronizzazione terminata');
+  } finally {
+    if (icon) {
+      setTimeout(() => {
+        icon.classList.remove('fa-spin');
+      }, 500);
+    }
+  }
+}
+
 // ----------------- PULL TO REFRESH (SWIPE IN BASSO SU IPHONE / MOBILE) -----------------
 
 function initPullToRefresh() {
