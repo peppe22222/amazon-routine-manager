@@ -125,6 +125,32 @@ def clean_html_text(raw_html: str) -> str:
     text = re.sub(r'<[^>]+>', '', text)
     return html.unescape(text).strip()
 
+def extract_refund_percentage(text: str) -> float:
+    """Estrae con precisione la percentuale di rimborso dal testo o dalle condizioni (default 100.0)"""
+    if not text:
+        return 100.0
+    clean = text.lower()
+    # 1. Cerca pattern tipo '80% rimborso' o 'rimborso 80%' o 'rimborso al 90%' o '50%'
+    pct_match = re.search(r'(?:rimborso\s*(?:al\s*)?([0-9]{1,3})\s*%)|(?:\b([0-9]{1,3})\s*%\s*(?:di\s*)?rimborso)', clean)
+    if pct_match:
+        val = pct_match.group(1) or pct_match.group(2)
+        try:
+            p = float(val)
+            if 0 < p <= 100:
+                return p
+        except Exception:
+            pass
+    # 2. Cerca qualsiasi percentuale generica 'XX%' se presente nel testo
+    gen_pct = re.search(r'\b([0-9]{1,3})\s*%', clean)
+    if gen_pct:
+        try:
+            p = float(gen_pct.group(1))
+            if 10 <= p <= 100:
+                return p
+        except Exception:
+            pass
+    return 100.0
+
 def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) -> list:
     """
     Scarica e analizza tutti i post recenti da un canale pubblico Telegram tramite l'anteprima web (https://t.me/s/...)
@@ -261,6 +287,8 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
         else:
             price_info = "100% rimborso"
 
+        refund_pct = extract_refund_percentage(f"{raw_text} {price_info}")
+
         taxes_covered = True
         if any(w in raw_text.lower() for w in ["tasse forse", "tasse a parte", "no tasse", "tasse non coperte", "forse"]):
             taxes_covered = False
@@ -277,6 +305,7 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
         offers_found.append({
             "title": title,
             "price_info": price_info,
+            "refund_pct": refund_pct,
             "seller_contact": seller_contact,
             "image_url": img_url,
             "taxes_covered": taxes_covered,
@@ -758,13 +787,14 @@ class TelegramManager:
                 batch_seen_msg_ids.add(mid)
                 existing_active_msg_ids.add(mid)
 
+            refund_pct = extract_refund_percentage(f"{raw_text} {price_info}")
             all_ids_str = ",".join(all_msg_ids)
             off = Offer(
                 title=title,
                 price_info=price_info,
                 seller_contact=seller_contact,
                 image_url=photo_url,
-                refund_pct=100.0,
+                refund_pct=refund_pct,
                 taxes_covered=taxes_covered,
                 channel_name=channel_title,
                 message_id=all_ids_str,

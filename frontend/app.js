@@ -343,17 +343,20 @@ async function loadOffers() {
             <img src="${imgUrl}" alt="${escapeHtml(o.title)}" class="max-h-full max-w-full w-auto h-auto object-contain p-2 group-hover:scale-105 transition-transform duration-300">
             
             <!-- Badges top -->
-            <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none gap-1.5">
+            <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none gap-1.5 flex-wrap">
               ${isPurchased ? `
                 <span class="text-[11px] md:text-xs font-black px-3 py-1 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-lg flex items-center gap-1.5 ring-2 ring-emerald-300/40 tracking-wide animate-pulse">
                   <i class="fa-solid fa-circle-check text-slate-950"></i> GIÀ ACQUISTATO
                 </span>
-                <span class="text-[10px] md:text-[11px] font-extrabold px-2.5 py-1 rounded-full bg-slate-900/95 backdrop-blur-md text-emerald-300 border border-emerald-500/50 shadow-md flex items-center gap-1">
-                  <i class="fa-solid fa-star text-amber-400"></i> ${escapeHtml(o.order_status_label || 'In Recensioni 5★')}
+                <span class="text-[10px] md:text-[11px] font-black px-2.5 py-1 rounded-full bg-slate-900/95 backdrop-blur-md text-emerald-300 border border-emerald-500/60 shadow flex items-center gap-1">
+                  <i class="fa-solid fa-percent text-emerald-400"></i> ${o.refund_pct || 100}% RIMBORSO
                 </span>
               ` : `
-                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 shadow-md flex items-center gap-1">
-                  <i class="fa-solid fa-check"></i> ${o.refund_pct || 100}% RIMBORSO
+                <span class="text-[11px] font-black px-2.5 py-1 rounded-full bg-emerald-500 text-slate-950 shadow flex items-center gap-1">
+                  <i class="fa-solid fa-percent"></i> ${o.refund_pct || 100}% RIMBORSO
+                </span>
+                <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${o.taxes_covered ? 'bg-slate-900/90 text-emerald-300 border border-emerald-500/40' : 'bg-slate-900/90 text-amber-300 border border-amber-500/40'} shadow">
+                  ${o.taxes_covered ? '✓ Tasse Coperte' : 'Tasse da Verificare'}
                 </span>
               `}
             </div>
@@ -388,19 +391,19 @@ async function loadOffers() {
                 </button>
               </div>
 
-              <!-- Riquadro Condizioni Spesa & Copertura Tasse (Testo Completo Multiriga) -->
+              <!-- Riquadro Condizioni Spesa & Copertura Tasse (Testo Completo Multiriga con Percentuale) -->
               <div class="mt-3 space-y-2 text-xs">
                 <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-700/80">
-                  <div class="flex items-center justify-between mb-1">
+                  <div class="flex items-center justify-between mb-1.5 flex-wrap gap-1">
                     <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                       <i class="fa-solid fa-coins text-emerald-400"></i> Condizioni Spesa & Rimborso:
                     </span>
-                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full ${o.taxes_covered ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'}">
-                      ${o.taxes_covered ? 'Tasse Coperte' : 'Tasse da Verificare'}
+                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                      <i class="fa-solid fa-calculator"></i> Rimborso al ${o.refund_pct || 100}%
                     </span>
                   </div>
                   <p class="font-extrabold text-emerald-300 text-xs md:text-sm leading-relaxed break-words whitespace-normal">
-                    ${escapeHtml(o.price_info || '100% rimborso dopo recensione')}
+                    ${escapeHtml(o.price_info || (o.refund_pct ? (o.refund_pct + '% rimborso dopo recensione') : '100% rimborso'))}
                   </p>
                 </div>
               </div>
