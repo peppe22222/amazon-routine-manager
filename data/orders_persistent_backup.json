@@ -11,7 +11,7 @@
     "status": "waiting_review",
     "order_date": "2026-08-23T14:17:04.069733",
     "estimated_delivery_date": "2026-08-24T20:17:04.069733",
-    "delivery_info": "Consegnato",
+    "delivery_info": "Domani",
     "confirmation_screen_url": "/screenshots/screen_404_1867984_8717122.jpg",
     "confirmation_sent_at": "2026-08-23T14:17:04.069733",
     "review_target_date": "2026-09-03T20:17:04.069733",
@@ -20,6 +20,29 @@
     "review_submitted_at": null,
     "review_screen_url": null,
     "refunded_at": null,
-    "is_test": false
+    "is_test": true
+  },
+  {
+    "id": 2,
+    "order_number": "408-1934850-8472910",
+    "product_title": "Power Bank 20000mAh PD3.0 QC4.0 22.5W Ricarica Rapida",
+    "product_image": "/screenshots/prod_powerbank_20000mah.jpg",
+    "seller_contact": "@alex8700",
+    "amazon_url": "",
+    "price_paid": 29.99,
+    "refund_amount": 29.99,
+    "status": "waiting_review",
+    "order_date": "2026-08-21T20:17:04.069733",
+    "estimated_delivery_date": "2026-08-22T20:17:04.069733",
+    "delivery_info": "Consegnato",
+    "confirmation_screen_url": "/screenshots/screen_408_1934850_8472910.jpg",
+    "confirmation_sent_at": "2026-08-21T20:17:04.069733",
+    "review_target_date": "2026-09-01T20:17:04.069733",
+    "review_title": "Power Bank 20000mAh potentissimo: ricarica rapida PD 22.5W, display percentuale e autonomia infinita!",
+    "review_body": "Arrivato perfettamente imballato, pre-caricato e corredato di cavo di ricarica rapida. La capacità da 20000mAh è reale ed eroga una riserva di carica abbondante, permettendo di ricaricare completamente uno smartphone per 4-5 volte consecutive senza cali di tensione. Mai più con la batteria a terra: prodotto eccellente e indispensabile.",
+    "review_submitted_at": null,
+    "review_screen_url": null,
+    "refunded_at": null,
+    "is_test": true
   }
 ]

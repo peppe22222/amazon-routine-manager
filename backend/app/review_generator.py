@@ -548,9 +548,8 @@ CATEGORIES = {
     # --- 18. SMARTWATCH & FITNESS TRACKER ---
     "smartwatch_fitness_tracker": {
         "keywords": [
-            "smartwatch", "smart watch", "smartband", "smart band", "orologio fitness", 
-            "fitness tracker", "activity tracker", "cardiofrequenzimetro da polso", 
-            "cardiofrequenzimetro", "sportwatch", "orologio smart", "orologio da polso smart"
+            "smartwatch", "smartband", "orologio fitness", "tracker", "cardiofrequenzimetro", 
+            "contapassi", "ossigenazione", "spo2", "sportwatch", "orologio smart"
         ],
         "titles": [
             "Display AMOLED brillante e reattivo, monitoraggio parametri salute accurato e puntuale!",
@@ -828,53 +827,14 @@ CATEGORIES = {
         ]
     },
 
-    # --- 28. COLLARI, PETTORINE & GUINZAGLI CANI E GATTI ---
-    "collari_pettorine_guinzagli_cani": {
-        "keywords": [
-            "collare per cani", "collare per cane", "collare cane", "collare cani", "collare antiabbaio", 
-            "collare addestramento", "collare gps", "collare led", "collare luminoso", "collare gatto", 
-            "collare gatti", "collare seresto", "collare scalibor", "collare", "pettorina per cani", 
-            "pettorina cane", "pettorina cani", "pettorina ad h", "pettorina antifuga", "pettorina no pull", 
-            "pettorina gatto", "pettorina", "guinzaglio per cani", "guinzaglio cane", "guinzaglio cani", 
-            "guinzaglio retrattile", "guinzaglio doppio", "guinzaglio addestramento", "guinzaglio", 
-            "museruola cane", "museruola", "targhetta cane", "targhetta gatto"
-        ],
-        "titles": [
-            "Collare resistente, imbottitura morbida e chiusura di massima sicurezza per il mio cane!",
-            "Materiali robusti, cuciture riflettenti per la notte e regolazione perfetta: il cane è comodissimo",
-            "Non stringe, non irrita il collo e regge benissimo le trazioni anche con cani vivaci. 5 stelle!",
-            "Qualità costruttiva al top: fibbia solida a scatto rapido, tessuto traspirante e tenuta impeccabile",
-            "Addestramento e controllo ottimali durante le passeggiate: sicuro, elegante e durevole"
-        ],
-        "openings": [
-            "Ho acquistato questo collare per il mio cane e fin dalla prima passeggiata la differenza si è notata subito.",
-            "Arrivato in una confezione curata con sistema di regolazione rapido e gancio di sicurezza solido in metallo.",
-            "I materiali al tatto trasmettono immediatamente un'ottima sensazione di robustezza e morbidezza interna."
-        ],
-        "bodies": [
-            "L'imbottitura interna traspirante evita qualsiasi sfregamento o perdita di pelo sul collo del cane anche dopo lunghe corse, mentre la fibbia di bloccaggio a scatto rapido è solidissima e non si apre accidentalmente sotto forte trazione.",
-            "Le cuciture rinforzate e gli inserti riflettenti ad alta visibilità aumentano notevolmente la sicurezza durante le passeggiate serali o con scarsa illuminazione.",
-            "La regolazione millimetrica della circonferenza consente di adattarlo perfettamente alla taglia del cane senza stringere o sfilarsi.",
-            "Il gancio ad anello in lega resistente permette di agganciare il guinzaglio o la medaglietta in modo rapido e stabile senza rischio di rotture."
-        ],
-        "closings": [
-            "Il mio cane lo indossa volentieri e io mi sento sicuro a ogni uscita. Prodotto eccellente, 5 stelle meritate!",
-            "Rapporto qualità-prezzo imbattibile per robustezza e comfort. Consigliatissimo a tutti i proprietari di cani e gatti!",
-            "Passeggiate serene e controllo ottimale: mai più problemi al guinzaglio. Pienamente soddisfatto!"
-        ]
-    },
-
-    # --- 28b. ALTRI ACCESSORI ANIMALI & PET CARE ---
+    # --- 28. ANIMALI & PET CARE ---
     "animali_pet": {
         "keywords": [
-            "cuccia per cani", "cuccia per cane", "cuccia cane", "cuccia per gatti", "cuccia gatto", "cuccia", 
-            "tiragraffi per gatti", "tiragraffi", "tosatrice per cani", "tosatrice per gatti", "tosatrice animali", 
-            "spazzola per cani", "spazzola cane", "spazzola gatto", "guanto togli peli", "fontanella per gatti", 
-            "fontanella gatto", "distributore cibo automatico", "mangiatoia automatica", "ciotola cane", 
-            "ciotola gatto", "ciotola rialzata", "ciotola anti ingozzamento", "lettiera per gatti", "lettiera gatto", 
-            "trasportino per cani", "trasportino cane", "trasportino gatto", "borsa cane", "passeggino per cani", 
-            "gioco cane", "giocattolo cane", "tiragraffi", "tappetino igienico", "traversine cani", "antiparassitario", 
-            "crocchette cane", "snack cane", "cani", "cane", "gatti", "gatto", "cucciolo", "cuccioli", "pet"
+            "cuccia cane", "cuccia gatto", "cuccia", "tiragraffi per gatti", "tiragraffi", 
+            "collare cane", "guinzaglio retrattile", "guinzaglio", "pettorina cane", "pettorina", 
+            "tosatrice per cani", "tosatrice animali", "spazzola cane", "fontanella per gatti", 
+            "fontanella gatto", "distributore cibo automatico", "lettiera gatto", "trasportino cane", 
+            "gioco cane", "cane", "gatto"
         ],
         "titles": [
             "Materiali morbidi e atossici, amatissimo dal mio animale fin dal primo giorno!",

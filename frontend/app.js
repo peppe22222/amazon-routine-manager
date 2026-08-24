@@ -29,6 +29,7 @@ function loadAllData() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   initLightboxEvents();
+  handleIncomingSharedLink();
   const isAuth = await checkAuth();
   if (isAuth) {
     loadAllData();
@@ -722,10 +723,16 @@ function renderApprovedLinks(orders) {
               <i class="fa-solid fa-pen text-xs"></i> Modifica Link
             </button>
           ` : `
-            <button onclick="openManualLinkModal(${o.id}, '${escapeHtml(o.product_title || '')}', '')" class="px-4 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-cyan-200 text-xs font-extrabold flex items-center gap-2 shadow-md transition-all active:scale-95">
-              <i class="fa-solid fa-link text-sm"></i> Inserisci Link Ricevuto
+            <button onclick="pasteAmazonLinkDirectly(${o.id})" class="px-3.5 py-2.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/50 text-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95" title="Incolla al volo il link dagli appunti">
+              <i class="fa-regular fa-paste text-sm text-emerald-400"></i> Incolla dagli Appunti
             </button>
-            <button onclick="markOrderAsPurchased(${o.id}, '${escapeHtml(o.product_title || '')}')" class="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <button onclick="openManualLinkModal(${o.id}, '${escapeHtml(o.product_title || '')}', '')" class="px-3.5 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-cyan-200 text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all active:scale-95">
+              <i class="fa-solid fa-link text-sm"></i> Inserisci Link
+            </button>
+            <button onclick="syncTelegramReplies()" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold flex items-center gap-1.5 transition-all" title="Verifica subito se Alex ha inviato il link">
+              <i class="fa-brands fa-telegram"></i> Controlla Telegram
+            </button>
+            <button onclick="markOrderAsPurchased(${o.id}, '${escapeHtml(o.product_title || '')}')" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all">
               <i class="fa-solid fa-forward-step text-amber-400"></i> Salta ad Acquisto
             </button>
           `}
@@ -736,6 +743,142 @@ function renderApprovedLinks(orders) {
       </div>
     `;
   }).join('');
+}
+
+function extractAmazonUrlFromText(text) {
+  if (!text) return '';
+  const match = text.match(/https?:\/\/[^\s<>"']+/i) || text.match(/(?:(?:www\.)?amazon\.[a-z.]+|amzn\.(?:to|eu))\/[^\s<>"']+/i);
+  if (match) {
+    let url = match[0].trim().replace(/[.,);!?"'>]+$/, '');
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    return url;
+  }
+  return '';
+}
+
+async function pasteToManualLinkInput() {
+  const inputEl = document.getElementById('input-manual-amazon-link');
+  if (!inputEl) return;
+  try {
+    let text = '';
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      text = await navigator.clipboard.readText();
+    }
+    if (!text) {
+      text = prompt('Incolla qui il testo o il link Amazon ricevuto:');
+    }
+    if (text) {
+      const extracted = extractAmazonUrlFromText(text) || text.trim();
+      inputEl.value = extracted;
+      showToast('Link inserito negli appunti!');
+      inputEl.focus();
+    }
+  } catch (err) {
+    const text = prompt('Incolla qui il testo o il link Amazon ricevuto:');
+    if (text) {
+      const extracted = extractAmazonUrlFromText(text) || text.trim();
+      inputEl.value = extracted;
+      inputEl.focus();
+    }
+  }
+}
+
+async function pasteAmazonLinkDirectly(orderId) {
+  try {
+    let text = '';
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      text = await navigator.clipboard.readText();
+    }
+    if (!text) {
+      text = prompt('Incolla qui il link o il messaggio ricevuto da Alex:');
+    }
+    if (!text) return;
+    
+    const cleanUrl = extractAmazonUrlFromText(text) || text.trim();
+    if (!cleanUrl || (!cleanUrl.includes('amazon') && !cleanUrl.includes('amzn'))) {
+      showToast('Nessun link Amazon valido trovato nel testo incollato', true);
+      return;
+    }
+
+    const res = await fetch(`/api/orders/${orderId}/set-amazon-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amazon_url: cleanUrl })
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showToast('Link Amazon salvato! Articolo pronto per l\'acquisto.');
+      loadOrders();
+      loadStats();
+    } else {
+      showToast(data.detail || 'Errore salvataggio link', true);
+    }
+  } catch (err) {
+    const text = prompt('Incolla qui il link o il messaggio ricevuto da Alex:');
+    if (text) {
+      const cleanUrl = extractAmazonUrlFromText(text) || text.trim();
+      if (cleanUrl) {
+        const res = await fetch(`/api/orders/${orderId}/set-amazon-link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amazon_url: cleanUrl })
+        });
+        if (res.ok) {
+          showToast('Link Amazon salvato!');
+          loadOrders();
+          loadStats();
+        }
+      }
+    }
+  }
+}
+
+async function handleIncomingSharedLink() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const sharedParam = params.get('url') || params.get('text') || params.get('link') || params.get('title') || '';
+    if (sharedParam) {
+      const extracted = extractAmazonUrlFromText(sharedParam);
+      if (extracted) {
+        // Pulisci l'URL del browser
+        window.history.replaceState({}, document.title, window.location.pathname);
+        
+        switchTab('approved_links');
+        
+        // Attendi che gli ordini siano disponibili
+        const res = await fetch('/api/orders');
+        if (res.ok) {
+          const orders = await res.json();
+          const waiting = (orders || []).filter(o => o.status === 'waiting_link');
+          if (waiting.length === 1) {
+            // Assegna direttamente all'unico ordine in attesa
+            const target = waiting[0];
+            const setRes = await fetch(`/api/orders/${target.id}/set-amazon-link`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ amazon_url: extracted })
+            });
+            if (setRes.ok) {
+              showToast(`Link Amazon assegnato automaticamente a "${target.product_title.slice(0, 30)}..."!`);
+              loadOrders();
+              loadStats();
+              return;
+            }
+          } else if (waiting.length > 1) {
+            // Più ordini in attesa: apri il modal per il primo
+            openManualLinkModal(waiting[0].id, waiting[0].product_title, extracted);
+            showToast('Link condiviso intercettato! Clicca Salva per confermare.');
+            return;
+          }
+        }
+        showToast('Link Amazon condiviso intercettato!');
+      }
+    }
+  } catch (e) {
+    console.error('Shared link handling error:', e);
+  }
 }
 
 function openManualLinkModal(orderId, productTitle, currentLink = '') {
@@ -759,7 +902,8 @@ function openManualLinkModal(orderId, productTitle, currentLink = '') {
 async function submitManualAmazonLink() {
   if (!currentManualLinkId) return;
   const inputEl = document.getElementById('input-manual-amazon-link');
-  const url = inputEl ? inputEl.value.trim() : '';
+  const rawValue = inputEl ? inputEl.value.trim() : '';
+  const url = extractAmazonUrlFromText(rawValue) || rawValue;
   if (!url) {
     showToast('Inserisci un URL Amazon valido (oppure usa Rimuovi Link)', true);
     return;

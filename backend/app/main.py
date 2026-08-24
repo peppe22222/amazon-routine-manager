@@ -959,10 +959,12 @@ def set_order_amazon_link(order_id: int, payload: SetAmazonLinkPayload, db: Sess
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     
-    raw_url = (payload.amazon_url or "").strip()
-    match_offer = db.query(Offer).filter_by(title=order.product_title).first()
+    raw_input = (payload.amazon_url or "").strip()
+    match_offer = db.query(Offer).filter(
+        or_(Offer.title == order.product_title, Offer.title.ilike(f"%{order.product_title[:25]}%"))
+    ).first()
 
-    if not raw_url:
+    if not raw_input:
         # Se vuoto, rimuove il link e riporta lo stato in attesa
         order.amazon_url = None
         order.status = "waiting_link"
@@ -972,6 +974,16 @@ def set_order_amazon_link(order_id: int, payload: SetAmazonLinkPayload, db: Sess
         db.commit()
         return {"success": True, "message": "Link rimosso. Scheda reimpostata in attesa di Alex."}
     
+    # Estrai con precisione il link Amazon anche se incollato con testo aggiuntivo
+    url_match = re.search(r'https?://[^\s<>"]+', raw_input)
+    if not url_match:
+        url_match = re.search(r'(?:(?:www\.)?amazon\.[a-z.]+|amzn\.(?:to|eu))/[^\s<>"]+', raw_input, re.IGNORECASE)
+    
+    if url_match:
+        raw_url = url_match.group(0).strip().rstrip('.,);!?"\'>')
+    else:
+        raw_url = raw_input.strip().rstrip('.,);!?"\'>')
+
     # Assicurati che abbia http:// o https://
     if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
         raw_url = "https://" + raw_url
@@ -991,7 +1003,7 @@ def set_order_amazon_link(order_id: int, payload: SetAmazonLinkPayload, db: Sess
     db.add(log)
     db.commit()
     save_orders_backup(db)
-    return {"success": True, "message": "Link Amazon salvato con successo! Articolo pronto per l'acquisto."}
+    return {"success": True, "amazon_url": raw_url, "message": "Link Amazon salvato con successo! Articolo pronto per l'acquisto."}
 
 @app.post("/api/orders/{order_id}/mark-purchased")
 def mark_order_purchased(order_id: int, payload: Optional[MarkPurchasedPayload] = None, db: Session = Depends(get_db)):
@@ -1089,6 +1101,11 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             if matching_offer and matching_offer.image_url and 'unsplash' not in matching_offer.image_url:
                 o.product_image = matching_offer.image_url
                 updated_db = True
+
+        # Se l'ordine ha già il link impostato ma è rimasto in waiting_link, normalizza a link_approved
+        if o.amazon_url and o.amazon_url.strip() and o.status == "waiting_link":
+            o.status = "link_approved"
+            updated_db = True
 
         # Normalizzazione automatica: se la data di consegna è passata o odierna, è Consegnato
         if o.estimated_delivery_date and o.estimated_delivery_date <= now:

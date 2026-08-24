@@ -1008,8 +1008,18 @@
       <div class="space-y-3 text-xs">
         <p id="modal-set-link-product-name" class="text-slate-200 font-bold leading-relaxed"></p>
         <div>
-          <label class="text-slate-300 font-bold uppercase tracking-wider block mb-1">Link Amazon Ricevuto da Alex</label>
-          <input type="url" id="input-manual-amazon-link" placeholder="https://www.amazon.it/dp/... o https://amzn.to/..." class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-slate-300 font-bold uppercase tracking-wider block">Link Amazon Ricevuto da Alex</label>
+            <button type="button" onclick="pasteToManualLinkInput()" class="text-[11px] text-cyan-300 hover:text-cyan-200 font-bold flex items-center gap-1 transition-colors">
+              <i class="fa-regular fa-paste"></i> Incolla dagli appunti
+            </button>
+          </div>
+          <div class="flex items-center gap-2">
+            <input type="url" id="input-manual-amazon-link" placeholder="https://www.amazon.it/dp/... o https://amzn.to/..." class="w-full bg-brand-bg border border-brand-border rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-cyan-500 font-mono">
+            <button type="button" onclick="pasteToManualLinkInput()" class="px-3 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 border border-cyan-500/40 text-xs font-bold flex items-center gap-1 shrink-0 transition-all active:scale-95" title="Incolla dagli appunti">
+              <i class="fa-regular fa-paste"></i> Incolla
+            </button>
+          </div>
         </div>
       </div>
       <div class="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-brand-border">
