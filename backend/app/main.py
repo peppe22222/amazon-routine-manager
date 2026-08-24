@@ -939,11 +939,18 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
 
     # Invia messaggio di richiesta disponibilità ad Alex
     try:
-        await telegram_service.send_availability_request(
+        req_res = await telegram_service.send_availability_request(
             db=db,
             offer=offer,
             recipient=offer.seller_contact or "@alex8700"
         )
+        if req_res and req_res.get("sent_at"):
+            sent_dt = datetime.fromisoformat(req_res["sent_at"])
+            target_ord = existing_order or new_order
+            if target_ord:
+                target_ord.order_date = sent_dt
+                db.commit()
+                save_orders_backup(db)
     except Exception as e:
         print(f"[Telegram Send Request Error] {e}")
     

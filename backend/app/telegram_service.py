@@ -897,6 +897,7 @@ class TelegramManager:
         target_contact = (recipient or offer.seller_contact or "@alex8700").strip()
         message_text = f"Ciao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
 
+        sent_at = datetime.utcnow()
         if is_test:
             try:
                 client = await self._ensure_connected_client(db)
@@ -905,11 +906,13 @@ class TelegramManager:
                     test_notice = f"🧪 *[TEST SANDBOX - Copia per te]*\n(Nessun messaggio inviato ad Alex)\n\n{message_text}"
                     if file_to_send:
                         try:
-                            await client.send_file('me', file_to_send, caption=test_notice)
+                            sent_msg = await client.send_file('me', file_to_send, caption=test_notice)
                         except Exception:
-                            await client.send_message('me', test_notice)
+                            sent_msg = await client.send_message('me', test_notice)
                     else:
-                        await client.send_message('me', test_notice)
+                        sent_msg = await client.send_message('me', test_notice)
+                    if sent_msg and hasattr(sent_msg, 'date') and sent_msg.date:
+                        sent_at = sent_msg.date.replace(tzinfo=None) if hasattr(sent_msg.date, 'tzinfo') and sent_msg.date.tzinfo else sent_msg.date
             except Exception as e:
                 print(f"[Sandbox Send 'me' Error] {e}")
 
@@ -921,7 +924,7 @@ class TelegramManager:
             db.add(log)
             offer.status = "requested"
             db.commit()
-            return {"success": True, "message": f"🧪 [SANDBOX] Messaggio di test inviato ai tuoi 'Messaggi Salvati' su Telegram (nessun messaggio inviato ad Alex)!"}
+            return {"success": True, "sent_at": sent_at.isoformat(), "message": f"🧪 [SANDBOX] Messaggio di test inviato ai tuoi 'Messaggi Salvati' su Telegram (nessun messaggio inviato ad Alex)!"}
 
         try:
             client = await self._ensure_connected_client(db)
@@ -931,10 +934,13 @@ class TelegramManager:
             file_path = self._find_screenshot_file(offer.image_url)
 
             if file_path:
-                await client.send_file(target_contact, file_path, caption=message_text)
+                sent_msg = await client.send_file(target_contact, file_path, caption=message_text)
             else:
-                await client.send_message(target_contact, message_text)
+                sent_msg = await client.send_message(target_contact, message_text)
             
+            if sent_msg and hasattr(sent_msg, 'date') and sent_msg.date:
+                sent_at = sent_msg.date.replace(tzinfo=None) if hasattr(sent_msg.date, 'tzinfo') and sent_msg.date.tzinfo else sent_msg.date
+
             log = ActivityLog(
                 action_type="MESSAGE_SENT",
                 title=f"Richiesta inviata ad Alex ({target_contact})",
@@ -943,7 +949,7 @@ class TelegramManager:
             db.add(log)
             offer.status = "requested"
             db.commit()
-            return {"success": True, "message": f"Richiesta inviata con successo ad Alex ({target_contact}) su Telegram!"}
+            return {"success": True, "sent_at": sent_at.isoformat(), "message": f"Richiesta inviata con successo ad Alex ({target_contact}) su Telegram!"}
         except Exception as e:
             print(f"[Telegram Send Error] {e}")
             return {"success": False, "error": str(e)}
@@ -1202,22 +1208,22 @@ class TelegramManager:
                 for msg_date_utc, m in messages:
                     if not pending_orders:
                         break
+                    
+                    text_content = (m.text or "").lower()
+                    # Ignora tassativamente i messaggi che contengono la richiesta stessa o il testo del bot
+                    if "[test sandbox" in text_content or "volevo chiederti se è ancora disponibile" in text_content or "ciao alex! volevo chiederti" in text_content:
+                        continue
                         
                     amz_urls = self._extract_amazon_urls_from_message(m)
                     if amz_urls:
                         best_url = amz_urls[0]
                         
-                        # 1. Trova l'ordine la cui richiesta è avvenuta prima del messaggio (con 15 min di tolleranza oraria)
+                        # Trova solo ed esclusivamente l'ordine la cui richiesta è avvenuta PRIMA dell'invio di questo messaggio
                         target_order = None
                         for o in pending_orders:
-                            tolerance_date = (o.order_date - timedelta(minutes=15)) if o.order_date else datetime.min
-                            if tolerance_date <= msg_date_utc and (not o.amazon_url):
+                            if o.order_date and o.order_date <= msg_date_utc and (not o.amazon_url):
                                 target_order = o
                                 break
-                        
-                        # 2. Se nessun match temporale stretto ma c'è un solo ordine in attesa, assegnalo
-                        if not target_order and len(pending_orders) == 1:
-                            target_order = pending_orders[0]
 
                         if target_order:
                             pending_orders.remove(target_order)
@@ -1233,7 +1239,7 @@ class TelegramManager:
 
                             log = ActivityLog(
                                 action_type="LINK_RECEIVED",
-                                title=f"Link Amazon Ricevuto da Alex ({target})!",
+                                title=f"Link Amazon Ricevuto ({target})!",
                                 details=f"Articolo: {target_order.product_title[:45]} | Link: {best_url}"
                             )
                             db.add(log)
