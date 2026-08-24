@@ -1125,11 +1125,19 @@ function updateReviewLiveTimers() {
     const startIso = card.dataset.startDate;
     const status = card.dataset.status;
     const deliveryInfo = card.dataset.deliveryInfo;
-    const isDelivered = card.dataset.isDelivered === 'true';
+    let targetMs = targetIso ? new Date(targetIso).getTime() : now + 10 * 86400000;
+    let startMs = startIso ? new Date(startIso).getTime() : targetMs - 10 * 86400000;
 
-    const targetMs = targetIso ? new Date(targetIso).getTime() : now + 10 * 86400000;
-    const startMs = startIso ? new Date(startIso).getTime() : targetMs - 10 * 86400000;
-    const totalDurationMs = Math.max(1000, targetMs - startMs);
+    // Se l'articolo è già CONSEGNATO (o è arrivato oggi), il punto di inizio è il momento della consegna
+    // e il tempo rimanente parte da un massimo di 10 giorni esatti (quindi oggi sarà 9 giorni e 23h...)
+    if (isDelivered) {
+      if (startMs > now) {
+        startMs = now - 3600000; // Consegnato oggi
+      }
+      targetMs = startMs + 10 * 86400000;
+    }
+
+    const totalDurationMs = 10 * 86400000; // 10 giorni = 240 ore
     const totalDays = 10; // Il conto alla rovescia è sempre e rigorosamente di 10 giorni
 
     const diffMs = targetMs - now;

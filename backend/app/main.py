@@ -1090,13 +1090,20 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
                 o.product_image = matching_offer.image_url
                 updated_db = True
 
-        # Se la consegna è stimata per domani
-        if o.product_title and "barattolo" in o.product_title.lower():
-            if not o.delivery_info:
-                o.delivery_info = "Domani"
-                base_start = o.confirmation_sent_at or o.order_date or now
-                o.estimated_delivery_date = base_start + timedelta(days=1)
-                o.review_target_date = o.estimated_delivery_date + timedelta(days=10)
+        # Normalizzazione automatica: se la data di consegna è passata o odierna, è Consegnato
+        if o.estimated_delivery_date and o.estimated_delivery_date <= now:
+            if o.delivery_info in ["Domani", "Oggi", "In consegna", None]:
+                o.delivery_info = "Consegnato"
+                updated_db = True
+
+        # Per gli ordini già consegnati, assicurati che la data target sia esattamente 10 giorni dalla consegna
+        if o.delivery_info == "Consegnato":
+            if not o.estimated_delivery_date or o.estimated_delivery_date > now:
+                o.estimated_delivery_date = now - timedelta(hours=1)
+                updated_db = True
+            expected_target = o.estimated_delivery_date + timedelta(days=10)
+            if not o.review_target_date or abs((o.review_target_date - expected_target).total_seconds()) > 3600:
+                o.review_target_date = expected_target
                 updated_db = True
 
         if not o.review_target_date:
