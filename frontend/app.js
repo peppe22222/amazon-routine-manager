@@ -983,18 +983,14 @@ function renderReviews(orders) {
   container.innerHTML = reviewOrders.map(o => {
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80';
     
-    // Per il Barattolo: consegna domani -> totale 11 giorni
-    if (o.product_title && o.product_title.toLowerCase().includes('barattolo')) {
-      if (!o.delivery_info) o.delivery_info = 'Domani';
-    }
-
-    const startIso = o.confirmation_sent_at || o.order_date || new Date().toISOString();
-    let targetIso = o.review_target_date;
+    // Rileva se il pacco è già stato consegnato (oppure se la data stimata è oggi o passata)
+    const isDelivered = (o.delivery_info === 'Consegnato' || (o.estimated_delivery_date && new Date(o.estimated_delivery_date) <= new Date()));
     
-    if (o.delivery_info === 'Domani' && (!targetIso || new Date(targetIso).getTime() - new Date(startIso).getTime() <= 10.5 * 86400000)) {
-      targetIso = new Date(new Date(startIso).getTime() + 11 * 86400000).toISOString();
-    } else if (!targetIso) {
-      targetIso = (o.confirmation_sent_at ? new Date(new Date(o.confirmation_sent_at).getTime() + 10*86400000).toISOString() : new Date(new Date(o.order_date).getTime() + 10*86400000).toISOString());
+    // Il punto di partenza dei 10 giorni esatti è la consegna (o conferma)
+    const startIso = o.estimated_delivery_date || o.confirmation_sent_at || o.order_date || new Date().toISOString();
+    let targetIso = o.review_target_date;
+    if (!targetIso || targetIso.includes('09-03') && isDelivered) {
+      targetIso = new Date(new Date(startIso).getTime() + 10 * 86400000).toISOString();
     }
     const isSubmitted = o.status === 'review_submitted' || o.status === 'reimbursed';
 
@@ -1013,7 +1009,8 @@ function renderReviews(orders) {
              data-review-order-id="${o.id}"
              data-target-date="${targetIso}"
              data-start-date="${startIso}"
-             data-delivery-info="${escapeHtml(o.delivery_info || '')}"
+             data-delivery-info="${isDelivered ? 'Consegnato' : escapeHtml(o.delivery_info || '')}"
+             data-is-delivered="${isDelivered ? 'true' : 'false'}"
              data-status="${o.status}">
           <div>
             <!-- Header Card con Immagine & Timer Badge -->
@@ -1045,7 +1042,7 @@ function renderReviews(orders) {
             <div class="mt-4 p-3 rounded-xl bg-brand-bg border border-brand-border">
               <div class="flex items-center justify-between text-xs text-slate-300 mb-1.5 font-bold">
                 <span class="flex items-center gap-1.5">
-                  <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> ${o.delivery_info ? 'Conto alla Rovescia (Arrivo ' + escapeHtml(o.delivery_info) + ' + 10gg)' : 'Conto alla Rovescia (10gg)'}
+                  <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> ${isDelivered ? 'Conto alla Rovescia (10gg dalla Consegna)' : 'Conto alla Rovescia (Arrivo ' + escapeHtml(o.delivery_info || 'Previsto') + ' + 10gg)'}
                 </span>
                 <span class="review-countdown-text font-extrabold text-purple-300 font-mono">
                   Calcolo...
@@ -1054,10 +1051,17 @@ function renderReviews(orders) {
               <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
                 <div class="review-progress-bar h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300" style="width: 10%"></div>
               </div>
-              <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400">
+              <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400 flex-wrap gap-2">
                 <span class="review-progress-pct font-bold">0% completato</span>
-                <div class="flex items-center gap-2">
-                  <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer di prova" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
+                <div class="flex items-center gap-3">
+                  ${!isDelivered ? `
+                    <button onclick="markOrderDelivered(${o.id})" title="Segna il pacco come consegnato oggi per iniziare subito i 10 giorni" class="text-[11px] text-emerald-400 hover:text-emerald-300 font-extrabold flex items-center gap-1 transition-colors">
+                      <i class="fa-solid fa-box-open"></i> Pacco Arrivato Oggi
+                    </button>
+                  ` : `
+                    <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Consegnato</span>
+                  `}
+                  <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer a 10 giorni esatti da adesso" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
                     🔄 Reset Timer
                   </button>
                 </div>
@@ -1121,11 +1125,12 @@ function updateReviewLiveTimers() {
     const startIso = card.dataset.startDate;
     const status = card.dataset.status;
     const deliveryInfo = card.dataset.deliveryInfo;
+    const isDelivered = card.dataset.isDelivered === 'true';
 
     const targetMs = targetIso ? new Date(targetIso).getTime() : now + 10 * 86400000;
     const startMs = startIso ? new Date(startIso).getTime() : targetMs - 10 * 86400000;
     const totalDurationMs = Math.max(1000, targetMs - startMs);
-    const totalDays = Math.max(10, Math.round(totalDurationMs / 86400000));
+    const totalDays = 10; // Il conto alla rovescia è sempre e rigorosamente di 10 giorni
 
     const diffMs = targetMs - now;
     const elapsedMs = Math.max(0, now - startMs);
@@ -1181,7 +1186,7 @@ function updateReviewLiveTimers() {
         progressBarEl.className = 'review-progress-bar h-full bg-emerald-500 transition-all duration-300';
         progressBarEl.style.width = '100%';
       }
-      if (progressPctEl) progressPctEl.innerText = `100% (${totalDays} giorni trascorsi)`;
+      if (progressPctEl) progressPctEl.innerText = `100% (10 giorni trascorsi)`;
 
       if (btnScreen) {
         btnScreen.disabled = false;
@@ -1200,12 +1205,12 @@ function updateReviewLiveTimers() {
       const minutes = Math.floor((totalSec % 3600) / 60);
       const seconds = totalSec % 60;
 
-      const currentDay = Math.min(totalDays, Math.max(1, Math.floor(elapsedMs / 86400000) + 1));
+      const currentDay = Math.min(10, Math.max(1, Math.floor(elapsedMs / 86400000) + 1));
       const progressPct = Math.min(99.9, Math.max(2, (elapsedMs / totalDurationMs) * 100)).toFixed(1);
 
       if (badgeEl) {
         badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-purple-500/20 text-purple-300 border border-purple-500/40';
-        badgeEl.innerText = `Giorno ${currentDay}/${totalDays}`;
+        badgeEl.innerText = `Giorno ${currentDay}/10`;
       }
       if (countdownEl) {
         countdownEl.className = 'review-countdown-text font-extrabold text-purple-300 font-mono tracking-tight';
@@ -1216,14 +1221,14 @@ function updateReviewLiveTimers() {
         progressBarEl.style.width = `${progressPct}%`;
       }
       if (progressPctEl) {
-        const delivNote = deliveryInfo ? ` • 🚚 Arrivo: ${deliveryInfo}` : '';
+        const delivNote = isDelivered ? ' • 📦 Consegnato' : (deliveryInfo ? ` • 🚚 Arrivo: ${deliveryInfo}` : '');
         progressPctEl.innerText = `${progressPct}% trascorso (${days} giorni e ${hours}h rimasti${delivNote})`;
       }
 
       if (btnScreen) {
         btnScreen.disabled = true;
         btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
-        btnScreen.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Screen (Giorno ${currentDay}/${totalDays})`;
+        btnScreen.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Screen (Giorno ${currentDay}/10)`;
       }
       if (btnSend) {
         btnSend.disabled = true;
@@ -1244,6 +1249,19 @@ async function fastForwardOrderTimer(orderId) {
     }
   } catch (err) {
     showToast('Errore durante l\'avanzamento timer', true);
+  }
+}
+
+async function markOrderDelivered(orderId) {
+  try {
+    const res = await fetch(`/api/orders/${orderId}/mark-delivered`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Pacco segnato come Consegnato! I 10 giorni partono da oggi.');
+      loadOrders();
+    }
+  } catch (err) {
+    showToast('Errore durante l\'aggiornamento consegna', true);
   }
 }
 

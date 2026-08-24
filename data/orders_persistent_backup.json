@@ -11,7 +11,7 @@
     "status": "waiting_review",
     "order_date": "2026-08-23T14:17:04.069733",
     "estimated_delivery_date": "2026-08-24T20:17:04.069733",
-    "delivery_info": "Domani",
+    "delivery_info": "Consegnato",
     "confirmation_screen_url": "/screenshots/screen_404_1867984_8717122.jpg",
     "confirmation_sent_at": "2026-08-23T14:17:04.069733",
     "review_target_date": "2026-09-03T20:17:04.069733",
@@ -20,6 +20,6 @@
     "review_submitted_at": null,
     "review_screen_url": null,
     "refunded_at": null,
-    "is_test": true
+    "is_test": false
   }
 ]

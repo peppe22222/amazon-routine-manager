@@ -1377,6 +1377,20 @@ def fast_forward_order_timer(order_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"success": True, "message": "Timer avanzato a 10 giorni! Recensione sbloccata."}
 
+@app.post("/api/orders/{order_id}/mark-delivered")
+def mark_order_delivered(order_id: int, db: Session = Depends(get_db)):
+    """Segna l'ordine come consegnato e fa partire il countdown esatto di 10 giorni da oggi"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    now = datetime.utcnow()
+    order.delivery_info = "Consegnato"
+    order.estimated_delivery_date = now
+    order.review_target_date = now + timedelta(days=10)
+    db.commit()
+    save_orders_backup(db)
+    return {"success": True, "message": "Pacco segnato come Consegnato! Il conto alla rovescia di 10 giorni è iniziato da oggi."}
+
 @app.post("/api/orders/{order_id}/reset-timer")
 def reset_order_timer(order_id: int, db: Session = Depends(get_db)):
     """Reimposta il timer a 10 giorni da adesso"""
@@ -1385,12 +1399,10 @@ def reset_order_timer(order_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     now = datetime.utcnow()
     order.confirmation_sent_at = now
-    if order.estimated_delivery_date and order.estimated_delivery_date > now:
-        order.review_target_date = order.estimated_delivery_date + timedelta(days=10)
-        msg = f"Timer reimpostato: 10 giorni a partire dalla consegna ({order.delivery_info or 'prevista'})!"
-    else:
-        order.review_target_date = now + timedelta(days=10)
-        msg = "Timer reimpostato a 10 giorni da adesso!"
+    order.delivery_info = "Consegnato"
+    order.estimated_delivery_date = now
+    order.review_target_date = now + timedelta(days=10)
+    msg = "Timer reimpostato a 10 giorni esatti da oggi (Consegnato)!"
     db.commit()
     save_orders_backup(db)
     return {"success": True, "message": msg}
