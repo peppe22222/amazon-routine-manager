@@ -631,72 +631,24 @@ def find_matching_order_for_offer(offer_title: str, orders: List[Order]) -> Opti
                         
     return None
 
-def seed_default_offers_if_empty(db: Session):
-    """Assicura la presenza delle offerte predefinite collegate agli ordini se il database offerte è vuoto"""
-    if db.query(Offer).count() == 0:
-        default_offers = [
-            Offer(
-                title="Barattolo per Caffè Ermetico in Acciaio Inox, 1.2 L con Cucchiaio Dosatore",
-                price_info="100% rimborso (tasse coperte)",
-                seller_contact="@alex8700",
-                image_url="/screenshots/prod_barattolo_caffe.jpg",
-                refund_pct=100.0,
-                taxes_covered=True,
-                channel_name="Articoli Addicted",
-                status="purchased",
-                created_at=datetime.utcnow() - timedelta(hours=3)
-            ),
-            Offer(
-                title="Power Bank 20000mAh PD3.0 QC4.0 22.5W Ricarica Rapida",
-                price_info="100% rimborso (tasse coperte)",
-                seller_contact="@alex8700",
-                image_url="/screenshots/prod_powerbank_20000mah.jpg",
-                refund_pct=100.0,
-                taxes_covered=True,
-                channel_name="Articoli Addicted",
-                status="purchased",
-                created_at=datetime.utcnow() - timedelta(hours=5)
-            ),
-            Offer(
-                title="Comodino Moderno Cilindrico 2 Ripiani con Vano Nascosto",
-                price_info="si paga 8,00€ - 10% (tasse coperte)",
-                seller_contact="@venditore_arredo",
-                image_url="https://images.unsplash.com/photo-1532372320572-cda25653a26d?auto=format&fit=crop&w=800&q=80",
-                refund_pct=100.0,
-                taxes_covered=True,
-                channel_name="Articoli Addicted",
-                status="new",
-                created_at=datetime.utcnow() - timedelta(hours=1)
-            ),
-            Offer(
-                title="Lavatappeti e Divani Portatile ad Aspirazione Profonda 650W",
-                price_info="si paga 20,00€ (tasse da verificare)",
-                seller_contact="@venditore_elettro",
-                image_url="https://images.unsplash.com/photo-1558317374-067fb5f30001?auto=format&fit=crop&w=800&q=80",
-                refund_pct=100.0,
-                taxes_covered=False,
-                channel_name="Articoli Addicted",
-                status="new",
-                created_at=datetime.utcnow() - timedelta(minutes=45)
-            ),
-            Offer(
-                title="Auricolari Bluetooth 5.3 con Cancellazione Rumore ANC e Custodia Ricarica",
-                price_info="100% rimborso (nessuna commissione)",
-                seller_contact="@tech_promo_deals",
-                image_url="https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=800&q=80",
-                refund_pct=100.0,
-                taxes_covered=True,
-                channel_name="Articoli Addicted",
-                status="new",
-                created_at=datetime.utcnow() - timedelta(minutes=20)
-            )
-        ]
-        db.add_all(default_offers)
-        db.commit()
+def cleanup_unwanted_demo_offers(db: Session):
+    """Rimuove le offerte dimostrative/simulate non sincronizzate dal canale Telegram reale"""
+    demo_titles = [
+        "Comodino Moderno Cilindrico 2 Ripiani con Vano Nascosto",
+        "Lavatappeti e Divani Portatile ad Aspirazione Profonda 650W",
+        "Auricolari Bluetooth 5.3 con Cancellazione Rumore ANC e Custodia Ricarica",
+        "Smartwatch Fitness Tracker con Cardiofrequenzimetro e Monitor Sonno"
+    ]
+    try:
+        deleted = db.query(Offer).filter(Offer.title.in_(demo_titles)).delete(synchronize_session=False)
+        if deleted > 0:
+            db.commit()
+    except Exception as e:
+        print(f"[Cleanup Error] {e}")
 
 @app.get("/api/offers")
 def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db: Session = Depends(get_db)):
-    seed_default_offers_if_empty(db)
+    cleanup_unwanted_demo_offers(db)
     
     query = db.query(Offer)
     if not include_dismissed:
