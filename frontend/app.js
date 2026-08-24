@@ -59,13 +59,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Timer live per conto alla rovescia recensioni (aggiorna solo i numeri dei secondi senza ricaricare la pagina)
   setInterval(updateReviewLiveTimers, 1000);
 
-  // Controllo automatico in background risposte e link di Alex ogni 20 secondi
+  // Controllo automatico in background risposte e link di Alex ogni 4 secondi
   setInterval(async () => {
-    const token = localStorage.getItem('amz_auth_token');
-    if (token && document.visibilityState === 'visible') {
+    if (document.visibilityState === 'visible') {
       await syncTelegramReplies(true);
     }
-  }, 20000);
+  }, 4000);
+
+  // Intercettazione immediata non appena torni sull'app da Telegram
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      syncTelegramReplies(true);
+      loadOrders();
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    syncTelegramReplies(true);
+  });
 
   // Gestione comparsa pulsante 'Torna all'inizio' allo scroll
   window.addEventListener('scroll', () => {
