@@ -25,7 +25,7 @@ from sqlalchemy import desc, or_
 from app.database import init_db, get_db, Offer, Order, Setting, ActivityLog, DATA_DIR
 from app.review_generator import generate_review
 from app.screenshot_service import generate_amazon_order_screenshot, SCREENSHOTS_DIR
-from app.telegram_service import telegram_service, scrape_telegram_channel_offers, is_title_duplicate, normalize_text_key
+from app.telegram_service import telegram_service, scrape_telegram_channel_offers, is_title_duplicate, normalize_text_key, get_product_dedup_key
 from app.email_service import create_order_from_data
 
 import hashlib
@@ -694,9 +694,63 @@ def prune_old_unrequested_offers(db: Session, max_new_offers: int = 50):
     except Exception as e:
         print(f"[Prune Error] {e}")
 
+def deduplicate_all_offers(db: Session):
+    """
+    Rimuove tassativamente e definitivamente qualsiasi offerta duplicata dal database.
+    Se esistono più schede per lo stesso prodotto:
+    1. Mantiene prioritariamente quella 'purchased' / 'link_received' / 'requested'
+    2. Se tutte 'new', mantiene la più recente con foto valida
+    3. Elimina definitivamente le copie dal database
+    """
+    try:
+        all_offers = db.query(Offer).order_by(desc(Offer.created_at), desc(Offer.id)).all()
+        if not all_offers:
+            return
+
+        orders = db.query(Order).filter(Order.status != "cancelled").all()
+        
+        seen_keys = {} # key -> offer_to_keep
+        to_delete_ids = set()
+
+        for off in all_offers:
+            matching_order = find_matching_order_for_offer(off.title, orders)
+            if matching_order:
+                key = f"order_{matching_order.id}"
+            else:
+                key = get_product_dedup_key(off.title)
+                if not key:
+                    key = f"id_{off.id}"
+
+            if key in seen_keys:
+                existing = seen_keys[key]
+                keep_current = False
+                if off.status in ["purchased", "link_received", "requested"] and existing.status == "new":
+                    keep_current = True
+                elif matching_order and not find_matching_order_for_offer(existing.title, orders):
+                    keep_current = True
+                elif not keep_current:
+                    if ('unsplash' in (existing.image_url or '')) and ('unsplash' not in (off.image_url or '')):
+                        keep_current = True
+
+                if keep_current:
+                    to_delete_ids.add(existing.id)
+                    seen_keys[key] = off
+                else:
+                    to_delete_ids.add(off.id)
+            else:
+                seen_keys[key] = off
+
+        if to_delete_ids:
+            db.query(Offer).filter(Offer.id.in_(list(to_delete_ids))).delete(synchronize_session=False)
+            db.commit()
+            print(f"[Deduplicate] Eliminate {len(to_delete_ids)} offerte duplicate dal database.")
+    except Exception as e:
+        print(f"[Deduplicate Error] {e}")
+
 @app.get("/api/offers")
 def get_offers(status: Optional[str] = None, include_dismissed: bool = False, db: Session = Depends(get_db)):
     cleanup_unwanted_demo_offers(db)
+    deduplicate_all_offers(db)
     prune_old_unrequested_offers(db)
     
     query = db.query(Offer)

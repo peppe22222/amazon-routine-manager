@@ -90,9 +90,19 @@ def normalize_text_key(text: str) -> str:
     clean = re.sub(r'[^\w\s]', ' ', text.lower())
     words = [w for w in clean.split() if len(w) > 1 and w not in [
         'per', 'con', 'del', 'della', 'delle', 'dei', 'degli', 'in', 'da', 'su', 'il', 'la', 'le', 'lo', 'gli', 
-        'un', 'una', 'uno', 'euro', 'tasse', 'forse', 'coperte', 'rimborso', 'feedback', 'recensione', 'prodotto', 'articolo'
+        'un', 'una', 'uno', 'euro', 'tasse', 'forse', 'coperte', 'rimborso', 'feedback', 'recensione', 'prodotto', 'articolo', 'offerta'
     ]]
     return " ".join(words)
+
+def get_product_dedup_key(title: str) -> str:
+    """Restituisce una chiave univoca normalizzata per raggruppare lo stesso identico prodotto"""
+    if not title:
+        return ""
+    norm = normalize_text_key(title)
+    words = norm.split()
+    if not words:
+        return re.sub(r'[^a-z0-9]', '', title.lower())
+    return "_".join(words[:5])
 
 def is_title_duplicate(title1: str, title2: str) -> bool:
     if not title1 or not title2:
@@ -101,17 +111,15 @@ def is_title_duplicate(title1: str, title2: str) -> bool:
     t2 = title2.strip().lower()
     if t1 == t2:
         return True
-    k1 = normalize_text_key(title1)
-    k2 = normalize_text_key(title2)
-    if not k1 or not k2:
-        return False
-    if k1 == k2:
+    k1 = get_product_dedup_key(title1)
+    k2 = get_product_dedup_key(title2)
+    if k1 and k2 and k1 == k2:
         return True
-    w1 = set(k1.split())
-    w2 = set(k2.split())
-    if len(w1) >= 3 and len(w2) >= 3:
+    w1 = set(normalize_text_key(title1).split())
+    w2 = set(normalize_text_key(title2).split())
+    if len(w1) >= 2 and len(w2) >= 2:
         common = w1.intersection(w2)
-        if (len(common) / max(len(w1), len(w2))) >= 0.85:
+        if (len(common) / max(len(w1), len(w2))) >= 0.75:
             return True
     return False
 
