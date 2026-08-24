@@ -708,134 +708,170 @@
   <!-- MODAL: IMPOSTAZIONI & CONFIGURAZIONE -->
   <!-- ========================================================================= -->
   <div id="modal-settings" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
-    <div class="glass-panel max-w-xl w-full p-5 md:p-6 rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
+    <div class="glass-panel max-w-lg w-full p-5 md:p-6 rounded-3xl max-h-[90vh] flex flex-col shadow-2xl border border-brand-border">
       <div class="flex justify-between items-center pb-3 border-b border-brand-border">
         <h3 class="text-sm md:text-base font-extrabold text-white flex items-center gap-2">
           <i class="fa-solid fa-sliders text-emerald-400"></i> Configurazione & Credenziali
         </h3>
-        <button onclick="closeModal('modal-settings')" class="w-8 h-8 rounded-lg bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center">
+        <button onclick="closeModal('modal-settings')" class="w-8 h-8 rounded-xl bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center transition-colors">
           <i class="fa-solid fa-xmark text-base"></i>
         </button>
       </div>
-      <form id="form-settings" class="my-4 space-y-4 overflow-y-auto flex-1 text-xs">
+      <form id="form-settings" class="my-4 space-y-3.5 overflow-y-auto flex-1 text-xs pr-1 custom-scrollbar">
         
-        <!-- Modalità Test -->
-        <div class="p-3.5 rounded-xl bg-brand-bg border border-brand-border flex items-center justify-between">
+        <!-- Modalità Sandbox Switch iOS Style -->
+        <div class="p-3.5 rounded-2xl bg-brand-bg border border-brand-border flex items-center justify-between shadow-sm">
           <div>
-            <p class="font-bold text-white text-sm">Modalità Sandbox (Test Sicuro)</p>
-            <p class="text-slate-400 text-[11px] mt-0.5">Se attiva, i messaggi vengono registrati internamente senza invii a persone reali.</p>
+            <p class="font-extrabold text-white text-xs md:text-sm flex items-center gap-1.5">
+              <i class="fa-solid fa-flask-vial text-amber-400"></i> Modalità Sandbox (Test Sicuro)
+            </p>
+            <p class="text-slate-400 text-[11px] mt-0.5">Se attiva, i test e i messaggi non vengono inviati a persone reali.</p>
           </div>
-          <input type="checkbox" id="set_test_mode" onchange="toggleSandboxDirect(this.checked)" checked class="w-5 h-5 rounded text-emerald-500 bg-brand-card border-brand-border focus:ring-0 cursor-pointer">
+          <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+            <input type="checkbox" id="set_test_mode" onchange="toggleSandboxDirect(this.checked)" checked class="sr-only peer">
+            <div class="w-11 h-6 bg-slate-800 border border-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 peer-checked:border-emerald-400"></div>
+          </label>
         </div>
 
-        <!-- Telegram Account -->
-        <div class="space-y-3 p-3.5 rounded-xl bg-brand-bg border border-brand-border">
+        <!-- Canale Operativo Telegram & Account Live -->
+        <div class="space-y-3 p-3.5 rounded-2xl bg-brand-bg border border-brand-border shadow-sm">
+          
+          <!-- Canale Attivo Offerte -->
+          <div class="flex items-center justify-between pb-3 border-b border-brand-border/60">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/40 flex items-center justify-center text-sm shrink-0">
+                <i class="fa-brands fa-telegram"></i>
+              </div>
+              <div>
+                <p class="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Canale Operativo Offerte</p>
+                <p id="set-active-channel-name" class="text-xs font-mono font-extrabold text-emerald-300">Articoli Addicted</p>
+              </div>
+            </div>
+            <button type="button" onclick="openChangeChannelModal()" class="px-3 py-1.5 rounded-xl bg-brand-surface hover:bg-brand-card border border-brand-border text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm">
+              <i class="fa-solid fa-pen-to-square text-blue-400"></i> Modifica
+            </button>
+          </div>
+
+          <!-- Stato Connessione Account Telegram -->
           <div class="flex items-center justify-between">
-            <p class="font-bold text-blue-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-              <i class="fa-brands fa-telegram text-base"></i> Account Telegram Live
+            <p class="font-bold text-slate-300 text-[11px] flex items-center gap-1.5">
+              <i class="fa-solid fa-user-shield text-blue-400"></i> Account Telegram
             </p>
-            <span id="set-tg-status-tag" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">Verifica in corso...</span>
+            <span id="set-tg-status-tag" class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">Verifica...</span>
           </div>
           
+          <!-- Box Connesso -->
           <div id="set-tg-connected-box" class="hidden p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
             <div>
               <p class="text-xs font-bold text-emerald-300" id="set-tg-user-name">Connesso</p>
               <p class="text-[11px] text-slate-300" id="set-tg-user-phone"></p>
             </div>
-            <button type="button" onclick="telegramLogout()" class="px-2.5 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-bold">
+            <button type="button" onclick="telegramLogout()" class="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 text-xs font-bold transition-colors">
               Disconnetti
             </button>
           </div>
 
+          <!-- Box Login (visibile solo se disconnesso) -->
           <div id="set-tg-login-box" class="space-y-2">
             <div>
-              <label class="text-slate-300 text-[11px] font-bold">Numero di Telefono (con prefisso es. +39...)</label>
+              <label class="text-slate-300 text-[11px] font-bold">Numero di Telefono (es. +39...)</label>
               <div class="flex items-center gap-2 mt-1">
-                <input type="tel" id="set_telegram_phone" placeholder="+393331234567" class="flex-1 bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-mono text-xs">
-                <button type="button" onclick="sendTelegramAuthCodeFromSettings()" id="btn-set-send-code" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shrink-0 shadow-sm">
+                <input type="tel" id="set_telegram_phone" placeholder="+393331234567" class="flex-1 bg-brand-surface border border-brand-border rounded-xl p-2 text-white font-mono text-xs focus:border-blue-500 focus:outline-none">
+                <button type="button" onclick="sendTelegramAuthCodeFromSettings()" id="btn-set-send-code" class="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs shrink-0 shadow-sm">
                   Invia Codice
                 </button>
               </div>
             </div>
 
             <div id="set-tg-code-box" class="hidden space-y-2 pt-2 border-t border-brand-border/60">
-              <p class="text-[11px] text-blue-300">Inserisci il codice ricevuto su Telegram o SMS:</p>
+              <p class="text-[11px] text-blue-300">Inserisci il codice ricevuto su Telegram:</p>
               <div class="grid grid-cols-2 gap-2">
                 <div>
                   <label class="text-slate-400 text-[10px]">Codice (5 cifre)</label>
-                  <input type="text" id="set_telegram_code" placeholder="12345" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white font-mono font-bold text-xs mt-1 text-center">
+                  <input type="text" id="set_telegram_code" placeholder="12345" class="w-full bg-brand-surface border border-brand-border rounded-xl p-2 text-white font-mono font-bold text-xs mt-1 text-center">
                 </div>
                 <div>
                   <label class="text-slate-400 text-[10px]">Password 2FA (se attiva)</label>
-                  <input type="password" id="set_telegram_2fa" placeholder="2FA opzionale" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white text-xs mt-1">
+                  <input type="password" id="set_telegram_2fa" placeholder="2FA opzionale" class="w-full bg-brand-surface border border-brand-border rounded-xl p-2 text-white text-xs mt-1">
                 </div>
               </div>
-              <button type="button" onclick="verifyTelegramAuthCodeFromSettings()" class="w-full py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md">
+              <button type="button" onclick="verifyTelegramAuthCodeFromSettings()" class="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md">
                 Verifica & Connetti Account
               </button>
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-2 pt-2 border-t border-brand-border/40">
-            <div>
-              <label class="text-slate-400 text-[10px]">API ID (Avanzato)</label>
-              <input type="text" id="set_telegram_api_id" class="w-full bg-brand-surface border border-brand-border rounded-lg p-1.5 text-white font-mono text-xs mt-0.5">
+          <!-- Credenziali Avanzate Telegram in Accordion a scomparsa -->
+          <details class="pt-1 text-[11px] group">
+            <summary class="text-slate-400 hover:text-slate-200 cursor-pointer font-semibold select-none flex items-center justify-between py-1">
+              <span class="flex items-center gap-1.5">
+                <i class="fa-solid fa-code text-[10px] text-slate-500"></i> Parametri API Telegram (Avanzato)
+              </span>
+              <i class="fa-solid fa-chevron-down text-slate-500 text-[9px] group-open:rotate-180 transition-transform"></i>
+            </summary>
+            <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-brand-border/40">
+              <div>
+                <label class="text-slate-400 text-[10px]">API ID</label>
+                <input type="text" id="set_telegram_api_id" class="w-full bg-brand-surface border border-brand-border rounded-lg p-1.5 text-white font-mono text-xs mt-0.5">
+              </div>
+              <div>
+                <label class="text-slate-400 text-[10px]">API Hash</label>
+                <input type="text" id="set_telegram_api_hash" class="w-full bg-brand-surface border border-brand-border rounded-lg p-1.5 text-white font-mono text-xs mt-0.5">
+              </div>
             </div>
-            <div>
-              <label class="text-slate-400 text-[10px]">API Hash (Avanzato)</label>
-              <input type="text" id="set_telegram_api_hash" class="w-full bg-brand-surface border border-brand-border rounded-lg p-1.5 text-white font-mono text-xs mt-0.5">
-            </div>
-          </div>
+          </details>
         </div>
 
-        <!-- Email IMAP -->
-        <div class="space-y-2 p-3.5 rounded-xl bg-brand-bg border border-brand-border">
-          <p class="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">Monitoraggio Ricevute Amazon via Email (Opzionale)</p>
-          <div class="grid grid-cols-2 gap-2">
+        <!-- Email IMAP in Accordion Richiudibile -->
+        <details class="p-3.5 rounded-2xl bg-brand-bg border border-brand-border shadow-sm group">
+          <summary class="text-xs font-bold text-slate-300 hover:text-white cursor-pointer select-none flex items-center justify-between">
+            <span class="flex items-center gap-2">
+              <i class="fa-solid fa-envelope text-emerald-400"></i> Monitoraggio Email Ricevute Amazon (Opzionale)
+            </span>
+            <i class="fa-solid fa-chevron-down text-slate-500 text-[10px] group-open:rotate-180 transition-transform"></i>
+          </summary>
+          <div class="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-brand-border/60">
             <div>
-              <label class="text-slate-400">Email Amazon</label>
-              <input type="email" id="set_email_user" placeholder="tua@gmail.com" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white mt-1">
+              <label class="text-slate-400 text-[11px]">Email Amazon</label>
+              <input type="email" id="set_email_user" placeholder="tua@gmail.com" class="w-full bg-brand-surface border border-brand-border rounded-xl p-2 text-white mt-1 text-xs">
             </div>
             <div>
-              <label class="text-slate-400">Password App / IMAP</label>
-              <input type="password" id="set_email_password" class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white mt-1">
+              <label class="text-slate-400 text-[11px]">Password App / IMAP</label>
+              <input type="password" id="set_email_password" class="w-full bg-brand-surface border border-brand-border rounded-xl p-2 text-white mt-1 text-xs">
             </div>
           </div>
-        </div>
+        </details>
 
         <!-- Password & Sicurezza Accesso -->
-        <div class="space-y-2.5 p-3.5 rounded-xl bg-brand-bg border border-brand-border">
+        <div class="space-y-2.5 p-3.5 rounded-2xl bg-brand-bg border border-brand-border shadow-sm">
           <div class="flex items-center justify-between">
             <p class="font-bold text-amber-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
-              <i class="fa-solid fa-key"></i> Modifica Password / PIN di Accesso
+              <i class="fa-solid fa-key"></i> Password / PIN di Accesso App
             </p>
           </div>
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="text-slate-400 text-[11px]">Password Attuale</label>
-              <input type="password" id="set_old_password" placeholder="Password attuale..." class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white text-xs mt-1">
+              <input type="password" id="set_old_password" placeholder="Password attuale..." class="w-full bg-brand-surface border border-brand-border rounded-xl p-2 text-white text-xs mt-1">
             </div>
             <div>
               <label class="text-slate-400 text-[11px]">Nuova Password / PIN</label>
-              <input type="password" id="set_new_password" placeholder="Nuova password..." class="w-full bg-brand-surface border border-brand-border rounded-lg p-2 text-white text-xs mt-1">
+              <input type="password" id="set_new_password" placeholder="Nuova password..." class="w-full bg-brand-surface border border-brand-border rounded-xl p-2 text-white text-xs mt-1">
             </div>
           </div>
-          <button type="button" onclick="changeAdminPassword()" class="w-full py-2 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5">
+          <button type="button" onclick="changeAdminPassword()" class="w-full py-2 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm">
             <i class="fa-solid fa-lock"></i> Aggiorna Password di Sicurezza
           </button>
         </div>
 
       </form>
-      <div class="flex flex-wrap justify-between items-center pt-3 border-t border-brand-border gap-2">
-        <button onclick="saveSettings()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40">
-          Salva Configurazione
+      <div class="flex items-center justify-between pt-3 border-t border-brand-border gap-2">
+        <button onclick="saveSettings()" class="px-5 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-950/60 transition-all active:scale-95">
+          Salva Modifiche
         </button>
-        <div class="flex items-center gap-2">
-          <button onclick="closeModal('modal-settings'); handleAuthLogout();" class="px-3.5 py-2.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/40 text-rose-300 text-xs font-bold flex items-center gap-1.5 transition-all">
-            <i class="fa-solid fa-right-from-bracket"></i> Disconnetti
-          </button>
-          <button onclick="closeModal('modal-settings')" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">Chiudi</button>
-        </div>
+        <button onclick="closeModal('modal-settings')" class="px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold transition-colors">
+          Chiudi
+        </button>
       </div>
     </div>
   </div>

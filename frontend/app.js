@@ -3229,8 +3229,10 @@ async function loadActiveChannel() {
     if (!res.ok) return;
     const data = await res.json();
     const badge = document.getElementById('active-channel-badge');
+    const setBadge = document.getElementById('set-active-channel-name');
     const input = document.getElementById('input-channel-name');
     if (badge) badge.innerText = data.channel_name;
+    if (setBadge) setBadge.innerText = data.channel_name;
     if (input) input.value = data.channel_name;
   } catch (err) {
     console.error('Errore caricamento canale:', err);
@@ -3238,9 +3240,11 @@ async function loadActiveChannel() {
 }
 
 function openChangeChannelModal() {
+  const setBadge = document.getElementById('set-active-channel-name');
   const badge = document.getElementById('active-channel-badge');
   const input = document.getElementById('input-channel-name');
-  if (badge && input) input.value = badge.innerText;
+  const currentName = (setBadge ? setBadge.innerText : (badge ? badge.innerText : 'Articoli Addicted'));
+  if (input) input.value = currentName;
   document.getElementById('modal-change-channel').classList.remove('hidden');
 }
 
