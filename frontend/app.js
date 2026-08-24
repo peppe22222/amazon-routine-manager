@@ -1335,7 +1335,7 @@ function renderRefunds(orders) {
               <div class="flex items-center gap-2">
                 <span class="text-xs font-mono text-slate-300 font-bold">${(o.order_number && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending')) ? o.order_number : ''}</span>
                 <span class="text-[11px] px-2.5 py-0.5 rounded-md ${isReimbursed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} font-extrabold uppercase">
-                  ${isReimbursed ? '✓ Rimborso Saldato' : '⏳ In Attesa PayPal'}
+                  ${isReimbursed ? '✓ Rimborso Saldato' : (o.status === 'review_submitted' ? '⏳ In Attesa PayPal' : '⏳ In Attesa di Recensione')}
                 </span>
                 <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina rimborso (o fai swipe a sinistra)" class="ml-2 text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
                   <i class="fa-solid fa-trash-can text-xs"></i>
