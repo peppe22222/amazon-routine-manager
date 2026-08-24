@@ -1,6 +1,26 @@
 // Amazon Routine Manager - Frontend Controller
 // Versione con Zoom Lightbox Interattivo e Lettura ad Alto Contrasto
 
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function escapeJsString(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, ' ')
+    .replace(/\r/g, '');
+}
+
 let currentTab = 'offers';
 let currentActiveOrderId = null;
 
@@ -457,7 +477,7 @@ async function loadOffers() {
         }">
           
           <!-- Product Image Container with Complete Visibility (No Cropping) -->
-          <div class="relative w-full h-64 bg-slate-950 flex items-center justify-center overflow-hidden group cursor-pointer border-b border-slate-800" onclick="openLightboxFromSrc('${imgUrl}', '${escapeHtml(o.title)}', 'Condizioni: ${escapeHtml(o.price_info || '')}')">
+          <div class="relative w-full h-64 bg-slate-950 flex items-center justify-center overflow-hidden group cursor-pointer border-b border-slate-800" onclick="openLightboxFromSrc('${imgUrl}', '${escapeJsString(o.title)}', 'Condizioni: ${escapeJsString(o.price_info || '')}')">
             <img src="${imgUrl}" alt="${escapeHtml(o.title)}" class="max-h-full max-w-full w-auto h-auto object-contain p-2 group-hover:scale-105 transition-transform duration-300">
             
             <!-- Badges top -->
@@ -509,7 +529,7 @@ async function loadOffers() {
                     <i class="fa-solid fa-chevron-down text-[8px]"></i> Tocca per espandere
                   </span>
                 </div>
-                <button onclick="event.stopPropagation(); quickEditOfferTitle(${o.id}, '${escapeHtml(o.title).replace(/'/g, "\\'")}')" title="Modifica Nome Articolo" class="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 border border-slate-700/80 text-xs transition-colors shrink-0 shadow-sm">
+                <button onclick="event.stopPropagation(); quickEditOfferTitle(${o.id}, '${escapeJsString(o.title)}')" title="Modifica Nome Articolo" class="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-emerald-400 border border-slate-700/80 text-xs transition-colors shrink-0 shadow-sm">
                   <i class="fa-solid fa-pen-to-square"></i>
                 </button>
               </div>
@@ -807,7 +827,7 @@ function renderApprovedLinks(orders) {
       <div class="glass-card rounded-2xl p-5 border ${isApproved ? 'border-cyan-500/40 bg-gradient-to-r from-cyan-950/20 via-brand-surface to-brand-card' : 'border-amber-500/30'} flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg relative z-10 bg-brand-surface">
         <!-- Sinistra: Foto Prodotto + Dati -->
         <div class="flex items-start gap-4 flex-1">
-          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Contatto: ${seller}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
+          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Contatto: ${escapeJsString(seller)}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
             <img src="${prodImg}" alt="Foto Prodotto" class="max-w-full max-h-full object-contain p-1 group-hover:scale-110 transition-transform">
             <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
               <i class="fa-solid fa-magnifying-glass-plus text-base"></i>
@@ -839,7 +859,7 @@ function renderApprovedLinks(orders) {
                 <a href="${o.amazon_url}" target="_blank" class="text-xs text-cyan-300 hover:text-cyan-200 underline font-mono truncate max-w-xs md:max-w-md flex items-center gap-1">
                   <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${o.amazon_url}
                 </a>
-                <button onclick="copyToClipboard('${o.amazon_url}', 'Link Amazon copiato negli appunti!')" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs" title="Copia link">
+                <button onclick="copyToClipboard('${escapeJsString(o.amazon_url)}', 'Link Amazon copiato negli appunti!')" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs" title="Copia link">
                   <i class="fa-regular fa-copy"></i>
                 </button>
               </div>
@@ -853,23 +873,23 @@ function renderApprovedLinks(orders) {
             <a href="${o.amazon_url}" target="_blank" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-950/60 transition-all active:scale-95">
               <i class="fa-solid fa-cart-arrow-down text-sm"></i> Apri & Compra su Amazon
             </a>
-            <button onclick="markOrderAsPurchased(${o.id}, '${escapeHtml(o.product_title || '')}')" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-amber-950/60 transition-all active:scale-95">
+            <button onclick="markOrderAsPurchased(${o.id}, '${escapeJsString(o.product_title || '')}')" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-amber-950/60 transition-all active:scale-95">
               <i class="fa-solid fa-receipt text-sm"></i> Ho Acquistato
             </button>
-            <button onclick="openManualLinkModal(${o.id}, '${escapeHtml(o.product_title || '')}', '${escapeHtml(o.amazon_url || '')}')" title="Modifica Link" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
+            <button onclick="openManualLinkModal(${o.id}, '${escapeJsString(o.product_title || '')}', '${escapeJsString(o.amazon_url || '')}')" title="Modifica Link" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
               <i class="fa-solid fa-pen text-xs"></i> Modifica Link
             </button>
           ` : `
             <button onclick="pasteAmazonLinkDirectly(${o.id})" class="px-3.5 py-2.5 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/50 border border-emerald-500/50 text-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95" title="Incolla al volo il link dagli appunti">
               <i class="fa-regular fa-paste text-sm text-emerald-400"></i> Incolla dagli Appunti
             </button>
-            <button onclick="openManualLinkModal(${o.id}, '${escapeHtml(o.product_title || '')}', '')" class="px-3.5 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-cyan-200 text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all active:scale-95">
+            <button onclick="openManualLinkModal(${o.id}, '${escapeJsString(o.product_title || '')}', '')" class="px-3.5 py-2.5 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/50 border border-cyan-500/50 text-cyan-200 text-xs font-extrabold flex items-center gap-1.5 shadow-md transition-all active:scale-95">
               <i class="fa-solid fa-link text-sm"></i> Inserisci Link
             </button>
             <button onclick="syncTelegramReplies()" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold flex items-center gap-1.5 transition-all" title="Verifica subito se Alex ha inviato il link">
               <i class="fa-brands fa-telegram"></i> Controlla Telegram
             </button>
-            <button onclick="markOrderAsPurchased(${o.id}, '${escapeHtml(o.product_title || '')}')" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <button onclick="markOrderAsPurchased(${o.id}, '${escapeJsString(o.product_title || '')}')" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all">
               <i class="fa-solid fa-forward-step text-amber-400"></i> Salta ad Acquisto
             </button>
           `}
@@ -1172,7 +1192,7 @@ function renderConfirmations(orders) {
           <!-- Sinistra: Foto Prodotto + Dati Ordine -->
           <div class="flex items-start gap-4 flex-1">
             <!-- Thumbnail Prodotto Zoomabile -->
-            <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Numero Ordine: ${cleanOrderNum}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
+            <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Numero Ordine: ${escapeJsString(cleanOrderNum)}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
               <img src="${prodImg}" alt="Foto Prodotto" class="max-w-full max-h-full object-contain p-1 group-hover:scale-110 transition-transform">
               <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
                 <i class="fa-solid fa-magnifying-glass-plus text-base"></i>
@@ -1183,10 +1203,10 @@ function renderConfirmations(orders) {
             <!-- Dettagli Ordine & Venditore -->
             <div class="flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg ${isRealOrderNumber ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400 border border-slate-700'} cursor-pointer" onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeHtml(cleanOrderNum) : ''}')" title="Clicca per inserire o modificare il tuo vero numero d'ordine Amazon">
+                <span class="text-xs font-mono font-extrabold px-2.5 py-1 rounded-lg ${isRealOrderNumber ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' : 'bg-slate-800 text-slate-400 border border-slate-700'} cursor-pointer" onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeJsString(cleanOrderNum) : ''}')" title="Clicca per inserire o modificare il tuo vero numero d'ordine Amazon">
                   ${isRealOrderNumber ? cleanOrderNum : 'In attesa N° Ordine'}
                 </span>
-                <button onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeHtml(cleanOrderNum) : ''}')" title="Modifica Numero Ordine Amazon" class="px-2 py-1 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold flex items-center gap-1 border border-amber-500/30">
+                <button onclick="editOrderNumber(${o.id}, '${isRealOrderNumber ? escapeJsString(cleanOrderNum) : ''}')" title="Modifica Numero Ordine Amazon" class="px-2 py-1 rounded-md bg-amber-500/10 hover:bg-amber-500/25 text-amber-300 text-xs font-semibold flex items-center gap-1 border border-amber-500/30">
                   <i class="fa-solid fa-pen-to-square text-[10px]"></i> ${isRealOrderNumber ? 'Modifica N°' : 'Inserisci N°'}
                 </button>
                 ${isRealOrderNumber ? `
@@ -1306,7 +1326,7 @@ function renderReviews(orders) {
             <!-- Header Card con Immagine & Timer Badge -->
             <div class="flex items-start justify-between gap-3">
               <div class="flex items-center gap-3">
-                <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Ordine: ${o.order_number || ''}')" class="cursor-pointer relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
+                <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Ordine: ${escapeJsString(o.order_number || '')}')" class="cursor-pointer relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
                   <img src="${prodImg}" alt="Foto" class="max-w-full max-h-full object-contain p-0.5 group-hover:scale-110 transition-transform">
                   <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-[10px]">
                     <i class="fa-solid fa-magnifying-glass-plus"></i>
@@ -1650,7 +1670,7 @@ function renderRefunds(orders) {
         <div class="swipe-card-content glass-card rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border relative z-10 bg-brand-surface ${isReimbursed ? 'border-emerald-500/30' : 'border-blue-500/30'}">
           <div class="flex items-center gap-4">
             <!-- Thumbnail Prodotto Zoomabile -->
-            <div onclick="openLightboxFromSrc('${prodImg}', '${escapeHtml(o.product_title || 'Prodotto')}', 'Rimborso €${refundAmt}')" class="cursor-pointer relative w-14 h-14 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group">
+            <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Rimborso €${refundAmt}')" class="cursor-pointer relative w-14 h-14 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group">
               <img src="${prodImg}" alt="Foto" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
               <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-xs">
                 <i class="fa-solid fa-magnifying-glass-plus"></i>

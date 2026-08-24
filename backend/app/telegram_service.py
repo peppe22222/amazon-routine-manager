@@ -717,9 +717,9 @@ class TelegramManager:
             elif lines:
                 first_clean = re.sub(r'https?://\S+', '', lines[0])
                 first_clean = re.sub(r'@[a-zA-Z0-9_]+', '', first_clean).strip()
-                title = first_clean if len(first_clean) >= 4 else (f'Offerta Canale Telegram #{msg_id}' if msg_id else 'Prodotto in Offerta')
+                title = first_clean if len(first_clean) >= 4 else f'Offerta Canale Telegram #{primary_msg.id}'
             else:
-                title = f'Offerta Canale Telegram #{msg_id}' if msg_id else 'Prodotto in Offerta'
+                title = f'Offerta Canale Telegram #{primary_msg.id}'
 
             if condition_lines:
                 price_info = ' • '.join(condition_lines)
