@@ -1127,36 +1127,71 @@ class TelegramManager:
             if not pending_orders:
                 return {'success': True, 'updated_count': 0, 'message': 'Nessun ordine in attesa di link.'}
 
+            # Costruisce la lista completa dei target da controllare (Alex, seller_contact, e 'me' per massima compatibilità)
+            targets_to_check = []
             if test_mode:
-                target_list = ['me']
-            else:
-                targets_set = set()
-                if seller_handle and seller_handle.strip():
-                    targets_set.add(seller_handle.strip())
-                for o in pending_orders:
-                    if o.seller_contact and o.seller_contact.strip():
-                        clean_c = o.seller_contact.strip().replace('https://t.me/', '@').replace('http://t.me/', '@')
-                        if not clean_c.startswith('@') and not clean_c.startswith('+') and not clean_c.isdigit():
-                            clean_c = '@' + clean_c
-                        targets_set.add(clean_c)
-                if not targets_set:
-                    targets_set.add('@alex8700')
-                target_list = list(targets_set)
+                targets_to_check.append('me')
+            
+            # Aggiunge i contatti dei venditori degli ordini in sospeso
+            if seller_handle and seller_handle.strip():
+                targets_to_check.append(seller_handle.strip())
+            for o in pending_orders:
+                if o.seller_contact and o.seller_contact.strip():
+                    clean_c = o.seller_contact.strip().replace('https://t.me/', '@').replace('http://t.me/', '@')
+                    if not clean_c.startswith('@') and not clean_c.startswith('+') and not clean_c.isdigit():
+                        clean_c = '@' + clean_c
+                    if clean_c not in targets_to_check:
+                        targets_to_check.append(clean_c)
+            if '@alex8700' not in targets_to_check:
+                targets_to_check.append('@alex8700')
+            if 'me' not in targets_to_check:
+                targets_to_check.append('me')
+
+            # Cerca anche l'entità di Alex direttamente tra le conversazioni aperte (dialogs) dell'account
+            dialog_entities_map = {}
+            try:
+                async for d in client.iter_dialogs(limit=50):
+                    uname = getattr(d.entity, 'username', '') or ''
+                    dname = (d.name or '').lower()
+                    if uname:
+                        dialog_entities_map[f'@{uname.lower()}'] = d.entity
+                    if 'alex8700' in uname.lower() or 'alex' in dname:
+                        dialog_entities_map['alex_found'] = d.entity
+            except Exception as de:
+                print(f'[iter_dialogs sync warning] {de}')
 
             updated = 0
 
-            for target in target_list:
+            # Risolve le entità concrete
+            resolved_targets = []
+            for t in targets_to_check:
+                if t == 'me':
+                    try:
+                        me_ent = await client.get_entity('me')
+                        resolved_targets.append(('me', me_ent))
+                    except Exception:
+                        pass
+                else:
+                    t_lower = t.lower()
+                    if t_lower in dialog_entities_map:
+                        resolved_targets.append((t, dialog_entities_map[t_lower]))
+                    elif 'alex_found' in dialog_entities_map and ('alex' in t_lower or '8700' in t_lower):
+                        resolved_targets.append((t, dialog_entities_map['alex_found']))
+                    else:
+                        try:
+                            ent = await client.get_entity(t)
+                            if ent:
+                                resolved_targets.append((t, ent))
+                        except Exception as ent_err:
+                            print(f'[Telegram Get Entity Warning] Chat con {t}: {ent_err}')
+
+            for target_name, entity in resolved_targets:
                 if not pending_orders:
                     break
-                try:
-                    entity = await client.get_entity(target)
-                except Exception as ent_err:
-                    print(f'[Telegram Get Entity Warning] Chat con {target}: {ent_err}')
-                    continue
 
                 messages = []
                 async for m in client.iter_messages(entity, limit=40):
-                    is_valid_sender = (target == 'me') or (not m.out)
+                    is_valid_sender = (target_name == 'me') or (not m.out)
                     if not is_valid_sender:
                         continue
 
