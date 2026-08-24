@@ -9,12 +9,13 @@ from datetime import datetime, timedelta
 from collections import OrderedDict
 from PIL import Image
 from telethon import TelegramClient, events, errors
+from telethon.sessions import StringSession
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import or_, desc
 from app.database import Setting, ActivityLog, Order, Offer
 
 def create_album_collage(image_paths: list, output_path: str):
-    """Unisce più foto di uno stesso album Telegram in un'unica immagine collage pulita ad alta risoluzione"""
+    """Unisce piu foto di uno stesso album Telegram in un'unica immagine collage pulita ad alta risoluzione"""
     if not image_paths or len(image_paths) <= 1:
         return
     try:
@@ -22,7 +23,7 @@ def create_album_collage(image_paths: list, output_path: str):
         for p in image_paths:
             if os.path.exists(p):
                 try:
-                    imgs.append(Image.open(p).convert("RGB"))
+                    imgs.append(Image.open(p).convert('RGB'))
                 except Exception:
                     pass
         if not imgs:
@@ -32,77 +33,76 @@ def create_album_collage(image_paths: list, output_path: str):
         resized = []
         for im in imgs:
             im.thumbnail((target_w, target_h), Image.Resampling.LANCZOS)
-            bg = Image.new("RGB", (target_w, target_h), (10, 15, 29))
+            bg = Image.new('RGB', (target_w, target_h), (10, 15, 29))
             offset_x = (target_w - im.width) // 2
             offset_y = (target_h - im.height) // 2
             bg.paste(im, (offset_x, offset_y))
             resized.append(bg)
 
         if len(resized) == 2:
-            collage = Image.new("RGB", (target_w * 2, target_h), (10, 15, 29))
+            collage = Image.new('RGB', (target_w * 2, target_h), (10, 15, 29))
             collage.paste(resized[0], (0, 0))
             collage.paste(resized[1], (target_w, 0))
         elif len(resized) == 3:
-            collage = Image.new("RGB", (target_w * 3, target_h), (10, 15, 29))
+            collage = Image.new('RGB', (target_w * 3, target_h), (10, 15, 29))
             collage.paste(resized[0], (0, 0))
             collage.paste(resized[1], (target_w, 0))
             collage.paste(resized[2], (target_w * 2, 0))
         else:
-            collage = Image.new("RGB", (target_w * 2, target_h * 2), (10, 15, 29))
+            collage = Image.new('RGB', (target_w * 2, target_h * 2), (10, 15, 29))
             collage.paste(resized[0], (0, 0))
             collage.paste(resized[1], (target_w, 0))
-            collage.paste(resized[2], (0, target_h))
+            collage.paste(resized[2], (target_w * 2, 0))
             collage.paste(resized[3] if len(resized) > 3 else resized[0], (target_w, target_h))
 
-        collage.save(output_path, "JPEG", quality=90)
+        collage.save(output_path, 'JPEG', quality=90)
     except Exception as e:
-        print(f"[Collage create error] {e}")
+        print(f'[Collage create error] {e}')
 
 def extract_title_with_ai(image_path: str, gemini_key: str) -> str:
     """Utilizza Gemini Vision per estrarre il nome esatto del prodotto visibile sulla confezione/immagine"""
     if not gemini_key or not os.path.exists(image_path):
-        return ""
+        return ''
     try:
-        with open(image_path, "rb") as f:
-            img_b64 = base64.b64encode(f.read()).decode("utf-8")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+        with open(image_path, 'rb') as f:
+            img_b64 = base64.b64encode(f.read()).decode('utf-8')
+        url = f'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}'
         payload = {
-            "contents": [{
-                "parts": [
-                    {"text": "Leggi l'immagine del prodotto ed estrai il nome esatto del prodotto e la marca visibili sull'oggetto o confezione (es: 'Venalux Crema Vene Varicose', 'Diffusore Aromi Ultrasuoni'). Rispondi SOLO con il nome del prodotto in italiano (max 5-7 parole), senza commenti."},
-                    {"inline_data": {"mime_type": "image/jpeg", "data": img_b64}}
+            'contents': [{
+                'parts': [
+                    {'text': "Leggi l'immagine del prodotto ed estrai il nome esatto del prodotto e la marca visibili sull'oggetto o confezione (es: 'Venalux Crema Vene Varicose', 'Diffusore Aromi Ultrasuoni'). Rispondi SOLO con il nome del prodotto in italiano (max 5-7 parole), senza commenti."},
+                    {'inline_data': {'mime_type': 'image/jpeg', 'data': img_b64}}
                 ]
             }]
         }
         r = requests.post(url, json=payload, timeout=6)
         if r.status_code == 200:
             data = r.json()
-            txt = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "").strip()
+            txt = data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '').strip()
             if txt and len(txt) > 2:
                 return txt
     except Exception as e:
-        print(f"[AI Vision extract error] {e}")
-    return ""
+        print(f'[AI Vision extract error] {e}')
+    return ''
 
 def normalize_text_key(text: str) -> str:
     if not text:
-        return ""
-    clean = re.sub(r'[^\w\s]', ' ', text.lower())
+        return ''
+    clean = re.sub(r'[^a-zA-Z0-9\s]', ' ', text.lower())
     words = [w for w in clean.split() if len(w) > 1 and w not in [
         'per', 'con', 'del', 'della', 'delle', 'dei', 'degli', 'in', 'da', 'su', 'il', 'la', 'le', 'lo', 'gli', 
         'un', 'una', 'uno', 'euro', 'tasse', 'forse', 'coperte', 'rimborso', 'feedback', 'recensione', 'prodotto', 'articolo', 'offerta'
     ]]
-    return " ".join(words)
+    return ' '.join(words)
 
 def get_product_dedup_key(title: str) -> str:
-    """Restituisce una chiave univoca normalizzata per raggruppare lo stesso identico prodotto"""
     if not title:
-        return ""
+        return ''
     norm = normalize_text_key(title)
     words = norm.split()
     if not words:
         return re.sub(r'[^a-z0-9]', '', title.lower())
-    return "_".join(words[:5])
+    return '_'.join(words[:5])
 
 def is_title_duplicate(title1: str, title2: str) -> bool:
     if not title1 or not title2:
@@ -119,7 +119,7 @@ def is_title_duplicate(title1: str, title2: str) -> bool:
 
 def clean_html_text(raw_html: str) -> str:
     if not raw_html:
-        return ""
+        return ''
     text = re.sub(r'<br\s*/?>', '\n', raw_html, flags=re.IGNORECASE)
     text = re.sub(r'</p>', '\n', text, flags=re.IGNORECASE)
     text = re.sub(r'<[^>]+>', '', text)
@@ -130,8 +130,7 @@ def extract_refund_percentage(text: str) -> float:
     if not text:
         return 100.0
     clean = text.lower()
-    # 1. Cerca pattern tipo '80% rimborso' o 'rimborso 80%' o 'rimborso al 90%' o '50%'
-    pct_match = re.search(r'(?:rimborso\s*(?:al\s*)?([0-9]{1,3})\s*%)|(?:\b([0-9]{1,3})\s*%\s*(?:di\s*)?rimborso)', clean)
+    pct_match = re.search(r'(?:rimborso\s*(?:al\s*)?([0-9]{1,3})\s*%)|(?:\\b([0-9]{1,3})\s*%\s*(?:di\s*)?rimborso)', clean)
     if pct_match:
         val = pct_match.group(1) or pct_match.group(2)
         try:
@@ -140,7 +139,6 @@ def extract_refund_percentage(text: str) -> float:
                 return p
         except Exception:
             pass
-    # 2. Cerca qualsiasi percentuale generica 'XX%' se presente nel testo
     gen_pct = re.search(r'\b([0-9]{1,3})\s*%', clean)
     if gen_pct:
         try:
@@ -152,26 +150,22 @@ def extract_refund_percentage(text: str) -> float:
     return 100.0
 
 def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) -> list:
-    """
-    Scarica e analizza tutti i post recenti da un canale pubblico Telegram tramite l'anteprima web (https://t.me/s/...)
-    Supporta la paginazione all'indietro per estrarre fino a 'limit' messaggi completi con foto e contatti.
-    """
     clean = channel_identifier.strip().lstrip('@')
-    clean = clean.replace("https://t.me/s/", "").replace("https://t.me/", "").strip("/")
+    clean = clean.replace('https://t.me/s/', '').replace('https://t.me/', '').strip('/')
     
-    if not clean or clean.startswith("+"):
+    if not clean or clean.startswith('+'):
         return []
 
-    base_url = f"https://t.me/s/{clean}"
+    base_url = f'https://t.me/s/{clean}'
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7"
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7'
     }
 
     all_message_blocks = []
     seen_post_ids = set()
     current_url = base_url
-    max_pages = 15 # Fino a 15 pagine di ~20 messaggi = ~300 messaggi
+    max_pages = 15
 
     for page in range(max_pages):
         try:
@@ -188,7 +182,9 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
             min_post_id = None
             
             for b in blocks:
-                dp = re.search(r'data-post=[\'"][^/\'"]+/(\d+)[\'"]', b)
+                dp = re.search(r'data-post="[^/"]+/(\d+)"', b)
+                if not dp:
+                    dp = re.search(r"data-post='[^/']+/(\\d+)'", b)
                 if dp:
                     pid = int(dp.group(1))
                     if min_post_id is None or pid < min_post_id:
@@ -204,10 +200,9 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
             if len(all_message_blocks) >= limit or new_blocks_in_page == 0 or min_post_id is None:
                 break
                 
-            # Pagina successiva verso i messaggi precedenti
-            current_url = f"{base_url}?before={min_post_id}"
+            current_url = f'{base_url}?before={min_post_id}'
         except Exception as e:
-            print(f"[Scraper Page {page} Error] {e}")
+            print(f'[Scraper Page {page} Error] {e}')
             break
 
     if not all_message_blocks:
@@ -216,40 +211,35 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
     offers_found = []
     seen_msg_ids = set()
     
-    # Processa i blocchi dal più recente al più vecchio
     for block in all_message_blocks:
-        # Estrazione message_id da data-post
         msg_id = None
-        data_post_match = re.search(r'data-post=[\'"][^/\'"]+/(\d+)[\'"]', block)
+        data_post_match = re.search(r'data-post="[^/"]+/(\d+)"', block)
+        if not data_post_match:
+            data_post_match = re.search(r"data-post='[^/']+/(\\d+)'", block)
         if data_post_match:
             msg_id = data_post_match.group(1)
 
-        # 1. Estrazione Testo
         text_match = re.search(r'<div class="tgme_widget_message_text\b[^>]*>(.*?)</div>', block, re.DOTALL)
-        raw_text = clean_html_text(text_match.group(1)) if text_match else ""
+        raw_text = clean_html_text(text_match.group(1)) if text_match else ''
 
-        # 2. Estrazione Foto
-        img_match = re.search(r'background-image:url\([\'"]?(https?://[^\'")]+)[\'"]?\)', block)
+        img_match = re.search(r'background-image:url\(["\']?(https?://[^"\'\)]+)', block)
         if not img_match:
-            img_match = re.search(r'src=[\'"]?(https?://[^\'">\s]+)[\'"]?', block)
+            img_match = re.search(r'src=["\'](https?://[^"\'\s>]+)', block)
         img_url = img_match.group(1) if img_match else None
 
-        # Se non c'è né testo né foto valida, salta
         if not raw_text and not img_url:
             continue
 
-        lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
+        lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
 
-        # 3. Estrazione Contatto Venditore
         seller_match = re.findall(r'@([a-zA-Z0-9_]{3,32})', raw_text)
-        seller_contact = "@alex8700"
+        seller_contact = '@alex8700'
         if seller_match:
             for cand in seller_match:
-                if cand.lower() not in [clean.lower(), "articoliaddicted", "channel", "canale"]:
-                    seller_contact = f"@{cand}"
+                if cand.lower() not in [clean.lower(), 'articoliaddicted', 'channel', 'canale']:
+                    seller_contact = f'@{cand}'
                     break
 
-        # 4. Estrazione Intelligente di Titolo e Condizioni
         item_lines = []
         condition_lines = []
         
@@ -269,53 +259,48 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
                 if len(clean_l) >= 2:
                     item_lines.append(clean_l)
 
-        # Titolo robusto
         if len(item_lines) > 1:
-            title = " • ".join(item_lines)
+            title = ' • '.join(item_lines)
         elif len(item_lines) == 1:
             title = item_lines[0]
         elif lines:
             first_clean = re.sub(r'https?://\S+', '', lines[0])
             first_clean = re.sub(r'@[a-zA-Z0-9_]+', '', first_clean).strip()
-            title = first_clean if len(first_clean) >= 4 else (f"Offerta Canale Telegram #{msg_id}" if msg_id else "Prodotto in Offerta")
+            title = first_clean if len(first_clean) >= 4 else (f'Offerta Canale Telegram #{msg_id}' if msg_id else 'Prodotto in Offerta')
         else:
-            title = f"Offerta Canale Telegram #{msg_id}" if msg_id else "Prodotto in Offerta"
+            title = f'Offerta Canale Telegram #{msg_id}' if msg_id else 'Prodotto in Offerta'
 
-        # Condizioni di spesa e rimborso
         if condition_lines:
-            price_info = " • ".join(condition_lines)
+            price_info = ' • '.join(condition_lines)
         else:
-            price_info = "100% rimborso"
+            price_info = '100% rimborso'
 
-        refund_pct = extract_refund_percentage(f"{raw_text} {price_info}")
+        refund_pct = extract_refund_percentage(f'{raw_text} {price_info}')
 
         taxes_covered = True
-        if any(w in raw_text.lower() for w in ["tasse forse", "tasse a parte", "no tasse", "tasse non coperte", "forse"]):
+        if any(w in raw_text.lower() for w in ['tasse forse', 'tasse a parte', 'no tasse', 'tasse non coperte', 'forse']):
             taxes_covered = False
 
         if not img_url:
-            img_url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
+            img_url = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'
 
-        # Evita duplicati solo se lo stesso identico message_id è già stato visto nel batch
         if msg_id and msg_id in seen_msg_ids:
             continue
         if msg_id:
             seen_msg_ids.add(msg_id)
 
         offers_found.append({
-            "title": title,
-            "price_info": price_info,
-            "refund_pct": refund_pct,
-            "seller_contact": seller_contact,
-            "image_url": img_url,
-            "taxes_covered": taxes_covered,
-            "raw_text": raw_text,
-            "message_id": msg_id
+            'title': title,
+            'price_info': price_info,
+            'refund_pct': refund_pct,
+            'seller_contact': seller_contact,
+            'image_url': img_url,
+            'taxes_covered': taxes_covered,
+            'raw_text': raw_text,
+            'message_id': msg_id
         })
 
     return offers_found
-
-from telethon.sessions import StringSession
 
 _global_telethon_client = None
 
@@ -335,7 +320,7 @@ class TelegramManager:
         global _global_telethon_client
         _global_telethon_client = val
 
-    def get_setting(self, db: Session, key: str, default: str = "") -> str:
+    def get_setting(self, db: Session, key: str, default: str = '') -> str:
         s = db.query(Setting).filter_by(key=key).first()
         return s.value if s and s.value else default
 
@@ -350,29 +335,27 @@ class TelegramManager:
         _global_telethon_client = None
         self.is_connected = False
         if db:
-            s = db.query(Setting).filter_by(key="telegram_session_string").first()
+            s = db.query(Setting).filter_by(key='telegram_session_string').first()
             if s:
-                s.value = ""
+                s.value = ''
                 db.commit()
 
     async def _ensure_connected_client(self, db: Session):
         global _global_telethon_client
         current_loop = asyncio.get_running_loop()
         
-        # Se il client globale appartiene a un loop asyncio precedente o chiuso, resettalo
         if _global_telethon_client is not None:
             client_loop = getattr(_global_telethon_client, '_loop', None) or getattr(_global_telethon_client, 'loop', None)
             if client_loop != current_loop or (client_loop and client_loop.is_closed()):
                 _global_telethon_client = None
 
-        api_id_raw = self.get_setting(db, "telegram_api_id")
+        api_id_raw = self.get_setting(db, 'telegram_api_id')
         api_id = int(api_id_raw) if api_id_raw and str(api_id_raw).strip().isdigit() else 31327962
-        api_hash = self.get_setting(db, "telegram_api_hash") or "aa62f6773d556234f4b5812a1f7208d1"
+        api_hash = self.get_setting(db, 'telegram_api_hash') or 'aa62f6773d556234f4b5812a1f7208d1'
         
-        # Recupera la sessione permanente salvata (da Env o da Database)
-        env_session = os.getenv("TELEGRAM_SESSION_STRING", "").strip()
-        db_session = self.get_setting(db, "telegram_session_string", "").strip()
-        session_str = env_session or db_session or ""
+        env_session = os.getenv('TELEGRAM_SESSION_STRING', '').strip()
+        db_session = self.get_setting(db, 'telegram_session_string', '').strip()
+        session_str = env_session or db_session or ''
         
         if _global_telethon_client is None:
             string_session = StringSession(session_str)
@@ -382,9 +365,9 @@ class TelegramManager:
             try:
                 await _global_telethon_client.connect()
             except (errors.AuthKeyDuplicatedError, errors.AuthKeyUnregisteredError, errors.SessionRevokedError) as e:
-                print(f"[Telethon Session Error] {e} - Reset sessione non valida.")
+                print(f'[Telethon Session Error] {e} - Reset sessione non valida.')
                 self._cleanup_session(db)
-                _global_telethon_client = TelegramClient(StringSession(""), api_id, api_hash, loop=current_loop)
+                _global_telethon_client = TelegramClient(StringSession(''), api_id, api_hash, loop=current_loop)
                 await _global_telethon_client.connect()
         return _global_telethon_client
 
@@ -393,21 +376,20 @@ class TelegramManager:
             client = await self._ensure_connected_client(db)
             if await client.is_user_authorized():
                 self.is_connected = True
-                print("[Telegram Service] Connesso con successo all'account Telegram!")
-                return {"status": "connected", "message": "Connesso all'account Telegram."}
+                return {'status': 'connected', 'message': "Connesso all'account Telegram."}
             else:
                 self.is_connected = False
-                return {"status": "auth_required", "message": "Autenticazione richiesta. Collega il tuo account Telegram con il tuo numero di telefono."}
+                return {'status': 'auth_required', 'message': 'Autenticazione richiesta.'}
         except Exception as e:
-            print(f"[Telegram Service] Errore di connessione: {e}")
+            print(f'[Telegram Service] Errore di connessione: {e}')
             self.is_connected = False
-            return {"status": "error", "message": str(e)}
+            return {'status': 'error', 'message': str(e)}
 
     async def get_auth_status(self, db: Session) -> dict:
         try:
             client = await self._ensure_connected_client(db)
             if not client or not client.is_connected():
-                return {"success": True, "is_authorized": False, "status": "disconnected", "message": "Non connesso"}
+                return {'success': True, 'is_authorized': False, 'status': 'disconnected', 'message': 'Non connesso'}
             
             is_auth = await client.is_user_authorized()
             if is_auth:
@@ -416,125 +398,116 @@ class TelegramManager:
                 first_name = getattr(me, 'first_name', '') or ''
                 username = getattr(me, 'username', '') or ''
                 
-                # Assicura che la stringa sia salvata nel db
                 saved_str = self.get_setting(db, 'telegram_session_string', '')
                 if not saved_str:
                     try:
                         saved_str = client.session.save()
-                        s = db.query(Setting).filter_by(key="telegram_session_string").first()
+                        s = db.query(Setting).filter_by(key='telegram_session_string').first()
                         if s:
                             s.value = saved_str
                         else:
-                            db.add(Setting(key="telegram_session_string", value=saved_str))
+                            db.add(Setting(key='telegram_session_string', value=saved_str))
                         db.commit()
                     except Exception:
                         pass
 
                 return {
-                    "success": True,
-                    "is_authorized": True,
-                    "status": "connected",
-                    "session_string": saved_str,
-                    "user": {
-                        "first_name": first_name,
-                        "username": f"@{username}" if username else "",
-                        "phone": f"+{phone}" if phone and not phone.startswith("+") else phone
+                    'success': True,
+                    'is_authorized': True,
+                    'status': 'connected',
+                    'session_string': saved_str,
+                    'user': {
+                        'first_name': first_name,
+                        'username': f'@{username}' if username else '',
+                        'phone': f'+{phone}' if phone and not phone.startswith('+') else phone
                     }
                 }
             else:
                 return {
-                    "success": True,
-                    "is_authorized": False,
-                    "status": "auth_required",
-                    "phone": self.get_setting(db, 'telegram_phone', ''),
-                    "message": "Autenticazione richiesta"
+                    'success': True,
+                    'is_authorized': False,
+                    'status': 'auth_required',
+                    'phone': self.get_setting(db, 'telegram_phone', ''),
+                    'message': 'Autenticazione richiesta'
                 }
         except Exception as e:
-            print(f"[Telegram Status Error] {e}")
-            return {
-                "success": False,
-                "is_authorized": False,
-                "status": "error",
-                "error": str(e)
-            }
+            print(f'[Telegram Status Error] {e}')
+            return {'success': False, 'is_authorized': False, 'status': 'error', 'error': str(e)}
 
     async def send_auth_code(self, db: Session, phone: str = None) -> dict:
         if phone:
             phone = phone.strip()
-            s = db.query(Setting).filter_by(key="telegram_phone").first()
+            s = db.query(Setting).filter_by(key='telegram_phone').first()
             if s:
                 s.value = phone
             else:
-                db.add(Setting(key="telegram_phone", value=phone))
+                db.add(Setting(key='telegram_phone', value=phone))
             db.commit()
         else:
-            phone = self.get_setting(db, "telegram_phone")
+            phone = self.get_setting(db, 'telegram_phone')
 
         if not phone:
-            return {"success": False, "error": "Inserisci il tuo numero di telefono Telegram (es. +393331234567)"}
+            return {'success': False, 'error': 'Inserisci il tuo numero di telefono Telegram'}
 
         try:
             client = await self._ensure_connected_client(db)
             if await client.is_user_authorized():
                 self.is_connected = True
-                return {"success": True, "status": "already_authorized", "message": "Account Telegram già autorizzato e connesso!"}
+                return {'success': True, 'status': 'already_authorized', 'message': 'Account Telegram gia autorizzato!'}
 
             code_obj = await client.send_code_request(phone)
             self.phone_code_hash = code_obj.phone_code_hash
             self.last_auth_phone = phone
             return {
-                "success": True,
-                "status": "code_sent",
-                "phone": phone,
-                "message": f"Codice di verifica Telegram inviato a {phone}! Controlla l'app Telegram o gli SMS."
+                'success': True,
+                'status': 'code_sent',
+                'phone': phone,
+                'message': f'Codice Telegram inviato a {phone}!'
             }
         except Exception as e:
-            print(f"[Telegram Send Code Error] {e}")
-            return {"success": False, "error": str(e)}
+            print(f'[Telegram Send Code Error] {e}')
+            return {'success': False, 'error': str(e)}
 
     async def verify_auth_code(self, db: Session, code: str, password_2fa: str = None) -> dict:
-        phone = getattr(self, 'last_auth_phone', None) or self.get_setting(db, "telegram_phone")
+        phone = getattr(self, 'last_auth_phone', None) or self.get_setting(db, 'telegram_phone')
         phone_code_hash = getattr(self, 'phone_code_hash', None)
         try:
             client = await self._ensure_connected_client(db)
             try:
                 await client.sign_in(phone=phone, code=code.strip(), phone_code_hash=phone_code_hash)
             except Exception as e:
-                if "SessionPasswordNeeded" in str(type(e)) or "2FA" in str(e):
+                if 'SessionPasswordNeeded' in str(type(e)) or '2FA' in str(e):
                     if password_2fa:
                         await client.sign_in(password=password_2fa.strip())
                     else:
-                        return {"success": False, "requires_2fa": True, "error": "Questo account richiede la Password 2FA di Telegram."}
+                        return {'success': False, 'requires_2fa': True, 'error': 'Questo account richiede la Password 2FA di Telegram.'}
                 else:
                     raise e
 
             self.is_connected = True
-            
-            # Salva la chiave di sessione permanente nel database
             try:
                 saved_str = client.session.save()
-                s = db.query(Setting).filter_by(key="telegram_session_string").first()
+                s = db.query(Setting).filter_by(key='telegram_session_string').first()
                 if s:
                     s.value = saved_str
                 else:
-                    db.add(Setting(key="telegram_session_string", value=saved_str))
+                    db.add(Setting(key='telegram_session_string', value=saved_str))
                 db.commit()
-                print(f"[Telegram Service] StringSession permanente salvata con successo!")
             except Exception as se:
-                print(f"[Telegram Session Save Error] {se}")
+                print(f'[Telegram Session Save Error] {se}')
 
             me = await client.get_me()
             name = getattr(me, 'first_name', '')
-            user_handle = f"@{me.username}" if getattr(me, 'username', '') else phone
+            user_handle = f'@{me.username}' if getattr(me, 'username', '') else phone
             return {
-                "success": True,
-                "message": f"Accesso Telegram completato con successo! Connesso come {name} ({user_handle}).",
-                "session_string": saved_str if 'saved_str' in locals() else "",
-                "user": {"name": name, "handle": user_handle}
+                'success': True,
+                'message': f'Accesso Telegram completato con successo! Connesso come {name}.',
+                'session_string': saved_str if 'saved_str' in locals() else '',
+                'user': {'name': name, 'handle': user_handle}
             }
         except Exception as e:
-            print(f"[Telegram Verify Code Error] {e}")
-            return {"success": False, "error": str(e)}
+            print(f'[Telegram Verify Code Error] {e}')
+            return {'success': False, 'error': str(e)}
 
     async def logout(self, db: Session) -> dict:
         try:
@@ -546,55 +519,50 @@ class TelegramManager:
         except Exception:
             pass
         self._cleanup_session()
-        return {"success": True, "message": "Account Telegram disconnesso con successo."}
+        return {'success': True, 'message': 'Account Telegram disconnesso con successo.'}
 
     async def sync_channel_live(self, db: Session, channel_identifier: str = None, limit: int = 500) -> dict:
-        """
-        Scarica e importa direttamente TUTTE le offerte dal canale Telegram autorizzato con foto HD originali.
-        """
         client = await self._ensure_connected_client(db)
         if not await client.is_user_authorized():
             return {
-                "success": False,
-                "auth_required": True,
-                "error": "Account Telegram non collegato. Accedi con il tuo numero di telefono nelle Impostazioni per sincronizzare il canale."
+                'success': False,
+                'auth_required': True,
+                'error': 'Account Telegram non collegato.'
             }
 
-        target = channel_identifier or self.get_setting(db, "active_telegram_channel", "Articoli Addicted")
+        target = channel_identifier or self.get_setting(db, 'active_telegram_channel', 'Articoli Addicted')
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        screenshots_dir = os.path.join(base_dir, "data", "screenshots")
+        screenshots_dir = os.path.join(base_dir, 'data', 'screenshots')
         os.makedirs(screenshots_dir, exist_ok=True)
 
         entity = None
-        raw_target = (target or "").strip()
+        raw_target = (target or '').strip()
         clean_target = re.sub(r'[^a-zA-Z0-9]', '', raw_target).lower()
 
-        # 1. Cerca nei dialoghi/canali dell'utente
         dialog_entities = []
         try:
             async for dialog in client.iter_dialogs():
                 dialog_entities.append((dialog.name, dialog.entity))
         except Exception as e:
-            print(f"[iter_dialogs error] {e}")
+            print(f'[iter_dialogs error] {e}')
 
         for d_name, d_ent in dialog_entities:
             d_clean = re.sub(r'[^a-zA-Z0-9]', '', d_name).lower()
-            if clean_target and clean_target not in ["canaleoffertetest", "test"] and (clean_target in d_clean or d_clean in clean_target):
+            if clean_target and clean_target not in ['canaleoffertetest', 'test'] and (clean_target in d_clean or d_clean in clean_target):
                 entity = d_ent
                 break
 
         if not entity:
             for d_name, d_ent in dialog_entities:
                 d_lower = d_name.lower()
-                if "articoli" in d_lower and "addicted" in d_lower:
+                if 'articoli' in d_lower and 'addicted' in d_lower:
                     entity = d_ent
                     break
-                elif "articoli" in d_lower or "addicted" in d_lower:
+                elif 'articoli' in d_lower or 'addicted' in d_lower:
                     entity = d_ent
                     break
 
         if not entity:
-            # Check by known IDs or invite links
             for cand in [-1001273415420, 'https://t.me/+bJVdSCzoIygwODE0', '+bJVdSCzoIygwODE0', 'https://t.me/joinchat/bJVdSCzoIygwODE0']:
                 try:
                     entity = await client.get_entity(cand)
@@ -604,7 +572,7 @@ class TelegramManager:
                     pass
 
         if not entity:
-            if raw_target.startswith("@") or "t.me/" in raw_target:
+            if raw_target.startswith('@') or 't.me/' in raw_target:
                 try:
                     entity = await client.get_entity(raw_target)
                 except Exception:
@@ -612,42 +580,36 @@ class TelegramManager:
 
         if not entity:
             return {
-                "success": False,
-                "error": f"Impossibile trovare il canale Telegram '{target}' tra i tuoi canali. Assicurati di essere iscritto al canale sul tuo account Telegram."
+                'success': False,
+                'error': f"Impossibile trovare il canale Telegram '{target}' tra i tuoi canali."
             }
 
         channel_title = getattr(entity, 'title', getattr(entity, 'username', 'Articoli Addicted'))
 
-        # Raccogli tutti i messaggi recenti fino al limite
         raw_messages = []
         async for message in client.iter_messages(entity, limit=limit):
             raw_messages.append(message)
 
         if not raw_messages:
             return {
-                "success": True,
-                "count": 0,
-                "message": f"Nessun messaggio recente rilevato nel canale '{channel_title}'."
+                'success': True,
+                'count': 0,
+                'message': f"Nessun messaggio recente rilevato nel canale '{channel_title}'."
             }
 
-        # Raggruppa i messaggi per album (grouped_id) o per messaggio singolo
-        # Inoltre accoppia messaggi adiacenti senza grouped_id (foto inviata subito prima o dopo il testo)
         album_groups = OrderedDict()
-        
-        # Ordina per ID crescente per raggruppamento temporale
         sorted_msgs = sorted(raw_messages, key=lambda m: m.id)
         
         i = 0
         while i < len(sorted_msgs):
             m = sorted_msgs[i]
             if m.grouped_id:
-                key = f"album_{m.grouped_id}"
+                key = f'album_{m.grouped_id}'
                 if key not in album_groups:
                     album_groups[key] = []
                 album_groups[key].append(m)
                 i += 1
             else:
-                # Controlla se il messaggio successivo è accoppiato (es. foto + testo o testo + foto entro 120s)
                 has_next = (i + 1 < len(sorted_msgs))
                 next_m = sorted_msgs[i + 1] if has_next else None
                 
@@ -655,21 +617,19 @@ class TelegramManager:
                 if next_m and not next_m.grouped_id and m.date and next_m.date:
                     time_diff = abs((next_m.date - m.date).total_seconds())
                     if time_diff <= 120:
-                        # Uno ha foto e l'altro ha testo
                         if (m.media and not m.text and next_m.text and not next_m.media) or \
                            (not m.media and m.text and next_m.media and not next_m.text):
-                            key = f"pair_{m.id}_{next_m.id}"
+                            key = f'pair_{m.id}_{next_m.id}'
                             album_groups[key] = [m, next_m]
                             is_paired = True
                             i += 2
                 
                 if not is_paired:
-                    key = f"single_{m.id}"
+                    key = f'single_{m.id}'
                     album_groups[key] = [m]
                     i += 1
 
-        # Carica tutte le offerte attive già presenti nel DB
-        existing_active = db.query(Offer).filter(Offer.status != "dismissed").all()
+        existing_active = db.query(Offer).filter(Offer.status != 'dismissed').all()
         existing_active_msg_ids = set()
         for o in existing_active:
             if o.message_id:
@@ -682,16 +642,13 @@ class TelegramManager:
         
         for key, msgs in album_groups.items():
             all_msg_ids = [str(m.id) for m in msgs]
-            
-            # Salta solo se TUTTI i messaggi di questo post sono già presenti e ATTIVI nel DB
             if all(m_id in existing_active_msg_ids for m_id in all_msg_ids):
                 continue
 
-            # Estrai testo completo controllando raw_text, message e text
-            raw_text = ""
+            raw_text = ''
             primary_msg = msgs[0]
             for m in msgs:
-                txt = (getattr(m, 'raw_text', '') or getattr(m, 'message', '') or getattr(m, 'text', '') or "").strip()
+                txt = (getattr(m, 'raw_text', '') or getattr(m, 'message', '') or getattr(m, 'text', '') or '').strip()
                 if txt:
                     raw_text = txt
                     primary_msg = m
@@ -699,11 +656,10 @@ class TelegramManager:
 
             lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
 
-            # Scarica tutte le foto dell'album/post
             downloaded_photos = []
             for m in msgs:
                 if m.media:
-                    fn = f"tg_offer_{m.id}.jpg"
+                    fn = f'tg_offer_{m.id}.jpg'
                     fp = os.path.join(screenshots_dir, fn)
                     if not os.path.exists(fp) or os.path.getsize(fp) == 0:
                         try:
@@ -715,28 +671,26 @@ class TelegramManager:
 
             photo_url = None
             if len(downloaded_photos) > 1:
-                collage_fn = f"tg_album_{key}.jpg"
+                collage_fn = f'tg_album_{key}.jpg'
                 collage_fp = os.path.join(screenshots_dir, collage_fn)
                 create_album_collage(downloaded_photos, collage_fp)
                 if os.path.exists(collage_fp):
-                    photo_url = f"/screenshots/{collage_fn}"
+                    photo_url = f'/screenshots/{collage_fn}'
                 else:
-                    photo_url = f"/screenshots/{os.path.basename(downloaded_photos[0])}"
+                    photo_url = f'/screenshots/{os.path.basename(downloaded_photos[0])}'
             elif len(downloaded_photos) == 1:
-                photo_url = f"/screenshots/{os.path.basename(downloaded_photos[0])}"
+                photo_url = f'/screenshots/{os.path.basename(downloaded_photos[0])}'
             else:
-                photo_url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
+                photo_url = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80'
 
-            # Venditore
             seller_match = re.findall(r'@([a-zA-Z0-9_]{3,32})', raw_text)
-            seller_contact = "@alex8700"
+            seller_contact = '@alex8700'
             if seller_match:
                 for cand in seller_match:
-                    if cand.lower() not in ["articoliaddicted", "articoli", "addicted", "channel", "canale"]:
-                        seller_contact = f"@{cand}"
+                    if cand.lower() not in ['articoliaddicted', 'articoli', 'addicted', 'channel', 'canale']:
+                        seller_contact = f'@{cand}'
                         break
 
-            # Estrazione Prodotti & Condizioni
             item_lines = []
             condition_lines = []
             
@@ -756,23 +710,23 @@ class TelegramManager:
                     if len(clean_l) >= 2:
                         item_lines.append(clean_l)
 
-            # Titolo robusto
             if len(item_lines) > 1:
-                title = " • ".join(item_lines)
+                title = ' • '.join(item_lines)
             elif len(item_lines) == 1:
                 title = item_lines[0]
             elif lines:
                 first_clean = re.sub(r'https?://\S+', '', lines[0])
                 first_clean = re.sub(r'@[a-zA-Z0-9_]+', '', first_clean).strip()
-                title = first_clean if len(first_clean) >= 4 else f"Offerta Canale Telegram #{primary_msg.id}"
+                title = first_clean if len(first_clean) >= 4 else (f'Offerta Canale Telegram #{msg_id}' if msg_id else 'Prodotto in Offerta')
             else:
-                title = f"Offerta Canale Telegram #{primary_msg.id}"
+                title = f'Offerta Canale Telegram #{msg_id}' if msg_id else 'Prodotto in Offerta'
 
-            # Condizioni di spesa e rimborso
             if condition_lines:
-                price_info = " • ".join(condition_lines)
+                price_info = ' • '.join(condition_lines)
             else:
-                price_info = "100% rimborso"
+                price_info = '100% rimborso'
+
+            refund_pct = extract_refund_percentage(f'{raw_text} {price_info}')
 
             taxes_covered = True
             if any(w in raw_text.lower() for w in ['tasse forse', 'tasse a parte', 'no tasse', 'tasse non coperte', 'forse']):
@@ -780,15 +734,14 @@ class TelegramManager:
 
             msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
 
-            # Evita duplicazione dello stesso messaggio nello stesso ciclo
             if any(mid in batch_seen_msg_ids for mid in all_msg_ids):
                 continue
             for mid in all_msg_ids:
                 batch_seen_msg_ids.add(mid)
                 existing_active_msg_ids.add(mid)
 
-            refund_pct = extract_refund_percentage(f"{raw_text} {price_info}")
-            all_ids_str = ",".join(all_msg_ids)
+            refund_pct = extract_refund_percentage(f'{raw_text} {price_info}')
+            all_ids_str = ','.join(all_msg_ids)
             off = Offer(
                 title=title,
                 price_info=price_info,
@@ -798,7 +751,7 @@ class TelegramManager:
                 taxes_covered=taxes_covered,
                 channel_name=channel_title,
                 message_id=all_ids_str,
-                status="new",
+                status='new',
                 created_at=msg_date
             )
             db.add(off)
@@ -806,34 +759,30 @@ class TelegramManager:
 
         if imported_count > 0:
             log = ActivityLog(
-                action_type="CHANNEL_SYNC",
-                title=f"Sincronizzazione Canale {channel_title}",
-                details=f"Scaricate con successo {imported_count} offerte complete con foto e contatti."
+                action_type='CHANNEL_SYNC',
+                title=f'Sincronizzazione Canale {channel_title}',
+                details=f'Scaricate con successo {imported_count} offerte complete con foto e contatti.'
             )
             db.add(log)
             db.commit()
             self.prune_old_offers(db)
 
         return {
-            "success": True,
-            "count": imported_count,
-            "message": f"Sincronizzazione completata: {imported_count} nuove offerte importate da {channel_title}!"
+            'success': True,
+            'count': imported_count,
+            'message': f'Sincronizzazione completata: {imported_count} nuove offerte importate da {channel_title}!'
         }
 
     def prune_old_offers(self, db: Session, max_new_offers: int = 50):
-        """
-        Rimuove automaticamente gli articoli più vecchi in fondo alla lista con stato 'new'
-        quando arrivano nuovi post, proteggendo sempre ordini e articoli già richiesti/acquistati.
-        """
         try:
-            s = db.query(Setting).filter_by(key="max_feed_offers").first()
+            s = db.query(Setting).filter_by(key='max_feed_offers').first()
             if s and s.value and s.value.isdigit():
                 max_new_offers = max(20, int(s.value))
                 
-            orders = db.query(Order).filter(Order.status != "cancelled").all()
+            orders = db.query(Order).filter(Order.status != 'cancelled').all()
             unrequested = (
                 db.query(Offer)
-                .filter(Offer.status == "new")
+                .filter(Offer.status == 'new')
                 .order_by(desc(Offer.created_at), desc(Offer.id))
                 .all()
             )
@@ -850,9 +799,9 @@ class TelegramManager:
                     
             if to_prune:
                 base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-                screenshots_dir = os.path.join(base_dir, "data", "screenshots")
+                screenshots_dir = os.path.join(base_dir, 'data', 'screenshots')
                 for old_off in to_prune:
-                    if old_off.image_url and old_off.image_url.startswith("/screenshots/tg_"):
+                    if old_off.image_url and old_off.image_url.startswith('/screenshots/tg_'):
                         fn = os.path.basename(old_off.image_url)
                         fp = os.path.join(screenshots_dir, fn)
                         if os.path.exists(fp):
@@ -863,13 +812,7 @@ class TelegramManager:
                     db.delete(old_off)
                 db.commit()
         except Exception as e:
-            print(f"[Prune Offers Error] {e}")
-
-        return {
-            "success": True,
-            "count": imported_count,
-            "message": f"Sincronizzazione completata: {imported_count} nuove offerte importate da {channel_title}!"
-        }
+            print(f'[Prune Offers Error] {e}')
 
     def _find_screenshot_file(self, screen_url_or_path: str) -> Optional[str]:
         if not screen_url_or_path:
@@ -877,10 +820,10 @@ class TelegramManager:
         filename = os.path.basename(screen_url_or_path)
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         candidates = [
-            os.path.join(base_dir, "data", "screenshots", filename),
-            os.path.join(base_dir, "backend", "data", "screenshots", filename),
-            os.path.join(os.getcwd(), "data", "screenshots", filename),
-            os.path.join(os.getcwd(), "backend", "data", "screenshots", filename),
+            os.path.join(base_dir, 'data', 'screenshots', filename),
+            os.path.join(base_dir, 'backend', 'data', 'screenshots', filename),
+            os.path.join(os.getcwd(), 'data', 'screenshots', filename),
+            os.path.join(os.getcwd(), 'backend', 'data', 'screenshots', filename),
             screen_url_or_path
         ]
         for c in candidates:
@@ -889,13 +832,9 @@ class TelegramManager:
         return None
 
     async def send_availability_request(self, db: Session, offer: Offer, recipient: str = None) -> dict:
-        """
-        Invia la richiesta di disponibilità per un prodotto ad Alex (@alex8700 o contatto venditore).
-        In modalità Sandbox (test_mode=true) invia il messaggio di prova a te stesso (Messaggi Salvati / 'me').
-        """
-        is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
-        target_contact = (recipient or offer.seller_contact or "@alex8700").strip()
-        message_text = f"Ciao Alex! Volevo chiederti se è ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
+        is_test = self.get_setting(db, 'test_mode', 'false').lower() == 'true'
+        target_contact = (recipient or offer.seller_contact or '@alex8700').strip()
+        message_text = f"Ciao Alex! Volevo chiederti se e ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
 
         sent_at = datetime.utcnow()
         if is_test:
@@ -917,19 +856,19 @@ class TelegramManager:
                 print(f"[Sandbox Send 'me' Error] {e}")
 
             log = ActivityLog(
-                action_type="MESSAGE_SENT",
-                title=f"Richiesta test inviata a me (Messaggi Salvati) [SANDBOX]",
-                details=f"Articolo: {offer.title[:50]} (Inviato ai tuoi Messaggi Salvati Telegram per verifica)"
+                action_type='MESSAGE_SENT',
+                title='Richiesta test inviata a me (Messaggi Salvati) [SANDBOX]',
+                details=f'Articolo: {offer.title[:50]} (Inviato ai tuoi Messaggi Salvati Telegram per verifica)'
             )
             db.add(log)
-            offer.status = "requested"
+            offer.status = 'requested'
             db.commit()
-            return {"success": True, "sent_at": sent_at.isoformat(), "message": f"🧪 [SANDBOX] Messaggio di test inviato ai tuoi 'Messaggi Salvati' su Telegram (nessun messaggio inviato ad Alex)!"}
+            return {'success': True, 'sent_at': sent_at.isoformat(), 'message': '🧪 [SANDBOX] Messaggio di test inviato ai tuoi Messaggi Salvati!'}
 
         try:
             client = await self._ensure_connected_client(db)
             if not await client.is_user_authorized():
-                return {"success": False, "auth_required": True, "error": "Account Telegram non autorizzato. Collega il tuo numero in Impostazioni."}
+                return {'success': False, 'auth_required': True, 'error': 'Account Telegram non autorizzato. Collega il tuo numero in Impostazioni.'}
 
             file_path = self._find_screenshot_file(offer.image_url)
 
@@ -942,25 +881,21 @@ class TelegramManager:
                 sent_at = sent_msg.date.replace(tzinfo=None) if hasattr(sent_msg.date, 'tzinfo') and sent_msg.date.tzinfo else sent_msg.date
 
             log = ActivityLog(
-                action_type="MESSAGE_SENT",
-                title=f"Richiesta inviata ad Alex ({target_contact})",
-                details=f"Articolo: {offer.title[:50]}"
+                action_type='MESSAGE_SENT',
+                title=f'Richiesta inviata ad Alex ({target_contact})',
+                details=f'Articolo: {offer.title[:50]}'
             )
             db.add(log)
-            offer.status = "requested"
+            offer.status = 'requested'
             db.commit()
-            return {"success": True, "sent_at": sent_at.isoformat(), "message": f"Richiesta inviata con successo ad Alex ({target_contact}) su Telegram!"}
+            return {'success': True, 'sent_at': sent_at.isoformat(), 'message': f'Richiesta inviata con successo ad Alex ({target_contact}) su Telegram!'}
         except Exception as e:
-            print(f"[Telegram Send Error] {e}")
-            return {"success": False, "error": str(e)}
+            print(f'[Telegram Send Error] {e}')
+            return {'success': False, 'error': str(e)}
 
     async def send_order_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
-        """
-        Invia lo screenshot di conferma ordine e il numero d'ordine ad Alex (@alex8700 o contatto venditore).
-        In modalità Sandbox (test_mode=true) invia il messaggio di prova a te stesso (Messaggi Salvati / 'me').
-        """
-        is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
-        target_contact = (recipient or order.seller_contact or "@alex8700").strip()
+        is_test = self.get_setting(db, 'test_mode', 'false').lower() == 'true'
+        target_contact = (recipient or order.seller_contact or '@alex8700').strip()
         caption_text = f"Ciao Alex, ecco lo screenshot della conferma d'ordine per *{order.product_title}*:\n\nNumero Ordine: `{order.order_number}`\nGrazie!"
 
         if is_test:
@@ -980,20 +915,20 @@ class TelegramManager:
                 print(f"[Sandbox Send 'me' Error] {e}")
 
             log = ActivityLog(
-                action_type="SCREEN_SENT",
-                title=f"Screenshot ordine inviato a me (Messaggi Salvati) [SANDBOX]",
-                details=f"Ordine: {order.order_number} ({order.product_title})"
+                action_type='SCREEN_SENT',
+                title='Screenshot ordine inviato a me (Messaggi Salvati) [SANDBOX]',
+                details=f'Ordine: {order.order_number} ({order.product_title})'
             )
             db.add(log)
-            order.status = "waiting_review"
+            order.status = 'waiting_review'
             order.confirmation_sent_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": f"🧪 [SANDBOX] Screenshot ordine inviato ai tuoi 'Messaggi Salvati' su Telegram!"}
+            return {'success': True, 'message': '🧪 [SANDBOX] Screenshot ordine inviato ai tuoi Messaggi Salvati!'}
 
         try:
             client = await self._ensure_connected_client(db)
             if not await client.is_user_authorized():
-                return {"success": False, "auth_required": True, "error": "Account Telegram non autorizzato. Collega il tuo numero in Impostazioni."}
+                return {'success': False, 'auth_required': True, 'error': 'Account Telegram non autorizzato. Collega il tuo numero in Impostazioni.'}
 
             file_path = self._find_screenshot_file(order.confirmation_screen_url)
 
@@ -1003,27 +938,23 @@ class TelegramManager:
                 await client.send_message(target_contact, caption_text)
 
             log = ActivityLog(
-                action_type="SCREEN_SENT",
-                title=f"Screenshot ordine inviato ad Alex ({target_contact})",
-                details=f"Ordine: {order.order_number} ({order.product_title})"
+                action_type='SCREEN_SENT',
+                title=f'Screenshot ordine inviato ad Alex ({target_contact})',
+                details=f'Ordine: {order.order_number} ({order.product_title})'
             )
             db.add(log)
-            order.status = "waiting_review"
+            order.status = 'waiting_review'
             order.confirmation_sent_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": f"Screenshot inviato con successo ad Alex ({target_contact}) su Telegram!"}
+            return {'success': True, 'message': f'Screenshot inviato con successo ad Alex ({target_contact}) su Telegram!'}
         except Exception as e:
-            print(f"[Telegram Screen Send Error] {e}")
-            return {"success": False, "error": str(e)}
+            print(f'[Telegram Screen Send Error] {e}')
+            return {'success': False, 'error': str(e)}
 
     async def send_review_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
-        """
-        Invia la conferma della recensione pubblicata con screenshot ad Alex (@alex8700 o contatto venditore).
-        In modalità Sandbox (test_mode=true) invia il messaggio di prova a te stesso (Messaggi Salvati / 'me').
-        """
-        is_test = self.get_setting(db, "test_mode", "false").lower() == "true"
-        target_contact = (recipient or order.seller_contact or "@alex8700").strip()
-        caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
+        is_test = self.get_setting(db, 'test_mode', 'false').lower() == 'true'
+        target_contact = (recipient or order.seller_contact or '@alex8700').strip()
+        caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) e stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
 
         if is_test:
             try:
@@ -1035,8 +966,8 @@ class TelegramManager:
                         review_url = generate_amazon_review_screenshot(
                             order_number=order.order_number,
                             product_title=order.product_title,
-                            review_title=order.review_title or "Ottimo prodotto, spedizione impeccabile",
-                            review_body=order.review_body or "Arrivato puntuale, ben imballato. Qualità dei materiali ottima e facilissimo da utilizzare. Pienamente soddisfatto!"
+                            review_title=order.review_title or 'Ottimo prodotto, spedizione impeccabile',
+                            review_body=order.review_body or 'Arrivato puntuale, ben imballato. Qualita dei materiali ottima e facilissimo da utilizzare. Pienamente soddisfatto!'
                         )
                         order.review_screen_url = review_url
                         db.commit()
@@ -1054,20 +985,20 @@ class TelegramManager:
                 print(f"[Sandbox Send 'me' Error] {e}")
 
             log = ActivityLog(
-                action_type="REVIEW_SENT",
-                title=f"Screenshot recensione 5★ inviato a me (Messaggi Salvati) [SANDBOX]",
-                details=f"Ordine: {order.order_number} ({order.product_title})"
+                action_type='REVIEW_SENT',
+                title='Screenshot recensione 5★ inviato a me (Messaggi Salvati) [SANDBOX]',
+                details=f'Ordine: {order.order_number} ({order.product_title})'
             )
             db.add(log)
-            order.status = "waiting_refund"
+            order.status = 'waiting_refund'
             order.review_submitted_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": f"🧪 [SANDBOX] Screenshot recensione 5★ inviato ai tuoi 'Messaggi Salvati' su Telegram!"}
+            return {'success': True, 'message': '🧪 [SANDBOX] Screenshot recensione 5★ inviato ai tuoi Messaggi Salvati!'}
 
         try:
             client = await self._ensure_connected_client(db)
             if not await client.is_user_authorized():
-                return {"success": False, "auth_required": True, "error": "Account Telegram non autorizzato. Collega il tuo numero in Impostazioni."}
+                return {'success': False, 'auth_required': True, 'error': 'Account Telegram non autorizzato. Collega il tuo numero in Impostazioni.'}
 
             from app.screenshot_service import generate_amazon_review_screenshot
             review_url = order.review_screen_url
@@ -1075,8 +1006,8 @@ class TelegramManager:
                 review_url = generate_amazon_review_screenshot(
                     order_number=order.order_number,
                     product_title=order.product_title,
-                    review_title=order.review_title or "Ottimo prodotto, spedizione impeccabile",
-                    review_body=order.review_body or "Arrivato puntuale, ben imballato. Qualità dei materiali ottima e facilissimo da utilizzare. Pienamente soddisfatto!"
+                    review_title=order.review_title or 'Ottimo prodotto, spedizione impeccabile',
+                    review_body=order.review_body or 'Arrivato puntuale, ben imballato. Qualita dei materiali ottima e facilissimo da utilizzare. Pienamente soddisfatto!'
                 )
                 order.review_screen_url = review_url
                 db.commit()
@@ -1089,51 +1020,42 @@ class TelegramManager:
                 await client.send_message(target_contact, caption_text)
             
             log = ActivityLog(
-                action_type="REVIEW_SENT",
-                title=f"Screenshot recensione 5★ inviato ad Alex ({target_contact})",
-                details=f"Ordine: {order.order_number} ({order.product_title})"
+                action_type='REVIEW_SENT',
+                title=f'Screenshot recensione 5★ inviato ad Alex ({target_contact})',
+                details=f'Ordine: {order.order_number} ({order.product_title})'
             )
             db.add(log)
-            order.status = "waiting_refund"
+            order.status = 'waiting_refund'
             order.review_submitted_at = datetime.utcnow()
             db.commit()
-            return {"success": True, "message": f"Screenshot recensione inviato con successo ad Alex ({target_contact})!"}
+            return {'success': True, 'message': f'Screenshot recensione inviato con successo ad Alex ({target_contact})!'}
         except Exception as e:
-            print(f"[Telegram Review Send Error] {e}")
-            return {"success": False, "error": str(e)}
+            print(f'[Telegram Review Send Error] {e}')
+            return {'success': False, 'error': str(e)}
 
     @staticmethod
     def _extract_amazon_urls_from_message(m) -> List[str]:
-        """Estrae tutti i link Amazon da un messaggio Telegram (testo puro, link formattati o entità rich-text)"""
         found_urls = []
-        
-        # 1. Da entità Telethon (es. link ipertestuali con testo 'clicca qui' o link formattati)
         if hasattr(m, 'entities') and m.entities:
             for ent in m.entities:
                 if hasattr(ent, 'url') and ent.url:
                     found_urls.append(ent.url)
                 elif hasattr(ent, 'offset') and hasattr(ent, 'length'):
                     try:
-                        raw_t = getattr(m, 'text', None) or getattr(m, 'message', None) or ""
+                        raw_t = getattr(m, 'text', None) or getattr(m, 'message', None) or ''
                         if raw_t:
                             ent_text = raw_t[ent.offset : ent.offset + ent.length]
                             if ent_text:
                                 found_urls.append(ent_text)
                     except Exception:
                         pass
-
-        # 2. Da testo con regex standard (http:// o https://)
-        text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ""
+        text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ''
         found_urls.extend(re.findall(r'https?://[^\s<>"]+', text))
-        
-        # 3. Da link corti o senza protocollo (es. amzn.to/..., amzn.eu/..., amazon.it/...)
         short_matches = re.findall(r'(?:(?:www\.)?amazon\.[a-z.]+|amzn\.(?:to|eu))/[^\s<>"]+', text, re.IGNORECASE)
         found_urls.extend(short_matches)
-
-        # 4. Pulizia e normalizzazione
         clean_amz_urls = []
         for u in found_urls:
-            u_clean = u.strip().rstrip('.,);!?"\'>')
+            u_clean = u.strip().rstrip('.,);!?\"\'\>')
             if not u_clean:
                 continue
             u_lower = u_clean.lower()
@@ -1144,131 +1066,147 @@ class TelegramManager:
                     u_clean = 'https://' + u_clean
                 if u_clean not in clean_amz_urls:
                     clean_amz_urls.append(u_clean)
-
         return clean_amz_urls
 
     @staticmethod
     def _save_orders_backup(db: Session):
-        """Salva lo stato degli ordini su file di backup persistente"""
         try:
             import json, os
-            backup_file = os.path.join(os.path.dirname(__file__), "..", "..", "data", "orders_persistent_backup.json")
+            backup_file = os.path.join(os.path.dirname(__file__), '..', '..', 'data', 'orders_persistent_backup.json')
             orders = db.query(Order).all()
             data = []
             for o in orders:
                 data.append({
-                    "id": o.id,
-                    "order_number": o.order_number,
-                    "product_title": o.product_title,
-                    "product_image": o.product_image,
-                    "seller_contact": o.seller_contact,
-                    "amazon_url": o.amazon_url,
-                    "price_paid": o.price_paid,
-                    "refund_amount": o.refund_amount,
-                    "status": o.status,
-                    "order_date": o.order_date.isoformat() if o.order_date else None,
-                    "estimated_delivery_date": o.estimated_delivery_date.isoformat() if o.estimated_delivery_date else None,
-                    "delivery_info": o.delivery_info,
-                    "confirmation_screen_url": o.confirmation_screen_url,
-                    "confirmation_sent_at": o.confirmation_sent_at.isoformat() if o.confirmation_sent_at else None,
-                    "review_target_date": o.review_target_date.isoformat() if o.review_target_date else None,
-                    "review_title": o.review_title,
-                    "review_body": o.review_body,
-                    "review_submitted_at": o.review_submitted_at.isoformat() if o.review_submitted_at else None,
-                    "review_screen_url": o.review_screen_url,
-                    "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
-                    "is_test": o.is_test
+                    'id': o.id,
+                    'order_number': o.order_number,
+                    'product_title': o.product_title,
+                    'product_image': o.product_image,
+                    'seller_contact': o.seller_contact,
+                    'amazon_url': o.amazon_url,
+                    'price_paid': o.price_paid,
+                    'refund_amount': o.refund_amount,
+                    'status': o.status,
+                    'order_date': o.order_date.isoformat() if o.order_date else None,
+                    'estimated_delivery_date': o.estimated_delivery_date.isoformat() if o.estimated_delivery_date else None,
+                    'delivery_info': o.delivery_info,
+                    'confirmation_screen_url': o.confirmation_screen_url,
+                    'confirmation_sent_at': o.confirmation_sent_at.isoformat() if o.confirmation_sent_at else None,
+                    'review_target_date': o.review_target_date.isoformat() if o.review_target_date else None,
+                    'review_title': o.review_title,
+                    'review_body': o.review_body,
+                    'review_submitted_at': o.review_submitted_at.isoformat() if o.review_submitted_at else None,
+                    'review_screen_url': o.review_screen_url,
+                    'refunded_at': o.refunded_at.isoformat() if o.refunded_at else None,
+                    'is_test': o.is_test
                 })
-            with open(backup_file, "w", encoding="utf-8") as f:
+            with open(backup_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"[Telegram Backup Error] {e}")
+            print(f'[Telegram Backup Error] {e}')
 
-    async def sync_seller_replies(self, db: Session, seller_handle: str = "@alex8700") -> dict:
+    async def sync_seller_replies(self, db: Session, seller_handle: str = '@alex8700') -> dict:
         """
-        Controlla i messaggi privati per estrarre il link Amazon inviato per gli ordini in attesa.
-        Controlla TUTTE le chat rilevanti ('me', @alex8700 e seller_contact dell'ordine),
-        supporta messaggi in entrata/uscita, didascalie foto, link brevi amzn.to/amzn.eu,
-        e garantisce la persistenza immediata su backup JSON.
+        Controlla i messaggi Telegram per intercettare il link Amazon inviato da Alex DOPO la richiesta.
+        RIGOROSO:
+        - In TEST (Sandbox): controlla solo 'me' per messaggi inviati DOPO l'orario della richiesta.
+        - In LIVE: controlla solo la chat di Alex (@alex8700 / seller_contact) per messaggi RICEVUTI DA ALEX (not m.out) inviati DOPO l'orario della richiesta.
+        - MAI pescare link vecchi o messaggi inviati prima della richiesta.
         """
         try:
             client = await self._ensure_connected_client(db)
             if not await client.is_user_authorized():
-                return {"success": False, "auth_required": True, "error": "Telegram non autorizzato"}
+                return {'success': False, 'auth_required': True, 'error': 'Telegram non autorizzato'}
 
-            # Cerca TUTTI gli ordini in attesa di link
+            test_mode = self.get_setting(db, 'test_mode', 'false').lower() == 'true'
+
             pending_orders = db.query(Order).filter(
-                Order.status.in_(["waiting_link", "requested"]),
-                or_(Order.amazon_url == None, Order.amazon_url == "")
-            ).order_by(Order.order_date.desc()).all()
-            
+                Order.status == 'waiting_link',
+                or_(Order.amazon_url == None, Order.amazon_url == '')
+            ).order_by(Order.order_date.asc()).all()
+
             if not pending_orders:
-                return {"success": True, "updated_count": 0, "message": "Nessun ordine in attesa di link."}
+                return {'success': True, 'updated_count': 0, 'message': 'Nessun ordine in attesa di link.'}
 
-            # Raccogli tutti i target/contatti venditore da verificare (sia 'me' che @alex8700 e contatti custom)
-            targets_set = {"me", "@alex8700"}
-            if seller_handle and seller_handle.strip():
-                targets_set.add(seller_handle.strip())
-            for o in pending_orders:
-                if o.seller_contact and o.seller_contact.strip():
-                    clean_c = o.seller_contact.strip().replace("https://t.me/", "@").replace("http://t.me/", "@")
-                    if not clean_c.startswith("@") and not clean_c.startswith("+") and not clean_c.isdigit():
-                        clean_c = "@" + clean_c
-                    targets_set.add(clean_c)
+            if test_mode:
+                target_list = ['me']
+            else:
+                targets_set = set()
+                if seller_handle and seller_handle.strip():
+                    targets_set.add(seller_handle.strip())
+                for o in pending_orders:
+                    if o.seller_contact and o.seller_contact.strip():
+                        clean_c = o.seller_contact.strip().replace('https://t.me/', '@').replace('http://t.me/', '@')
+                        if not clean_c.startswith('@') and not clean_c.startswith('+') and not clean_c.isdigit():
+                            clean_c = '@' + clean_c
+                        targets_set.add(clean_c)
+                if not targets_set:
+                    targets_set.add('@alex8700')
+                target_list = list(targets_set)
 
-            target_list = list(targets_set)
             updated = 0
-            
+
             for target in target_list:
                 if not pending_orders:
                     break
                 try:
                     entity = await client.get_entity(target)
                 except Exception as ent_err:
-                    print(f"[Telegram Get Entity Warning] Chat con {target}: {ent_err}")
+                    print(f'[Telegram Get Entity Warning] Chat con {target}: {ent_err}')
                     continue
 
-                # Preleva gli ultimi messaggi recenti dalla chat (fino a 60 messaggi)
                 messages = []
-                async for m in client.iter_messages(entity, limit=60):
-                    raw_text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ""
+                async for m in client.iter_messages(entity, limit=40):
+                    is_valid_sender = (target == 'me') or (not m.out)
+                    if not is_valid_sender:
+                        continue
+
+                    raw_text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ''
                     has_entities = hasattr(m, 'entities') and bool(m.entities)
                     if (raw_text or has_entities) and m.date:
                         msg_date_utc = m.date.replace(tzinfo=None) if hasattr(m.date, 'tzinfo') and m.date.tzinfo else m.date
                         messages.append((msg_date_utc, m))
 
-                # Ordina dal più recente al più vecchio per trovare subito l'ultimo link inviato
-                messages.sort(key=lambda x: x[0], reverse=True)
+                messages.sort(key=lambda x: x[0])
 
                 for msg_date_utc, m in messages:
                     if not pending_orders:
                         break
-                    
-                    text_content = (getattr(m, 'text', None) or getattr(m, 'message', None) or "").lower()
-                    # Ignora i messaggi di richiesta del bot
-                    if "[test sandbox" in text_content or "volevo chiederti se è ancora disponibile" in text_content or "ciao alex! volevo chiederti" in text_content:
+
+                    text_content = (getattr(m, 'text', None) or getattr(m, 'message', None) or '').lower()
+                    if '[test sandbox' in text_content or 'volevo chiederti se e ancora disponibile' in text_content or 'ciao alex! volevo chiederti' in text_content:
                         continue
-                        
+
                     amz_urls = self._extract_amazon_urls_from_message(m)
-                    if amz_urls:
-                        best_url = amz_urls[0]
-                        
-                        # Assegna all'ordine in attesa più recente
-                        target_order = pending_orders.pop(0)
+                    if not amz_urls:
+                        continue
+
+                    best_url = amz_urls[0]
+
+                    target_order = None
+                    for o in pending_orders:
+                        if not o.order_date:
+                            continue
+                        min_allowed_time = o.order_date - timedelta(seconds=15)
+                        if msg_date_utc >= min_allowed_time and (not o.amazon_url):
+                            target_order = o
+                            break
+
+                    if target_order:
+                        pending_orders.remove(target_order)
                         target_order.amazon_url = best_url
-                        target_order.status = "link_approved"
-                        
+                        target_order.status = 'link_approved'
+
                         match_offer = db.query(Offer).filter(
-                            or_(Offer.title == target_order.product_title, Offer.title.ilike(f"%{target_order.product_title[:25]}%"))
+                            or_(Offer.title == target_order.product_title, Offer.title.ilike(f'%{target_order.product_title[:25]}%'))
                         ).first()
                         if match_offer:
                             match_offer.amazon_link = best_url
-                            match_offer.status = "link_received"
+                            match_offer.status = 'link_received'
 
                         log = ActivityLog(
-                            action_type="LINK_RECEIVED",
-                            title=f"Link Amazon Ricevuto ({target})!",
-                            details=f"Articolo: {target_order.product_title[:45]} | Link: {best_url}"
+                            action_type='LINK_RECEIVED',
+                            title=f'Link Amazon Ricevuto ({target})!',
+                            details=f'Articolo: {target_order.product_title[:45]} | Link: {best_url}'
                         )
                         db.add(log)
                         db.commit()
@@ -1276,12 +1214,12 @@ class TelegramManager:
                         updated += 1
 
             return {
-                "success": True,
-                "updated_count": updated,
-                "message": f"Sincronizzazione completata: {updated} nuovi link ricevuti da Alex!" if updated > 0 else "Nessun nuovo link trovato da Alex. In attesa di risposta."
+                'success': True,
+                'updated_count': updated,
+                'message': f'Sincronizzazione completata: {updated} nuovi link ricevuti da Alex!' if updated > 0 else 'Nessun nuovo link trovato da Alex. In attesa di risposta.'
             }
         except Exception as e:
-            print(f"[Telegram Sync Replies Error] {e}")
-            return {"success": False, "error": str(e)}
+            print(f'[Telegram Sync Replies Error] {e}')
+            return {'success': False, 'error': str(e)}
 
 telegram_service = TelegramManager()
