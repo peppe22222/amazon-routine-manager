@@ -292,25 +292,15 @@ async function loadOffers() {
     const container = document.getElementById('offers-grid');
     if (!container) return;
 
-    // Deduplicazione definitiva nel Frontend: 1 sola card per ogni prodotto
+    // Visualizzazione di tutte le offerte sincronizzate (elimina solo copie identiche dello stesso messaggio Telegram)
     const seenMap = new Map();
     for (const o of (rawOffers || [])) {
       if (o.status === 'dismissed') continue;
       
-      // Estrai chiave prodotto univoca
-      const cleanT = (o.title || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, ' ')
-        .split(/\s+/)
-        .filter(w => w.length > 2 && !['per','con','del','della','delle','dei','degli','in','da','su','il','la','le','lo','gli','un','una','uno','euro','tasse','rimborso','prodotto','articolo','offerta'].includes(w))
-        .slice(0, 5)
-        .join('_');
-        
-      const key = cleanT || `item_${o.id}`;
+      const key = o.message_id ? `msg_${String(o.message_id).trim()}` : `title_${(o.title || '').trim().toLowerCase()}`;
       
       if (seenMap.has(key)) {
         const existing = seenMap.get(key);
-        // Se la nuova è già acquistata/richiesta e la vecchia no, mantieni quella acquistata
         if (o.is_purchased && !existing.is_purchased) {
           seenMap.set(key, o);
         }

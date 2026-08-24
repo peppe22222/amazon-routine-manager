@@ -111,16 +111,10 @@ def is_title_duplicate(title1: str, title2: str) -> bool:
     t2 = title2.strip().lower()
     if t1 == t2:
         return True
-    k1 = get_product_dedup_key(title1)
-    k2 = get_product_dedup_key(title2)
+    k1 = normalize_text_key(title1)
+    k2 = normalize_text_key(title2)
     if k1 and k2 and k1 == k2:
         return True
-    w1 = set(normalize_text_key(title1).split())
-    w2 = set(normalize_text_key(title2).split())
-    if len(w1) >= 2 and len(w2) >= 2:
-        common = w1.intersection(w2)
-        if (len(common) / max(len(w1), len(w2))) >= 0.75:
-            return True
     return False
 
 def clean_html_text(raw_html: str) -> str:
@@ -131,7 +125,7 @@ def clean_html_text(raw_html: str) -> str:
     text = re.sub(r'<[^>]+>', '', text)
     return html.unescape(text).strip()
 
-def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 150) -> list:
+def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) -> list:
     """
     Scarica e analizza tutti i post recenti da un canale pubblico Telegram tramite l'anteprima web (https://t.me/s/...)
     Supporta la paginazione all'indietro per estrarre fino a 'limit' messaggi completi con foto e contatti.
@@ -151,7 +145,7 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 150) ->
     all_message_blocks = []
     seen_post_ids = set()
     current_url = base_url
-    max_pages = 8 # Fino a 8 pagine di ~20 messaggi = ~160 messaggi
+    max_pages = 15 # Fino a 15 pagine di ~20 messaggi = ~300 messaggi
 
     for page in range(max_pages):
         try:

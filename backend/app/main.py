@@ -645,17 +645,16 @@ def cleanup_unwanted_demo_offers(db: Session):
     except Exception as e:
         print(f"[Cleanup Error] {e}")
 
-def prune_old_unrequested_offers(db: Session, max_new_offers: int = 50):
+def prune_old_unrequested_offers(db: Session, max_new_offers: int = 300):
     """
-    Mantiene il feed delle offerte snello e aggiornato:
-    Quando arrivano nuove offerte, gli articoli più vecchi in fondo alla lista con stato 'new'
-    vengono rimossi automaticamente.
+    Mantiene il feed delle offerte ordinato senza troncare le offerte disponibili:
+    Solo se ci sono più di 300 articoli non richiesti, rimuove i più vecchi in fondo alla lista.
     GLI ARTICOLI RICHIESTI, CON LINK O ACQUISTATI/IN ORDINE VENGONO SEMPRE PRESERVATI.
     """
     try:
         s = db.query(Setting).filter_by(key="max_feed_offers").first()
         if s and s.value and s.value.isdigit():
-            max_new_offers = max(20, int(s.value))
+            max_new_offers = max(50, int(s.value))
             
         orders = db.query(Order).filter(Order.status != "cancelled").all()
         
@@ -696,11 +695,8 @@ def prune_old_unrequested_offers(db: Session, max_new_offers: int = 50):
 
 def deduplicate_all_offers(db: Session):
     """
-    Rimuove tassativamente e definitivamente qualsiasi offerta duplicata dal database.
-    Se esistono più schede per lo stesso prodotto:
-    1. Mantiene prioritariamente quella 'purchased' / 'link_received' / 'requested'
-    2. Se tutte 'new', mantiene la più recente con foto valida
-    3. Elimina definitivamente le copie dal database
+    Rimuove tassativamente solo i duplicati identici (stesso message_id Telegram o stesso identico ordine/titolo).
+    I diversi articoli del canale vengono TUTTI preservati.
     """
     try:
         all_offers = db.query(Offer).order_by(desc(Offer.created_at), desc(Offer.id)).all()
@@ -716,10 +712,13 @@ def deduplicate_all_offers(db: Session):
             matching_order = find_matching_order_for_offer(off.title, orders)
             if matching_order:
                 key = f"order_{matching_order.id}"
+            elif off.message_id and str(off.message_id).strip():
+                # Ogni post Telegram ha il suo message_id univoco
+                key = f"msg_{str(off.message_id).strip()}"
             else:
-                key = get_product_dedup_key(off.title)
-                if not key:
-                    key = f"id_{off.id}"
+                # Titolo identico completo normalizzato
+                clean_full = (off.title or "").strip().lower()
+                key = f"title_{clean_full}" if clean_full else f"id_{off.id}"
 
             if key in seen_keys:
                 existing = seen_keys[key]
