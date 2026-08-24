@@ -97,20 +97,22 @@ def normalize_text_key(text: str) -> str:
 def is_title_duplicate(title1: str, title2: str) -> bool:
     if not title1 or not title2:
         return False
+    t1 = title1.strip().lower()
+    t2 = title2.strip().lower()
+    if t1 == t2:
+        return True
     k1 = normalize_text_key(title1)
     k2 = normalize_text_key(title2)
     if not k1 or not k2:
         return False
-    if k1 == k2 or k1 in k2 or k2 in k1:
+    if k1 == k2:
         return True
     w1 = set(k1.split())
     w2 = set(k2.split())
-    if not w1 or not w2:
-        return False
-    common = w1.intersection(w2)
-    min_len = min(len(w1), len(w2))
-    if min_len > 0 and (len(common) / min_len) >= 0.70:
-        return True
+    if len(w1) >= 3 and len(w2) >= 3:
+        common = w1.intersection(w2)
+        if (len(common) / max(len(w1), len(w2))) >= 0.85:
+            return True
     return False
 
 def clean_html_text(raw_html: str) -> str:
@@ -121,10 +123,10 @@ def clean_html_text(raw_html: str) -> str:
     text = re.sub(r'<[^>]+>', '', text)
     return html.unescape(text).strip()
 
-def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 20) -> list:
+def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 150) -> list:
     """
-    Scarica e analizza i post più recenti da un canale pubblico Telegram tramite l'anteprima web (https://t.me/s/...)
-    Ignora messaggi/foto orfane senza testo per evitare duplicati da album.
+    Scarica e analizza tutti i post recenti da un canale pubblico Telegram tramite l'anteprima web (https://t.me/s/...)
+    Supporta la paginazione all'indietro per estrarre fino a 'limit' messaggi completi con foto e contatti.
     """
     clean = channel_identifier.strip().lstrip('@')
     clean = clean.replace("https://t.me/s/", "").replace("https://t.me/", "").strip("/")
@@ -132,107 +134,155 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 20) -> 
     if not clean or clean.startswith("+"):
         return []
 
-    url = f"https://t.me/s/{clean}"
+    base_url = f"https://t.me/s/{clean}"
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7"
     }
 
-    try:
-        resp = requests.get(url, headers=headers, timeout=12)
-        if resp.status_code != 200:
-            return []
+    all_message_blocks = []
+    seen_post_ids = set()
+    current_url = base_url
+    max_pages = 8 # Fino a 8 pagine di ~20 messaggi = ~160 messaggi
+
+    for page in range(max_pages):
+        try:
+            resp = requests.get(current_url, headers=headers, timeout=12)
+            if resp.status_code != 200:
+                break
+                
+            page_html = resp.text
+            blocks = re.findall(r'(<div class="tgme_widget_message\b[^>]*>.*?<div class="tgme_widget_message_footer\b)', page_html, re.DOTALL)
+            if not blocks:
+                break
+                
+            new_blocks_in_page = 0
+            min_post_id = None
             
-        page_html = resp.text
-        message_blocks = re.findall(r'(<div class="tgme_widget_message\b[^>]*>.*?<div class="tgme_widget_message_footer\b)', page_html, re.DOTALL)
-        
-        offers_found = []
-        for block in message_blocks[-limit:]:
-            # Estrazione message_id da data-post
-            msg_id = None
-            data_post_match = re.search(r'data-post=[\'"][^/\'"]+/(\d+)[\'"]', block)
-            if data_post_match:
-                msg_id = data_post_match.group(1)
-
-            # 1. Estrazione Testo
-            text_match = re.search(r'<div class="tgme_widget_message_text\b[^>]*>(.*?)</div>', block, re.DOTALL)
-            raw_text = clean_html_text(text_match.group(1)) if text_match else ""
-
-            # FILTRO CRITICO ALBUM: Se un messaggio non ha testo, è una foto secondaria di un album
-            if not raw_text or len(raw_text.strip()) < 3:
-                continue
-
-            # 2. Estrazione Foto
-            img_match = re.search(r'background-image:url\([\'"]?(https?://[^\'")]+)[\'"]?\)', block)
-            if not img_match:
-                img_match = re.search(r'src=[\'"]?(https?://[^\'">\s]+)[\'"]?', block)
-            img_url = img_match.group(1) if img_match else None
-
-            lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
-
-            # 3. Estrazione Contatto Venditore
-            seller_match = re.findall(r'@([a-zA-Z0-9_]{3,32})', raw_text)
-            seller_contact = "@alex8700"
-            if seller_match:
-                for cand in seller_match:
-                    if cand.lower() != clean.lower():
-                        seller_contact = f"@{cand}"
-                        break
-
-            # 4. Estrazione Intelligente di Tutti i Prodotti e delle Condizioni
-            item_lines = []
-            condition_lines = []
-            
-            for line in lines:
-                clean_l = re.sub(r'https?://\S+', '', line)
-                clean_l = re.sub(r'@[a-zA-Z0-9_]+', '', clean_l).strip()
-                if not clean_l:
-                    continue
-                l_lower = clean_l.lower()
-                is_condition = any(w in l_lower for w in ['paga', 'costo', 'euro', '€', 'tasse', '100%', 'rimborso', 'feedback', 'recensione', 'contattare', 'disponibilit', 'pm per link', 'link'])
-                if is_condition:
-                    condition_lines.append(clean_l)
+            for b in blocks:
+                dp = re.search(r'data-post=[\'"][^/\'"]+/(\d+)[\'"]', b)
+                if dp:
+                    pid = int(dp.group(1))
+                    if min_post_id is None or pid < min_post_id:
+                        min_post_id = pid
+                    if pid not in seen_post_ids:
+                        seen_post_ids.add(pid)
+                        all_message_blocks.append(b)
+                        new_blocks_in_page += 1
                 else:
-                    if len(clean_l) >= 2:
-                        item_lines.append(clean_l)
+                    all_message_blocks.append(b)
+                    new_blocks_in_page += 1
 
-            # Titolo robusto
-            if len(item_lines) > 1:
-                title = " • ".join(item_lines)
-            elif len(item_lines) == 1:
-                title = item_lines[0]
-            elif lines:
-                title = lines[0][:80]
-            else:
-                continue
+            if len(all_message_blocks) >= limit or new_blocks_in_page == 0 or min_post_id is None:
+                break
+                
+            # Pagina successiva verso i messaggi precedenti
+            current_url = f"{base_url}?before={min_post_id}"
+        except Exception as e:
+            print(f"[Scraper Page {page} Error] {e}")
+            break
 
-            # Condizioni di spesa e rimborso
-            if condition_lines:
-                price_info = " • ".join(condition_lines)
-            else:
-                price_info = "100% rimborso"
-
-            taxes_covered = True
-            if any(w in raw_text.lower() for w in ["tasse forse", "tasse a parte", "no tasse", "tasse non coperte", "forse"]):
-                taxes_covered = False
-
-            if not img_url:
-                img_url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
-
-            offers_found.append({
-                "title": title,
-                "price_info": price_info,
-                "seller_contact": seller_contact,
-                "image_url": img_url,
-                "taxes_covered": taxes_covered,
-                "raw_text": raw_text,
-                "message_id": msg_id
-            })
-
-        return offers_found
-    except Exception as e:
-        print(f"[Scraper Error] {e}")
+    if not all_message_blocks:
         return []
+
+    offers_found = []
+    seen_titles = set()
+    
+    # Processa i blocchi dal più recente al più vecchio
+    for block in all_message_blocks:
+        # Estrazione message_id da data-post
+        msg_id = None
+        data_post_match = re.search(r'data-post=[\'"][^/\'"]+/(\d+)[\'"]', block)
+        if data_post_match:
+            msg_id = data_post_match.group(1)
+
+        # 1. Estrazione Testo
+        text_match = re.search(r'<div class="tgme_widget_message_text\b[^>]*>(.*?)</div>', block, re.DOTALL)
+        raw_text = clean_html_text(text_match.group(1)) if text_match else ""
+
+        # 2. Estrazione Foto
+        img_match = re.search(r'background-image:url\([\'"]?(https?://[^\'")]+)[\'"]?\)', block)
+        if not img_match:
+            img_match = re.search(r'src=[\'"]?(https?://[^\'">\s]+)[\'"]?', block)
+        img_url = img_match.group(1) if img_match else None
+
+        # Se non c'è né testo né foto valida, salta
+        if not raw_text and not img_url:
+            continue
+
+        lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
+
+        # 3. Estrazione Contatto Venditore
+        seller_match = re.findall(r'@([a-zA-Z0-9_]{3,32})', raw_text)
+        seller_contact = "@alex8700"
+        if seller_match:
+            for cand in seller_match:
+                if cand.lower() not in [clean.lower(), "articoliaddicted", "channel", "canale"]:
+                    seller_contact = f"@{cand}"
+                    break
+
+        # 4. Estrazione Intelligente di Titolo e Condizioni
+        item_lines = []
+        condition_lines = []
+        
+        for line in lines:
+            clean_l = re.sub(r'https?://\S+', '', line)
+            clean_l = re.sub(r'@[a-zA-Z0-9_]+', '', clean_l).strip()
+            if not clean_l:
+                continue
+            l_lower = clean_l.lower()
+            is_condition = bool(
+                re.search(r'(?:si paga|paga|paghi|costo|spesa|rimborso|tasse|feedback|recensione|contattare|disponibilit|pm per|per link)\b', l_lower)
+                or re.search(r'^\s*\d+\s*(?:€|euro|%)\b', l_lower)
+            )
+            if is_condition:
+                condition_lines.append(clean_l)
+            else:
+                if len(clean_l) >= 2:
+                    item_lines.append(clean_l)
+
+        # Titolo robusto
+        if len(item_lines) > 1:
+            title = " • ".join(item_lines)
+        elif len(item_lines) == 1:
+            title = item_lines[0]
+        elif lines:
+            first_clean = re.sub(r'https?://\S+', '', lines[0])
+            first_clean = re.sub(r'@[a-zA-Z0-9_]+', '', first_clean).strip()
+            title = first_clean if len(first_clean) >= 2 else (f"Articolo Offerta #{msg_id}" if msg_id else "Prodotto in Offerta")
+        else:
+            title = f"Articolo Offerta #{msg_id}" if msg_id else "Prodotto in Offerta"
+
+        # Condizioni di spesa e rimborso
+        if condition_lines:
+            price_info = " • ".join(condition_lines)
+        else:
+            price_info = "100% rimborso"
+
+        taxes_covered = True
+        if any(w in raw_text.lower() for w in ["tasse forse", "tasse a parte", "no tasse", "tasse non coperte", "forse"]):
+            taxes_covered = False
+
+        if not img_url:
+            img_url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
+
+        # Evita duplicati solo se identico titolo nello stesso batch
+        t_key = title.strip().lower()
+        if t_key in seen_titles:
+            continue
+        seen_titles.add(t_key)
+
+        offers_found.append({
+            "title": title,
+            "price_info": price_info,
+            "seller_contact": seller_contact,
+            "image_url": img_url,
+            "taxes_covered": taxes_covered,
+            "raw_text": raw_text,
+            "message_id": msg_id
+        })
+
+    return offers_found
 
 from telethon.sessions import StringSession
 
@@ -467,9 +517,9 @@ class TelegramManager:
         self._cleanup_session()
         return {"success": True, "message": "Account Telegram disconnesso con successo."}
 
-    async def sync_channel_live(self, db: Session, channel_identifier: str = None, limit: int = 30) -> dict:
+    async def sync_channel_live(self, db: Session, channel_identifier: str = None, limit: int = 500) -> dict:
         """
-        Scarica e importa direttamente le ultime offerte dal canale Telegram autorizzato con foto HD originali.
+        Scarica e importa direttamente TUTTE le offerte dal canale Telegram autorizzato con foto HD originali.
         """
         client = await self._ensure_connected_client(db)
         if not await client.is_user_authorized():
@@ -537,7 +587,7 @@ class TelegramManager:
 
         channel_title = getattr(entity, 'title', getattr(entity, 'username', 'Articoli Addicted'))
 
-        # Raccogli tutti i messaggi recenti
+        # Raccogli tutti i messaggi recenti fino al limite
         raw_messages = []
         async for message in client.iter_messages(entity, limit=limit):
             raw_messages.append(message)
@@ -549,31 +599,63 @@ class TelegramManager:
                 "message": f"Nessun messaggio recente rilevato nel canale '{channel_title}'."
             }
 
-        # Raggruppa i messaggi per album (grouped_id) in modo che 4 foto con 1 testo diventino 1 singola offerta
+        # Raggruppa i messaggi per album (grouped_id) o per messaggio singolo
+        # Inoltre accoppia messaggi adiacenti senza grouped_id (foto inviata subito prima o dopo il testo)
         album_groups = OrderedDict()
-        for m in raw_messages:
-            key = f"album_{m.grouped_id}" if m.grouped_id else f"single_{m.id}"
-            if key not in album_groups:
-                album_groups[key] = []
-            album_groups[key].append(m)
+        
+        # Ordina per ID crescente per raggruppamento temporale
+        sorted_msgs = sorted(raw_messages, key=lambda m: m.id)
+        
+        i = 0
+        while i < len(sorted_msgs):
+            m = sorted_msgs[i]
+            if m.grouped_id:
+                key = f"album_{m.grouped_id}"
+                if key not in album_groups:
+                    album_groups[key] = []
+                album_groups[key].append(m)
+                i += 1
+            else:
+                # Controlla se il messaggio successivo è accoppiato (es. foto + testo o testo + foto entro 120s)
+                has_next = (i + 1 < len(sorted_msgs))
+                next_m = sorted_msgs[i + 1] if has_next else None
+                
+                is_paired = False
+                if next_m and not next_m.grouped_id and m.date and next_m.date:
+                    time_diff = abs((next_m.date - m.date).total_seconds())
+                    if time_diff <= 120:
+                        # Uno ha foto e l'altro ha testo
+                        if (m.media and not m.text and next_m.text and not next_m.media) or \
+                           (not m.media and m.text and next_m.media and not next_m.text):
+                            key = f"pair_{m.id}_{next_m.id}"
+                            album_groups[key] = [m, next_m]
+                            is_paired = True
+                            i += 2
+                
+                if not is_paired:
+                    key = f"single_{m.id}"
+                    album_groups[key] = [m]
+                    i += 1
 
-        # Non cancellare le offerte esistenti; rispetta le offerte già salvate o scartate dall'utente (incluso dismissed)
+        # Carica tutte le offerte già presenti nel DB
         existing_all = db.query(Offer).all()
-        existing_titles = [o.title for o in existing_all if o.title]
         existing_msg_ids = set()
+        existing_titles_exact = set()
         for o in existing_all:
+            if o.title:
+                existing_titles_exact.add(o.title.strip().lower())
             if o.message_id:
                 for mid in str(o.message_id).split(','):
                     if mid.strip():
                         existing_msg_ids.add(mid.strip())
-        existing_images = {(o.image_url or '').strip() for o in existing_all if o.image_url and 'unsplash' not in o.image_url}
 
         imported_count = 0
-        batch_seen_titles = []
+        batch_seen_titles = set()
+        
         for key, msgs in album_groups.items():
             all_msg_ids = [str(m.id) for m in msgs]
             
-            # Se TUTTI i messaggi dell'album sono già noti nel DB, salta l'album
+            # Se TUTTI i messaggi dell'album sono già presenti nel DB, salta
             if all(m_id in existing_msg_ids for m_id in all_msg_ids):
                 continue
 
@@ -623,7 +705,7 @@ class TelegramManager:
             seller_contact = "@alex8700"
             if seller_match:
                 for cand in seller_match:
-                    if cand.lower() not in ["articoliaddicted", "articoli", "addicted", "channel"]:
+                    if cand.lower() not in ["articoliaddicted", "articoli", "addicted", "channel", "canale"]:
                         seller_contact = f"@{cand}"
                         break
 
@@ -637,10 +719,9 @@ class TelegramManager:
                 if not clean_l:
                     continue
                 l_lower = clean_l.lower()
-                # Condizione economica/venditore solo se contiene pattern specifici di spesa/rimborso
                 is_condition = bool(
                     re.search(r'(?:si paga|paga|paghi|costo|spesa|rimborso|tasse|feedback|recensione|contattare|disponibilit|pm per|per link)\b', l_lower)
-                    or re.search(r'\d+\s*(?:€|euro|%)', l_lower)
+                    or re.search(r'^\s*\d+\s*(?:€|euro|%)\b', l_lower)
                 )
                 if is_condition:
                     condition_lines.append(clean_l)
@@ -648,7 +729,7 @@ class TelegramManager:
                     if len(clean_l) >= 2:
                         item_lines.append(clean_l)
 
-            # Titolo robusto: unione dei prodotti oppure prima riga pulita del post
+            # Titolo robusto
             if len(item_lines) > 1:
                 title = " • ".join(item_lines)
             elif len(item_lines) == 1:
@@ -672,15 +753,12 @@ class TelegramManager:
 
             msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
 
-            # Evita duplicati se il titolo o i messaggi esistono già nel DB o nel batch corrente
-            clean_t = title.strip().lower()
-            if any(t.strip().lower() == clean_t for t in existing_titles) or any(t.strip().lower() == clean_t for t in batch_seen_titles):
-                continue
-            if any(mid in existing_msg_ids for mid in all_msg_ids):
+            # Evita duplicati solo se identico nello stesso batch o già inserito
+            t_key = title.strip().lower()
+            if t_key in batch_seen_titles:
                 continue
 
-            batch_seen_titles.append(title)
-            existing_titles.append(title)
+            batch_seen_titles.add(t_key)
             for mid in all_msg_ids:
                 existing_msg_ids.add(mid)
 
@@ -704,10 +782,16 @@ class TelegramManager:
             log = ActivityLog(
                 action_type="CHANNEL_SYNC",
                 title=f"Sincronizzazione Canale {channel_title}",
-                details=f"Scaricate {imported_count} nuove offerte live con foto originali e venditori."
+                details=f"Scaricate con successo {imported_count} offerte complete con foto e contatti."
             )
             db.add(log)
             db.commit()
+
+        return {
+            "success": True,
+            "count": imported_count,
+            "message": f"Sincronizzazione completata: {imported_count} nuove offerte importate da {channel_title}!"
+        }
 
         return {
             "success": True,

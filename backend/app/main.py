@@ -377,54 +377,52 @@ def set_active_channel(payload: TelegramChannelPayload, db: Session = Depends(ge
 
 @app.post("/api/telegram/sync-channel")
 async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None, db: Session = Depends(get_db)):
-    """Scarica automaticamente le ultime offerte live dal canale Telegram autorizzato o pubblico"""
+    """Scarica automaticamente TUTTE le offerte live dal canale Telegram autorizzato o pubblico"""
     channel = payload.channel_name if payload and payload.channel_name else get_active_channel(db)["channel_name"]
     
     # 1. Prova con il client Telegram autorizzato
     try:
-        tele_res = await telegram_service.sync_channel_live(db, channel, limit=150)
+        tele_res = await telegram_service.sync_channel_live(db, channel, limit=500)
         if tele_res.get("success"):
             return tele_res
         elif tele_res.get("auth_required"):
-            return tele_res
+            # Se Telethon non è collegato, tenta comunque con lo scraper web pubblico prima di dare errore
+            pass
     except Exception as e:
         print(f"[Telethon Sync Error] {e}")
 
     # 2. Fallback su anteprima web pubblica per canali pubblici
-    offers_data = scrape_telegram_channel_offers(channel, limit=25)
+    offers_data = scrape_telegram_channel_offers(channel, limit=150)
     if offers_data:
-        # Preleva tutte le offerte già esistenti (inclusi i dismissed e i requested)
+        # Preleva tutte le offerte già esistenti nel DB
         existing_all = db.query(Offer).all()
-        existing_titles = [o.title for o in existing_all if o.title]
         existing_msg_ids = set()
+        existing_titles_exact = set()
         for o in existing_all:
+            if o.title:
+                existing_titles_exact.add(o.title.strip().lower())
             if o.message_id:
                 for mid in str(o.message_id).split(','):
                     if mid.strip():
                         existing_msg_ids.add(mid.strip())
-        existing_images = {(o.image_url or '').strip() for o in existing_all if o.image_url and 'unsplash' not in o.image_url}
 
         added_count = 0
-        batch_seen_titles = []
+        batch_seen_titles = set()
         for item in offers_data:
             t = item["title"].strip()
             msg_id = str(item.get("message_id") or "").strip()
             img = (item.get("image_url") or "").strip()
             
-            # Se è già presente nel DB (anche se cancellata/dismissed) o già vista nel batch, salta
+            t_key = t.lower()
+            # Salta solo se il messaggio specifico è già stato importato
             if msg_id and msg_id in existing_msg_ids:
                 continue
-            if any(is_title_duplicate(t, ext) for ext in existing_titles) or any(is_title_duplicate(t, bt) for bt in batch_seen_titles):
-                continue
-            if img and 'unsplash' not in img and img in existing_images:
+            if t_key in batch_seen_titles:
                 continue
 
-            batch_seen_titles.append(t)
-            existing_titles.append(t)
+            batch_seen_titles.add(t_key)
             if msg_id:
                 existing_msg_ids.add(msg_id)
-            if img and 'unsplash' not in img:
-                existing_images.add(img)
 
             off = Offer(
                 title=t,
@@ -452,16 +450,16 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
         return {
             "success": True,
             "count": added_count,
-            "message": f"Sincronizzazione completata: {added_count} nuove offerte importate da {channel}!"
+            "message": f"Sincronizzazione completata: {added_count} offerte importate da {channel}!"
         }
 
     # 3. Se ci sono già offerte nel DB
-    existing_count = db.query(Offer).filter(Offer.status.in_(["new", "requested"])).count()
+    existing_count = db.query(Offer).filter(Offer.status != "dismissed").count()
     if existing_count > 0:
         return {
             "success": True,
             "count": existing_count,
-            "message": f"Feed offerte aggiornato: {existing_count} offerte attive pronte per la selezione!"
+            "message": f"Feed offerte aggiornato: {existing_count} offerte pronte per la selezione!"
         }
 
     return {

@@ -292,14 +292,13 @@ async function loadOffers() {
     const container = document.getElementById('offers-grid');
     if (!container) return;
 
-    // Mostra le offerte univoche (1 sola card per ogni prodotto/titolo)
-    const seenTitles = new Set();
+    // Mostra tutte le offerte sincronizzate (deduplicazione per ID)
+    const seenIds = new Set();
     const offers = [];
     for (const o of (rawOffers || [])) {
       if (o.status === 'dismissed') continue;
-      const cleanT = (o.title || '').trim().toLowerCase().replace(/\s+/g, ' ');
-      if (cleanT && seenTitles.has(cleanT)) continue;
-      if (cleanT) seenTitles.add(cleanT);
+      if (o.id && seenIds.has(o.id)) continue;
+      if (o.id) seenIds.add(o.id);
       offers.push(o);
     }
 
