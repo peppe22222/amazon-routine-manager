@@ -1240,7 +1240,7 @@ class TelegramManager:
 
                         log = ActivityLog(
                             action_type='LINK_RECEIVED',
-                            title=f'Link Amazon Ricevuto ({target})!',
+                            title=f'Link Amazon Ricevuto ({target_name})!',
                             details=f'Articolo: {target_order.product_title[:45]} | Link: {best_url}'
                         )
                         db.add(log)
