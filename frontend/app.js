@@ -1118,10 +1118,12 @@ async function syncTelegramReplies(silent = false) {
     if (res.ok && data.success) {
       if (data.updated_count > 0) {
         showToast(`🎉 Alex ti ha inviato il link Amazon! Pronta per l'acquisto.`);
-        loadOrders();
+        await loadOrders();
+        loadOffers();
         loadStats();
       } else if (!silent) {
         showToast(data.message || 'Risposte di Alex sincronizzate!');
+        await loadOrders();
       }
     } else if (!silent) {
       showToast(data.error || 'Nessun nuovo messaggio da Alex', true);

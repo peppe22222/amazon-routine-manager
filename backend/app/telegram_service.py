@@ -1112,16 +1112,18 @@ class TelegramManager:
             for ent in m.entities:
                 if hasattr(ent, 'url') and ent.url:
                     found_urls.append(ent.url)
-                elif hasattr(ent, 'offset') and hasattr(ent, 'length') and m.text:
+                elif hasattr(ent, 'offset') and hasattr(ent, 'length'):
                     try:
-                        ent_text = m.text[ent.offset : ent.offset + ent.length]
-                        if ent_text:
-                            found_urls.append(ent_text)
+                        raw_t = getattr(m, 'text', None) or getattr(m, 'message', None) or ""
+                        if raw_t:
+                            ent_text = raw_t[ent.offset : ent.offset + ent.length]
+                            if ent_text:
+                                found_urls.append(ent_text)
                     except Exception:
                         pass
 
         # 2. Da testo con regex standard (http:// o https://)
-        text = m.text or ""
+        text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ""
         found_urls.extend(re.findall(r'https?://[^\s<>"]+', text))
         
         # 3. Da link corti o senza protocollo (es. amzn.to/..., amzn.eu/..., amazon.it/...)
@@ -1135,6 +1137,8 @@ class TelegramManager:
             if not u_clean:
                 continue
             u_lower = u_clean.lower()
+            if 'media-amazon.com' in u_lower:
+                continue
             if any(dom in u_lower for dom in ['amazon.', 'amzn.to', 'amzn.eu', 'amzn.']):
                 if not u_clean.startswith('http://') and not u_clean.startswith('https://'):
                     u_clean = 'https://' + u_clean
@@ -1143,46 +1147,76 @@ class TelegramManager:
 
         return clean_amz_urls
 
+    @staticmethod
+    def _save_orders_backup(db: Session):
+        """Salva lo stato degli ordini su file di backup persistente"""
+        try:
+            import json, os
+            backup_file = os.path.join(os.path.dirname(__file__), "..", "..", "data", "orders_persistent_backup.json")
+            orders = db.query(Order).all()
+            data = []
+            for o in orders:
+                data.append({
+                    "id": o.id,
+                    "order_number": o.order_number,
+                    "product_title": o.product_title,
+                    "product_image": o.product_image,
+                    "seller_contact": o.seller_contact,
+                    "amazon_url": o.amazon_url,
+                    "price_paid": o.price_paid,
+                    "refund_amount": o.refund_amount,
+                    "status": o.status,
+                    "order_date": o.order_date.isoformat() if o.order_date else None,
+                    "estimated_delivery_date": o.estimated_delivery_date.isoformat() if o.estimated_delivery_date else None,
+                    "delivery_info": o.delivery_info,
+                    "confirmation_screen_url": o.confirmation_screen_url,
+                    "confirmation_sent_at": o.confirmation_sent_at.isoformat() if o.confirmation_sent_at else None,
+                    "review_target_date": o.review_target_date.isoformat() if o.review_target_date else None,
+                    "review_title": o.review_title,
+                    "review_body": o.review_body,
+                    "review_submitted_at": o.review_submitted_at.isoformat() if o.review_submitted_at else None,
+                    "review_screen_url": o.review_screen_url,
+                    "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
+                    "is_test": o.is_test
+                })
+            with open(backup_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"[Telegram Backup Error] {e}")
+
     async def sync_seller_replies(self, db: Session, seller_handle: str = "@alex8700") -> dict:
         """
-        Controlla i messaggi privati ricevuti da Alex/venditore DOPO l'invio della richiesta
-        per estrarre il link Amazon inviato specificamente per quell'articolo.
-        Supporta tolleranza oraria, formati multipli di link ed entità Telethon.
+        Controlla i messaggi privati per estrarre il link Amazon inviato per gli ordini in attesa.
+        Controlla TUTTE le chat rilevanti ('me', @alex8700 e seller_contact dell'ordine),
+        supporta messaggi in entrata/uscita, didascalie foto, link brevi amzn.to/amzn.eu,
+        e garantisce la persistenza immediata su backup JSON.
         """
         try:
             client = await self._ensure_connected_client(db)
             if not await client.is_user_authorized():
                 return {"success": False, "auth_required": True, "error": "Telegram non autorizzato"}
 
-            test_mode = self.get_setting(db, "test_mode", "false").lower() == "true"
-            
-            # Cerca SOLO gli ordini in stato 'waiting_link' che NON hanno già un link impostato
+            # Cerca TUTTI gli ordini in attesa di link
             pending_orders = db.query(Order).filter(
-                Order.status == "waiting_link",
+                Order.status.in_(["waiting_link", "requested"]),
                 or_(Order.amazon_url == None, Order.amazon_url == "")
-            ).order_by(Order.order_date.asc()).all()
+            ).order_by(Order.order_date.desc()).all()
             
             if not pending_orders:
                 return {"success": True, "updated_count": 0, "message": "Nessun ordine in attesa di link."}
 
-            # Raccogli tutti i target/contatti venditore da verificare
-            if test_mode:
-                target_list = ["me"]
-            else:
-                targets_set = set()
-                if seller_handle and seller_handle.strip():
-                    targets_set.add(seller_handle.strip())
-                for o in pending_orders:
-                    if o.seller_contact and o.seller_contact.strip():
-                        # Pulisci eventuale URL t.me/
-                        clean_c = o.seller_contact.strip().replace("https://t.me/", "@").replace("http://t.me/", "@")
-                        if not clean_c.startswith("@") and not clean_c.startswith("+") and not clean_c.isdigit():
-                            clean_c = "@" + clean_c
-                        targets_set.add(clean_c)
-                if not targets_set:
-                    targets_set.add("@alex8700")
-                target_list = list(targets_set)
+            # Raccogli tutti i target/contatti venditore da verificare (sia 'me' che @alex8700 e contatti custom)
+            targets_set = {"me", "@alex8700"}
+            if seller_handle and seller_handle.strip():
+                targets_set.add(seller_handle.strip())
+            for o in pending_orders:
+                if o.seller_contact and o.seller_contact.strip():
+                    clean_c = o.seller_contact.strip().replace("https://t.me/", "@").replace("http://t.me/", "@")
+                    if not clean_c.startswith("@") and not clean_c.startswith("+") and not clean_c.isdigit():
+                        clean_c = "@" + clean_c
+                    targets_set.add(clean_c)
 
+            target_list = list(targets_set)
             updated = 0
             
             for target in target_list:
@@ -1191,26 +1225,27 @@ class TelegramManager:
                 try:
                     entity = await client.get_entity(target)
                 except Exception as ent_err:
-                    print(f"[Telegram Get Entity Warning] Impossibile aprire chat con {target}: {ent_err}")
+                    print(f"[Telegram Get Entity Warning] Chat con {target}: {ent_err}")
                     continue
 
-                # Preleva gli ultimi messaggi recenti dalla chat
+                # Preleva gli ultimi messaggi recenti dalla chat (fino a 60 messaggi)
                 messages = []
-                async for m in client.iter_messages(entity, limit=35):
-                    is_valid_sender = (target == "me") or (not m.out)
-                    if is_valid_sender and (m.text or (hasattr(m, 'entities') and m.entities)) and m.date:
+                async for m in client.iter_messages(entity, limit=60):
+                    raw_text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ""
+                    has_entities = hasattr(m, 'entities') and bool(m.entities)
+                    if (raw_text or has_entities) and m.date:
                         msg_date_utc = m.date.replace(tzinfo=None) if hasattr(m.date, 'tzinfo') and m.date.tzinfo else m.date
                         messages.append((msg_date_utc, m))
 
-                # Ordina cronologicamente (dal più vecchio al più recente)
-                messages.sort(key=lambda x: x[0])
+                # Ordina dal più recente al più vecchio per trovare subito l'ultimo link inviato
+                messages.sort(key=lambda x: x[0], reverse=True)
 
                 for msg_date_utc, m in messages:
                     if not pending_orders:
                         break
                     
-                    text_content = (m.text or "").lower()
-                    # Ignora tassativamente i messaggi che contengono la richiesta stessa o il testo del bot
+                    text_content = (getattr(m, 'text', None) or getattr(m, 'message', None) or "").lower()
+                    # Ignora i messaggi di richiesta del bot
                     if "[test sandbox" in text_content or "volevo chiederti se è ancora disponibile" in text_content or "ciao alex! volevo chiederti" in text_content:
                         continue
                         
@@ -1218,34 +1253,27 @@ class TelegramManager:
                     if amz_urls:
                         best_url = amz_urls[0]
                         
-                        # Trova l'ordine in attesa inviato per questo articolo (con tolleranza orologio server/Telegram di 120s)
-                        target_order = None
-                        for o in pending_orders:
-                            req_time = o.order_date or datetime.utcnow()
-                            if (req_time - timedelta(seconds=120)) <= msg_date_utc and (not o.amazon_url):
-                                target_order = o
-                                break
+                        # Assegna all'ordine in attesa più recente
+                        target_order = pending_orders.pop(0)
+                        target_order.amazon_url = best_url
+                        target_order.status = "link_approved"
+                        
+                        match_offer = db.query(Offer).filter(
+                            or_(Offer.title == target_order.product_title, Offer.title.ilike(f"%{target_order.product_title[:25]}%"))
+                        ).first()
+                        if match_offer:
+                            match_offer.amazon_link = best_url
+                            match_offer.status = "link_received"
 
-                        if target_order:
-                            pending_orders.remove(target_order)
-                            target_order.amazon_url = best_url
-                            target_order.status = "link_approved"
-                            
-                            match_offer = db.query(Offer).filter(
-                                or_(Offer.title == target_order.product_title, Offer.title.ilike(f"%{target_order.product_title[:25]}%"))
-                            ).first()
-                            if match_offer:
-                                match_offer.amazon_link = best_url
-                                match_offer.status = "link_received"
-
-                            log = ActivityLog(
-                                action_type="LINK_RECEIVED",
-                                title=f"Link Amazon Ricevuto ({target})!",
-                                details=f"Articolo: {target_order.product_title[:45]} | Link: {best_url}"
-                            )
-                            db.add(log)
-                            db.commit()
-                            updated += 1
+                        log = ActivityLog(
+                            action_type="LINK_RECEIVED",
+                            title=f"Link Amazon Ricevuto ({target})!",
+                            details=f"Articolo: {target_order.product_title[:45]} | Link: {best_url}"
+                        )
+                        db.add(log)
+                        db.commit()
+                        self._save_orders_backup(db)
+                        updated += 1
 
             return {
                 "success": True,
@@ -1257,4 +1285,3 @@ class TelegramManager:
             return {"success": False, "error": str(e)}
 
 telegram_service = TelegramManager()
-
