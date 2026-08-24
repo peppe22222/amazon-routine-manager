@@ -1125,6 +1125,8 @@ function updateReviewLiveTimers() {
     const startIso = card.dataset.startDate;
     const status = card.dataset.status;
     const deliveryInfo = card.dataset.deliveryInfo;
+    const isDelivered = card.dataset.isDelivered === 'true';
+
     let targetMs = targetIso ? new Date(targetIso).getTime() : now + 10 * 86400000;
     let startMs = startIso ? new Date(startIso).getTime() : targetMs - 10 * 86400000;
 
