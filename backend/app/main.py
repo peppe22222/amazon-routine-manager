@@ -631,7 +631,7 @@ def find_matching_order_for_offer(offer_title: str, orders: List[Order]) -> Opti
     return None
 
 def cleanup_unwanted_demo_offers(db: Session):
-    """Rimuove le offerte dimostrative/simulate non sincronizzate dal canale Telegram reale"""
+    """Rimuove le offerte e gli ordini dimostrativi/simulati di test per evitare che compaiano nelle recensioni o nel feed"""
     demo_titles = [
         "Comodino Moderno Cilindrico 2 Ripiani con Vano Nascosto",
         "Lavatappeti e Divani Portatile ad Aspirazione Profonda 650W",
@@ -640,6 +640,16 @@ def cleanup_unwanted_demo_offers(db: Session):
     ]
     try:
         deleted = db.query(Offer).filter(Offer.title.in_(demo_titles)).delete(synchronize_session=False)
+        # Rimuove ordini di test residui (es. Power Bank di prova)
+        demo_orders = db.query(Order).filter(
+            (Order.order_number == "408-1934850-8472910") |
+            ((Order.is_test == True) & (Order.product_title.like("%Power Bank%")))
+        ).all()
+        if demo_orders:
+            for d_ord in demo_orders:
+                db.delete(d_ord)
+            db.commit()
+            save_orders_backup(db)
         if deleted > 0:
             db.commit()
     except Exception as e:
