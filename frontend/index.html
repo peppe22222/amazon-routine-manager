@@ -117,9 +117,13 @@
       backface-visibility: hidden !important;
       padding-bottom: max(env(safe-area-inset-bottom), 12px) !important;
     }
+    /* Supporto Safe Area Top per iPhone Notch / Dynamic Island / Status Bar */
+    .app-top-header {
+      padding-top: max(env(safe-area-inset-top), 10px) !important;
+    }
   </style>
 </head>
-<body class="min-h-screen flex flex-col pb-24 md:pb-8 custom-scrollbar">
+<body class="min-h-screen flex flex-col pb-28 md:pb-8 custom-scrollbar">
 
   <!-- ========================================================================= -->
   <!-- PULL-TO-REFRESH (ROTELLINA STILE APPLE / IOS) -->
@@ -134,25 +138,24 @@
   <!-- FULLSCREEN SECURITY LOCK / AUTH SCREEN -->
   <!-- ========================================================================= -->
   <div id="auth-lock-screen" class="fixed inset-0 z-50 bg-slate-950/95 backdrop-blur-2xl flex items-center justify-center p-4">
-    <div class="glass-panel max-w-sm w-full p-6 md:p-8 rounded-3xl text-center shadow-2xl border border-brand-border space-y-5">
+    <div class="glass-card max-w-sm w-full p-6 md:p-8 rounded-3xl border border-brand-border/80 shadow-2xl space-y-6 text-center">
       
-      <!-- App Logo Emblem -->
-      <div class="relative w-20 h-20 mx-auto rounded-3xl overflow-hidden shadow-2xl shadow-emerald-950/80 border-2 border-emerald-500/50 flex items-center justify-center p-1 bg-slate-900 animate-pulse">
-        <img src="/icon.svg" alt="Logo" class="w-full h-full object-contain">
+      <!-- Icona Lucchetto -->
+      <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 flex items-center justify-center text-2xl text-emerald-400 mx-auto shadow-lg shadow-emerald-950/50">
+        <i class="fa-solid fa-lock"></i>
       </div>
 
-      <div>
-        <h2 class="text-xl font-extrabold text-white flex items-center justify-center gap-1.5">
-          <span>Amazon</span><span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">Routine</span><span class="text-amber-400 font-mono text-xs px-1.5 py-0.5 rounded bg-amber-400/10 border border-amber-400/30">PRO</span>
-        </h2>
-        <p class="text-xs text-slate-300 mt-1">Area Riservata • Inserisci Password / PIN</p>
+      <!-- Testi -->
+      <div class="space-y-1">
+        <h2 class="text-xl font-extrabold text-white">Accesso Riservato</h2>
+        <p class="text-xs text-slate-300">Inserisci il PIN o Password per sbloccare</p>
       </div>
 
-      <!-- Form Login -->
-      <form id="form-auth-login" onsubmit="handleAuthLogin(event)" class="space-y-4">
+      <!-- Form Password -->
+      <form id="auth-login-form" onsubmit="handleAuthLogin(event)" class="space-y-4">
         <div class="relative">
-          <input type="password" id="auth-password-input" placeholder="Inserisci Password di Sicurezza..." autocomplete="current-password" autofocus required class="w-full bg-brand-bg border-2 border-brand-border focus:border-emerald-500 rounded-2xl px-4 py-3 text-center text-lg text-white font-mono tracking-widest placeholder:tracking-normal placeholder:text-slate-500 focus:outline-none transition-all shadow-inner">
-          <button type="button" onclick="togglePasswordVisibility('auth-password-input', 'auth-eye-icon')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-sm">
+          <input type="password" id="auth-password-input" autocomplete="current-password" placeholder="Password di accesso" class="w-full bg-slate-900/90 border border-slate-700 rounded-2xl px-4 py-3.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400/50 transition-all text-center tracking-widest">
+          <button type="button" onclick="togglePasswordVisibility('auth-password-input', 'auth-eye-icon')" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 text-sm p-1">
             <i id="auth-eye-icon" class="fa-regular fa-eye"></i>
           </button>
         </div>
@@ -163,18 +166,11 @@
           <i class="fa-solid fa-lock-open"></i> Sblocca Accesso
         </button>
       </form>
-
-      <div class="pt-2 border-t border-brand-border/60">
-        <p class="text-[11px] text-slate-400 flex items-center justify-center gap-1.5">
-          <i class="fa-solid fa-shield-halved text-emerald-400"></i> Crittografia HTTPS & Sessione Protetta
-        </p>
-      </div>
-
     </div>
   </div>
 
   <!-- TOP HEADER / NAVBAR (Apple Minimal Ultra-Slim) -->
-  <header class="sticky top-0 z-40 glass-panel border-b border-brand-border px-3 md:px-8 py-2 md:py-2.5 shadow-md backdrop-blur-xl bg-slate-950/90">
+  <header class="app-top-header sticky top-0 z-40 glass-panel border-b border-brand-border px-3 md:px-8 py-2 md:py-2.5 shadow-md backdrop-blur-xl bg-slate-950/90">
     <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
       <!-- Logo & Titolo su Singola Riga (Ingrandito & Bilanciato) -->
       <div class="flex items-center space-x-2.5 min-w-0">
