@@ -3112,10 +3112,10 @@ function updateSandboxBadge(isTest) {
   const badge = document.getElementById('sandbox-badge');
   if (!badge) return;
   if (isTest) {
-    badge.className = "text-[9px] md:text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider flex items-center gap-1 cursor-pointer active:scale-90 transition-all shrink-0";
+    badge.className = "text-[10px] md:text-xs font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase tracking-wider flex items-center gap-1 cursor-pointer active:scale-90 transition-all shrink-0";
     badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span><span>TEST</span>';
   } else {
-    badge.className = "text-[9px] md:text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider flex items-center gap-1 cursor-pointer active:scale-90 transition-all shrink-0";
+    badge.className = "text-[10px] md:text-xs font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 uppercase tracking-wider flex items-center gap-1 cursor-pointer active:scale-90 transition-all shrink-0";
     badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>LIVE</span>';
   }
 }
