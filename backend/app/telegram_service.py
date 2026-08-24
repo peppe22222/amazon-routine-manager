@@ -188,7 +188,7 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
         return []
 
     offers_found = []
-    seen_titles = set()
+    seen_msg_ids = set()
     
     # Processa i blocchi dal più recente al più vecchio
     for block in all_message_blocks:
@@ -251,9 +251,9 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
         elif lines:
             first_clean = re.sub(r'https?://\S+', '', lines[0])
             first_clean = re.sub(r'@[a-zA-Z0-9_]+', '', first_clean).strip()
-            title = first_clean if len(first_clean) >= 2 else (f"Articolo Offerta #{msg_id}" if msg_id else "Prodotto in Offerta")
+            title = first_clean if len(first_clean) >= 4 else (f"Offerta Canale Telegram #{msg_id}" if msg_id else "Prodotto in Offerta")
         else:
-            title = f"Articolo Offerta #{msg_id}" if msg_id else "Prodotto in Offerta"
+            title = f"Offerta Canale Telegram #{msg_id}" if msg_id else "Prodotto in Offerta"
 
         # Condizioni di spesa e rimborso
         if condition_lines:
@@ -268,11 +268,11 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
         if not img_url:
             img_url = "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80"
 
-        # Evita duplicati solo se identico titolo nello stesso batch
-        t_key = title.strip().lower()
-        if t_key in seen_titles:
+        # Evita duplicati solo se lo stesso identico message_id è già stato visto nel batch
+        if msg_id and msg_id in seen_msg_ids:
             continue
-        seen_titles.add(t_key)
+        if msg_id:
+            seen_msg_ids.add(msg_id)
 
         offers_found.append({
             "title": title,
@@ -639,38 +639,34 @@ class TelegramManager:
                     album_groups[key] = [m]
                     i += 1
 
-        # Carica tutte le offerte già presenti nel DB
-        existing_all = db.query(Offer).all()
-        existing_msg_ids = set()
-        existing_titles_exact = set()
-        for o in existing_all:
-            if o.title:
-                existing_titles_exact.add(o.title.strip().lower())
+        # Carica tutte le offerte attive già presenti nel DB
+        existing_active = db.query(Offer).filter(Offer.status != "dismissed").all()
+        existing_active_msg_ids = set()
+        for o in existing_active:
             if o.message_id:
                 for mid in str(o.message_id).split(','):
                     if mid.strip():
-                        existing_msg_ids.add(mid.strip())
+                        existing_active_msg_ids.add(mid.strip())
 
         imported_count = 0
-        batch_seen_titles = set()
+        batch_seen_msg_ids = set()
         
         for key, msgs in album_groups.items():
             all_msg_ids = [str(m.id) for m in msgs]
             
-            # Se TUTTI i messaggi dell'album sono già presenti nel DB, salta
-            if all(m_id in existing_msg_ids for m_id in all_msg_ids):
+            # Salta solo se TUTTI i messaggi di questo post sono già presenti e ATTIVI nel DB
+            if all(m_id in existing_active_msg_ids for m_id in all_msg_ids):
                 continue
 
+            # Estrai testo completo controllando raw_text, message e text
             raw_text = ""
             primary_msg = msgs[0]
             for m in msgs:
-                if m.text and m.text.strip():
-                    raw_text = m.text.strip()
+                txt = (getattr(m, 'raw_text', '') or getattr(m, 'message', '') or getattr(m, 'text', '') or "").strip()
+                if txt:
+                    raw_text = txt
                     primary_msg = m
                     break
-
-            if not raw_text and not any(m.media for m in msgs):
-                continue
 
             lines = [l.strip() for l in raw_text.split('\n') if l.strip()]
 
@@ -739,9 +735,9 @@ class TelegramManager:
             elif lines:
                 first_clean = re.sub(r'https?://\S+', '', lines[0])
                 first_clean = re.sub(r'@[a-zA-Z0-9_]+', '', first_clean).strip()
-                title = first_clean if len(first_clean) >= 2 else f"Articolo Offerta #{primary_msg.id}"
+                title = first_clean if len(first_clean) >= 4 else f"Offerta Canale Telegram #{primary_msg.id}"
             else:
-                title = f"Articolo Offerta #{primary_msg.id}"
+                title = f"Offerta Canale Telegram #{primary_msg.id}"
 
             # Condizioni di spesa e rimborso
             if condition_lines:
@@ -755,14 +751,12 @@ class TelegramManager:
 
             msg_date = primary_msg.date.replace(tzinfo=None) if primary_msg.date else datetime.utcnow()
 
-            # Evita duplicati solo se identico nello stesso batch o già inserito
-            t_key = title.strip().lower()
-            if t_key in batch_seen_titles:
+            # Evita duplicazione dello stesso messaggio nello stesso ciclo
+            if any(mid in batch_seen_msg_ids for mid in all_msg_ids):
                 continue
-
-            batch_seen_titles.add(t_key)
             for mid in all_msg_ids:
-                existing_msg_ids.add(mid)
+                batch_seen_msg_ids.add(mid)
+                existing_active_msg_ids.add(mid)
 
             all_ids_str = ",".join(all_msg_ids)
             off = Offer(
