@@ -841,8 +841,8 @@ function renderApprovedLinks(orders) {
     return `
       <div class="glass-card rounded-2xl p-5 border ${isApproved ? 'border-cyan-500/40 bg-gradient-to-r from-cyan-950/20 via-brand-surface to-brand-card' : 'border-amber-500/30'} flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg relative z-10 bg-brand-surface">
         <!-- Sinistra: Foto Prodotto + Dati -->
-        <div class="flex items-start gap-4 flex-1">
-          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Contatto: ${escapeJsString(seller)}')" class="cursor-pointer relative w-24 h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
+        <div class="flex items-start gap-3 md:gap-4 flex-1 min-w-0">
+          <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Contatto: ${escapeJsString(seller)}')" class="cursor-pointer relative w-20 h-20 md:w-24 md:h-24 rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group shadow-md" title="Clicca per zoomare la foto">
             <img src="${prodImg}" alt="Foto Prodotto" class="max-w-full max-h-full object-contain p-1 group-hover:scale-110 transition-transform">
             <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white text-xs">
               <i class="fa-solid fa-magnifying-glass-plus text-base"></i>
@@ -850,31 +850,32 @@ function renderApprovedLinks(orders) {
             <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded bg-black/80 text-[10px] text-white font-bold">Foto</span>
           </div>
 
-          <div class="flex-1">
-            <div class="flex flex-wrap items-center gap-2">
+          <div class="flex-1 min-w-0">
+            <div class="flex flex-wrap items-center gap-1.5 md:gap-2">
               ${isApproved ? `
-                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
+                <span class="text-[11px] md:text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5 shadow-sm">
                   <i class="fa-solid fa-circle-check text-emerald-400"></i> Approvato da Alex • Link Disponibile
                 </span>
               ` : `
-                <span class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 animate-pulse">
+                <span class="text-[11px] md:text-xs font-bold px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 animate-pulse">
                   <i class="fa-solid fa-hourglass-half text-amber-400"></i> In attesa di risposta da Alex
                 </span>
               `}
-              <span class="text-xs font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
+              <span class="text-[11px] md:text-xs font-mono px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 border border-slate-700">
                 ${seller}
               </span>
             </div>
 
-            <h3 class="text-sm md:text-base font-extrabold text-white mt-2 leading-snug">${escapeHtml(o.product_title || 'Articolo in promozione')}</h3>
+            <h3 class="text-xs md:text-base font-extrabold text-white mt-1.5 md:mt-2 leading-snug break-words">${escapeHtml(o.product_title || 'Articolo in promozione')}</h3>
 
             ${isApproved && o.amazon_url ? `
-              <div class="mt-2.5 flex flex-wrap items-center gap-2">
-                <span class="text-[11px] text-slate-400 font-medium">Link Diretto:</span>
-                <a href="${o.amazon_url}" target="_blank" class="text-xs text-cyan-300 hover:text-cyan-200 underline font-mono truncate max-w-xs md:max-w-md flex items-center gap-1">
-                  <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> ${o.amazon_url}
+              <div class="mt-2 flex items-center gap-1.5 max-w-full min-w-0 bg-slate-900/60 p-1.5 px-2.5 rounded-xl border border-slate-800">
+                <span class="text-[10px] md:text-[11px] text-slate-400 font-semibold shrink-0">Link:</span>
+                <a href="${o.amazon_url}" target="_blank" class="text-[11px] md:text-xs text-cyan-300 hover:text-cyan-200 underline font-mono truncate flex-1 min-w-0 flex items-center gap-1" title="${escapeHtml(o.amazon_url)}">
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[9px] shrink-0"></i>
+                  <span class="truncate">${escapeHtml(o.amazon_url)}</span>
                 </a>
-                <button onclick="copyToClipboard('${escapeJsString(o.amazon_url)}', 'Link Amazon copiato negli appunti!')" class="p-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs" title="Copia link">
+                <button onclick="copyToClipboard('${escapeJsString(o.amazon_url)}', 'Link Amazon copiato negli appunti!')" class="p-1 px-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs shrink-0 transition-colors" title="Copia link">
                   <i class="fa-regular fa-copy"></i>
                 </button>
               </div>
