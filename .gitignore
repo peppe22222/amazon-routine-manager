@@ -13,3 +13,4 @@ Thumbs.db
 *.db
 data/*.db
 backend/data/*.db
+backup_before_bandwidth_opt/

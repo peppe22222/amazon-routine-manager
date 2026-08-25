@@ -18,6 +18,7 @@ if CURRENT_DIR not in sys.path:
 from fastapi import FastAPI, Depends, HTTPException, Query, BackgroundTasks, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_
@@ -163,6 +164,8 @@ def sync_client_orders_backup(payload: ClientSyncPayload, db: Session = Depends(
         
     return {"success": True, "restored": restored}
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -172,11 +175,31 @@ app.add_middleware(
 )
 
 @app.middleware("http")
-async def add_no_cache_headers(request: Request, call_next):
+async def add_smart_cache_headers(request: Request, call_next):
     response = await call_next(request)
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
+    path = request.url.path
+    if path.startswith("/screenshots/"):
+        # Cache screenshot immagini per 7 giorni per non riscaricarle inutilmente
+        response.headers["Cache-Control"] = "public, max-age=604800"
+        if "Pragma" in response.headers:
+            del response.headers["Pragma"]
+        if "Expires" in response.headers:
+            del response.headers["Expires"]
+    elif path.startswith("/api/"):
+        # API dinamiche: sempre fresche e non cachate
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    elif path.endswith(".js") or path.endswith(".svg") or path.endswith(".png") or path.endswith(".ico"):
+        # Asset statici (app.js, icone): cache per 5 minuti
+        response.headers["Cache-Control"] = "public, max-age=300"
+        if "Pragma" in response.headers:
+            del response.headers["Pragma"]
+    else:
+        # Pagine HTML principali (index.html): non cachate per garantire aggiornamenti immediati
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     return response
 
 # Monta la cartella degli screenshot
@@ -1229,10 +1252,12 @@ class OrderUpdatePayload(BaseModel):
     refund_amount: Optional[float] = None
     seller_contact: Optional[str] = None
     product_title: Optional[str] = None
+    delivery_info: Optional[str] = None
+    estimated_delivery_date: Optional[datetime] = None
 
 @app.put("/api/orders/{order_id}")
 def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session = Depends(get_db)):
-    """Permette di modificare il numero d'ordine reale Amazon, il prezzo o il contatto venditore"""
+    """Permette di modificare il numero d'ordine reale Amazon, il prezzo, il contatto venditore o la data/info di consegna"""
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
@@ -1251,9 +1276,33 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
         order.seller_contact = payload.seller_contact.strip()
     if payload.product_title is not None and payload.product_title.strip():
         order.product_title = payload.product_title.strip()
+    if payload.delivery_info is not None:
+        clean_del = payload.delivery_info.strip()
+        order.delivery_info = clean_del
+        if clean_del.lower() == "consegnato":
+            order.estimated_delivery_date = datetime.utcnow()
+            order.review_target_date = datetime.utcnow() + timedelta(days=10)
+        else:
+            from backend.app.screenshot_service import parse_delivery_date_text
+            dt, _ = parse_delivery_date_text(clean_del)
+            if dt:
+                order.estimated_delivery_date = dt
+                order.review_target_date = dt + timedelta(days=10)
+    if payload.estimated_delivery_date is not None:
+        order.estimated_delivery_date = payload.estimated_delivery_date
+        order.review_target_date = payload.estimated_delivery_date + timedelta(days=10)
     db.commit()
     save_orders_backup(db)
-    return {"success": True, "order_number": order.order_number, "order_id": order.id, "refund_amount": order.refund_amount, "message": "Dati ordine aggiornati con successo!"}
+    return {
+        "success": True, 
+        "order_number": order.order_number, 
+        "order_id": order.id, 
+        "refund_amount": order.refund_amount, 
+        "delivery_info": order.delivery_info,
+        "estimated_delivery_date": order.estimated_delivery_date.isoformat() if order.estimated_delivery_date else None,
+        "review_target_date": order.review_target_date.isoformat() if order.review_target_date else None,
+        "message": "Dati ordine aggiornati con successo!"
+    }
 
 @app.post("/api/orders/{order_id}/confirm-and-send")
 async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = ConfirmOrderPayload(), db: Session = Depends(get_db)):

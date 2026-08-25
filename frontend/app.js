@@ -16,7 +16,7 @@ function escapeJsString(str) {
   return String(str)
     .replace(/\\/g, '\\\\')
     .replace(/'/g, "\\'")
-    .replace(/"/g, '\\"')
+    .replace(/"/g, '&quot;')
     .replace(/\n/g, ' ')
     .replace(/\r/g, '');
 }
@@ -59,12 +59,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Timer live per conto alla rovescia recensioni (aggiorna solo i numeri dei secondi senza ricaricare la pagina)
   setInterval(updateReviewLiveTimers, 1000);
 
-  // Controllo automatico in background risposte e link di Alex ogni 4 secondi
+  // Controllo automatico in background risposte e link di Alex ogni 15 secondi (risparmio banda)
   setInterval(async () => {
     if (document.visibilityState === 'visible') {
       await syncTelegramReplies(true);
     }
-  }, 4000);
+  }, 15000);
 
   // Intercettazione immediata non appena torni sull'app da Telegram
   document.addEventListener('visibilitychange', () => {
@@ -781,13 +781,16 @@ async function loadOrders() {
     let orders = await res.json();
 
     // Schermatura di sicurezza client-side:
-    // Se il server ha perso gli ordini durante un riavvio ma il browser ha una copia memorizzata, ripristina all'istante
+    // Se il browser ha ordini che non sono presenti sul server (es. dopo un riavvio/deploy), sincronizza
     const localBackupStr = localStorage.getItem('amz_shielded_orders');
     let localBackup = [];
     try { localBackup = JSON.parse(localBackupStr) || []; } catch(e) {}
 
-    if ((!orders || orders.length === 0) && localBackup && localBackup.length > 0) {
-      console.log('[Shield] Ripristino automatico ordini dal browser al server...');
+    const serverIds = new Set((orders || []).map(o => o.id || o.order_number));
+    const missingOnServer = localBackup.filter(lo => lo && lo.id && !serverIds.has(lo.id) && !serverIds.has(lo.order_number));
+
+    if (missingOnServer.length > 0) {
+      console.log('[Shield] Ripristino automatico ordini mancanti dal browser al server...', missingOnServer);
       await fetch('/api/orders/client-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -797,7 +800,8 @@ async function loadOrders() {
       if (refreshRes.ok) {
         orders = await refreshRes.json();
       }
-    } else if (orders && orders.length > 0) {
+    }
+    if (orders && orders.length > 0) {
       localStorage.setItem('amz_shielded_orders', JSON.stringify(orders));
     }
 
@@ -884,7 +888,7 @@ function renderApprovedLinks(orders) {
             <a href="${o.amazon_url}" target="_blank" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-emerald-950/60 transition-all active:scale-95">
               <i class="fa-solid fa-cart-arrow-down text-sm"></i> Apri & Compra su Amazon
             </a>
-            <button onclick="markOrderAsPurchased(${o.id}, '${escapeJsString(o.product_title || '')}')" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-amber-950/60 transition-all active:scale-95">
+            <button onclick="markOrderAsPurchased(${o.id})" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-400 hover:to-yellow-500 text-white text-xs font-extrabold flex items-center gap-2 shadow-lg shadow-amber-950/60 transition-all active:scale-95">
               <i class="fa-solid fa-receipt text-sm"></i> Ho Acquistato
             </button>
             <button onclick="openManualLinkModal(${o.id}, '${escapeJsString(o.product_title || '')}', '${escapeJsString(o.amazon_url || '')}')" title="Modifica Link" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-all">
@@ -900,7 +904,7 @@ function renderApprovedLinks(orders) {
             <button onclick="syncTelegramReplies()" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold flex items-center gap-1.5 transition-all" title="Verifica subito se Alex ha inviato il link">
               <i class="fa-brands fa-telegram"></i> Controlla Telegram
             </button>
-            <button onclick="markOrderAsPurchased(${o.id}, '${escapeJsString(o.product_title || '')}')" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all">
+            <button onclick="markOrderAsPurchased(${o.id})" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all">
               <i class="fa-solid fa-forward-step text-amber-400"></i> Salta ad Acquisto
             </button>
           `}
@@ -1121,7 +1125,7 @@ async function clearManualAmazonLink() {
   }
 }
 
-async function markOrderAsPurchased(orderId, productTitle) {
+async function markOrderAsPurchased(orderId) {
   try {
     const res = await fetch(`/api/orders/${orderId}/mark-purchased`, {
       method: 'POST',
@@ -1304,14 +1308,18 @@ function renderReviews(orders) {
     const estDeliveryMidnight = o.estimated_delivery_date ? new Date(o.estimated_delivery_date) : null;
     if (estDeliveryMidnight) estDeliveryMidnight.setHours(0,0,0,0);
     const isTodayOrPast = estDeliveryMidnight !== null && estDeliveryMidnight.getTime() <= todayMidnight.getTime();
-    const isDelivered = (o.delivery_info === 'Consegnato' || isTodayOrPast || o.status === 'waiting_review');
+    const isDelivered = (o.delivery_info === 'Consegnato' || (estDeliveryMidnight !== null && isTodayOrPast));
     
     // Il punto di partenza dei 10 giorni esatti è la consegna
     const startIso = o.estimated_delivery_date || o.confirmation_sent_at || o.order_date || new Date().toISOString();
     let targetIso = o.review_target_date;
-    if (!targetIso || isDelivered) {
-      const baseStartMs = Math.min(Date.now(), new Date(startIso).getTime());
-      targetIso = new Date(baseStartMs + 10 * 86400000).toISOString();
+    if (!targetIso) {
+      if (o.estimated_delivery_date) {
+        targetIso = new Date(new Date(o.estimated_delivery_date).getTime() + 10 * 86400000).toISOString();
+      } else {
+        const baseStartMs = isDelivered ? Math.min(Date.now(), new Date(startIso).getTime()) : new Date(startIso).getTime();
+        targetIso = new Date(baseStartMs + 10 * 86400000).toISOString();
+      }
     }
     const isSubmitted = o.status === 'review_submitted' || o.status === 'reimbursed';
 
@@ -1330,7 +1338,7 @@ function renderReviews(orders) {
              data-review-order-id="${o.id}"
              data-target-date="${targetIso}"
              data-start-date="${startIso}"
-             data-delivery-info="${isDelivered ? 'Consegnato' : escapeHtml(o.delivery_info || '')}"
+             data-delivery-info="${escapeHtml(o.delivery_info || '')}"
              data-is-delivered="${isDelivered ? 'true' : 'false'}"
              data-status="${o.status}">
           <div>
@@ -1363,7 +1371,7 @@ function renderReviews(orders) {
             <div class="mt-4 p-3 rounded-xl bg-brand-bg border border-brand-border">
               <div class="flex items-center justify-between text-xs text-slate-300 mb-1.5 font-bold">
                 <span class="flex items-center gap-1.5">
-                  <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> ${isDelivered ? 'Conto alla Rovescia (10gg dalla Consegna)' : 'Conto alla Rovescia (Arrivo ' + escapeHtml(o.delivery_info || 'Previsto') + ' + 10gg)'}
+                  <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> ${isDelivered ? 'Conto alla Rovescia (10gg dalla Consegna)' : 'Conto alla Rovescia (' + (o.delivery_info ? (o.delivery_info.toLowerCase().startsWith('in arrivo') ? escapeHtml(o.delivery_info) : 'Arrivo: ' + escapeHtml(o.delivery_info)) : 'In attesa consegna') + ' + 10gg)'}
                 </span>
                 <span class="review-countdown-text font-extrabold text-purple-300 font-mono">
                   Calcolo...
@@ -1374,10 +1382,13 @@ function renderReviews(orders) {
               </div>
               <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400 flex-wrap gap-2">
                 <span class="review-progress-pct font-bold">0% completato</span>
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2">
+                  <button onclick="editOrderDeliveryDate(${o.id}, '${escapeJsString(o.delivery_info || '')}')" title="Modifica giorno o data prevista di consegna" class="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-bold flex items-center gap-1 transition-colors">
+                    <i class="fa-solid fa-truck-fast"></i> ${o.delivery_info ? escapeHtml(o.delivery_info) : 'Imposta Consegna'}
+                  </button>
                   ${!isDelivered ? `
-                    <button onclick="markOrderDelivered(${o.id})" title="Segna il pacco come consegnato oggi per iniziare subito i 10 giorni" class="text-[11px] text-emerald-400 hover:text-emerald-300 font-extrabold flex items-center gap-1 transition-colors">
-                      <i class="fa-solid fa-box-open"></i> Pacco Arrivato Oggi
+                    <button onclick="markOrderDelivered(${o.id})" title="Se il corriere ha anticipato ed è già arrivato, clicca qui" class="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-[10px] text-slate-300 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-all">
+                      <i class="fa-solid fa-box-open text-emerald-400"></i> Ricevuto in anticipo?
                     </button>
                   ` : `
                     <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Consegnato</span>
@@ -1462,6 +1473,14 @@ function updateReviewLiveTimers() {
       targetMs = startMs + 10 * 86400000;
       if (targetMs > now + 10 * 86400000) {
         targetMs = now + 10 * 86400000 - 3600000;
+      }
+    } else {
+      if (targetIso) {
+        targetMs = new Date(targetIso).getTime();
+      } else if (startIso) {
+        targetMs = new Date(startIso).getTime() + 10 * 86400000;
+      } else {
+        targetMs = now + 12 * 86400000;
       }
     }
 
@@ -1558,7 +1577,7 @@ function updateReviewLiveTimers() {
         progressBarEl.style.width = `${progressPct}%`;
       }
       if (progressPctEl) {
-        const delivNote = isDelivered ? ' • 📦 Consegnato' : (deliveryInfo && deliveryInfo !== 'Consegnato' ? ` • 🚚 Arrivo: ${deliveryInfo}` : ' • 📦 Consegnato');
+        const delivNote = isDelivered ? ' • 📦 Consegnato' : (deliveryInfo && deliveryInfo !== 'Consegnato' ? ` • 🚚 Arrivo: ${deliveryInfo}` : ' • 🚚 In attesa consegna');
         progressPctEl.innerText = `${progressPct}% trascorso (${days} giorni e ${hours}h rimasti${delivNote})`;
       }
 
@@ -2176,6 +2195,31 @@ async function editOrderNumber(orderId, currentNum) {
     }
   } catch (err) {
     showToast('Errore di connessione o server in riavvio. Riprova tra qualche istante.', true);
+  }
+}
+
+async function editOrderDeliveryDate(orderId, currentVal) {
+  const newVal = prompt("Inserisci il giorno o la data stimata di arrivo (es. 'Giovedì', 'In arrivo giovedì', '28 agosto', oppure 'Consegnato'):", currentVal || 'In arrivo giovedì');
+  if (newVal === null) return;
+  const clean = newVal.trim();
+  if (!clean) return;
+
+  try {
+    const res = await fetch(`/api/orders/${orderId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ delivery_info: clean })
+    });
+    let data = {};
+    try { data = await res.json(); } catch(e) {}
+    if (res.ok) {
+      showToast('Giorno di arrivo aggiornato!');
+      loadOrders();
+    } else {
+      showToast(data.detail || 'Errore durante l\'aggiornamento', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione o server in riavvio.', true);
   }
 }
 
