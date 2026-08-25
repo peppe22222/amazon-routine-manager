@@ -439,61 +439,62 @@
   <!-- ========================================================================= -->
   <!-- MODAL: INTERACTIVE IMAGE LIGHTBOX & ZOOM VIEWER -->
   <!-- ========================================================================= -->
-  <div id="modal-lightbox" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-md hidden flex flex-col justify-between p-3 md:p-6 transition-all duration-300">
+  <div id="modal-lightbox" class="fixed inset-0 z-50 bg-black/95 backdrop-blur-md hidden flex flex-col justify-between transition-all duration-300 select-none" style="padding-top: max(env(safe-area-inset-top, 0px) + 10px, 16px); padding-bottom: max(env(safe-area-inset-bottom, 0px) + 14px, 18px); padding-left: max(env(safe-area-inset-left, 0px) + 10px, 14px); padding-right: max(env(safe-area-inset-right, 0px) + 10px, 14px);">
     
-    <!-- Lightbox Header -->
-    <div class="flex items-center justify-between pb-3 border-b border-slate-700/60 max-w-6xl w-full mx-auto">
-      <div class="flex items-center space-x-3 truncate mr-3">
-        <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+    <!-- Lightbox Header (Protetta da Notch & Dynamic Island) -->
+    <div class="flex items-center justify-between pb-2.5 border-b border-slate-700/60 max-w-6xl w-full mx-auto shrink-0 gap-3">
+      <div class="flex items-center space-x-2.5 min-w-0 flex-1">
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
           <i class="fa-solid fa-magnifying-glass-plus text-sm"></i>
         </div>
-        <div class="truncate">
-          <h3 id="lightbox-title" class="text-sm md:text-base font-bold text-white truncate">Foto Prodotto</h3>
-          <p id="lightbox-subtitle" class="text-xs text-slate-300 truncate">Visualizzatore ad alta risoluzione</p>
+        <div class="min-w-0 flex-1">
+          <h3 id="lightbox-title" class="text-xs md:text-base font-extrabold text-white truncate">Foto Prodotto</h3>
+          <p id="lightbox-subtitle" class="text-[11px] text-slate-300 truncate">Visualizzatore HD & Zoom</p>
         </div>
       </div>
 
-      <!-- Controls Toolbar -->
-      <div class="flex items-center space-x-1.5 shrink-0">
-        <button onclick="zoomLightbox(0.25)" title="Zoom In (+)" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white flex items-center justify-center text-sm transition-all">
-          <i class="fa-solid fa-plus"></i>
-        </button>
-        <button onclick="zoomLightbox(-0.25)" title="Zoom Out (-)" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-white flex items-center justify-center text-sm transition-all">
-          <i class="fa-solid fa-minus"></i>
-        </button>
-        <button onclick="resetLightboxZoom()" title="Ripristina Zoom (1:1)" class="px-2.5 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-bold text-slate-200 flex items-center justify-center transition-all">
-          1:1
-        </button>
-        <button onclick="openLightboxImageOriginal()" title="Apri Originale" class="w-9 h-9 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 hover:text-white flex items-center justify-center text-sm transition-all">
-          <i class="fa-solid fa-arrow-up-right-from-square"></i>
-        </button>
-        <button onclick="closeLightbox()" title="Chiudi (Esc)" class="w-9 h-9 rounded-lg bg-red-600/30 hover:bg-red-600 text-red-200 hover:text-white border border-red-500/40 flex items-center justify-center text-base transition-all ml-2">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
+      <!-- Pulsante Chiudi in Alto Rapido -->
+      <button onclick="closeLightbox()" title="Chiudi" class="w-9 h-9 md:w-10 md:h-10 rounded-xl bg-red-600/30 hover:bg-red-600 text-red-200 hover:text-white border border-red-500/40 flex items-center justify-center text-base shrink-0 active:scale-95 transition-all shadow-md">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
-    <!-- Lightbox Main Stage -->
-    <div id="lightbox-container" class="zoom-container flex-1 flex items-center justify-center my-3 relative overflow-hidden rounded-2xl bg-black/50 border border-slate-800/80">
-      <img id="lightbox-img" src="" alt="Anteprima Prodotto" class="zoom-image max-h-[75vh] max-w-[92vw] object-contain rounded-xl shadow-2xl transition-transform cursor-grab select-none">
+    <!-- Lightbox Main Stage (Immagine Zoomabile) -->
+    <div id="lightbox-container" class="zoom-container flex-1 flex items-center justify-center my-2 relative overflow-hidden rounded-2xl bg-black/60 border border-slate-800/80 shadow-2xl min-h-0">
+      <img id="lightbox-img" src="" alt="Anteprima Prodotto" class="zoom-image max-h-full max-w-full object-contain rounded-xl shadow-2xl transition-transform cursor-grab select-none">
       
-      <!-- Indicator Zoom Level -->
-      <div id="lightbox-zoom-badge" class="absolute bottom-4 right-4 bg-black/75 backdrop-blur-md text-slate-200 text-xs font-bold px-3 py-1.5 rounded-full border border-slate-700">
+      <!-- Indicator Zoom Level (In Alto a Sinistra per non essere coperto mai) -->
+      <div id="lightbox-zoom-badge" class="absolute top-3 left-3 z-30 bg-slate-900/90 backdrop-blur-md text-emerald-300 text-[11px] md:text-xs font-mono font-extrabold px-3 py-1 rounded-full border border-emerald-500/40 shadow-lg">
         100%
       </div>
     </div>
 
-    <!-- Lightbox Footer -->
-    <div class="flex items-center justify-between text-xs text-slate-400 max-w-6xl w-full mx-auto pt-2 border-t border-slate-800">
-      <span>💡 Suggerimento: trascina per muovere l'immagine zoomata o usa la rotella del mouse</span>
-      <button onclick="closeLightbox()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold">Chiudi</button>
+    <!-- Lightbox Footer / Barra Comandi Ergonomica a Portata di Pollice -->
+    <div class="flex items-center justify-between gap-2 max-w-6xl w-full mx-auto pt-2 border-t border-slate-800 shrink-0">
+      <div class="flex items-center gap-1.5 overflow-x-auto py-0.5 no-scrollbar flex-1 min-w-0">
+        <button onclick="zoomLightbox(0.25)" title="Zoom In (+)" class="px-3 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white flex items-center gap-1 text-xs font-bold shrink-0 active:scale-95 transition-all shadow-sm">
+          <i class="fa-solid fa-plus text-[10px]"></i> Zoom +
+        </button>
+        <button onclick="zoomLightbox(-0.25)" title="Zoom Out (-)" class="px-3 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white flex items-center gap-1 text-xs font-bold shrink-0 active:scale-95 transition-all shadow-sm">
+          <i class="fa-solid fa-minus text-[10px]"></i> Zoom -
+        </button>
+        <button onclick="resetLightboxZoom()" title="Ripristina Zoom (1:1)" class="px-2.5 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-300 shrink-0 active:scale-95 transition-all shadow-sm">
+          1:1
+        </button>
+        <button onclick="openLightboxImageOriginal()" title="Apri Originale" class="px-2.5 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white flex items-center gap-1 text-xs font-semibold shrink-0 active:scale-95 transition-all shadow-sm">
+          <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i> <span class="hidden sm:inline">Originale</span>
+        </button>
+      </div>
+      <button onclick="closeLightbox()" class="px-4 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-bold shrink-0 border border-slate-700 active:scale-95 transition-all">
+        Chiudi
+      </button>
     </div>
   </div>
 
   <!-- ========================================================================= -->
   <!-- MODAL: ANTEPRIMA SCREENSHOT ORDINE -->
   <!-- ========================================================================= -->
-  <div id="modal-screenshot" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+  <div id="modal-screenshot" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4" style="padding-top: max(env(safe-area-inset-top, 0px) + 8px, 12px); padding-bottom: max(env(safe-area-inset-bottom, 0px) + 12px, 16px);">
     <div class="glass-panel max-w-lg w-full p-4 md:p-5 rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
       <div class="flex justify-between items-center pb-3 border-b border-brand-border">
         <div>
@@ -521,7 +522,7 @@
   <!-- ========================================================================= -->
   <!-- MODAL: DETTAGLI RECENSIONE A 5 STELLE -->
   <!-- ========================================================================= -->
-  <div id="modal-review" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4">
+  <div id="modal-review" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-3 md:p-4" style="padding-top: max(env(safe-area-inset-top, 0px) + 8px, 12px); padding-bottom: max(env(safe-area-inset-bottom, 0px) + 12px, 16px);">
     <div class="glass-panel max-w-xl w-full p-4 md:p-6 rounded-2xl max-h-[92vh] flex flex-col shadow-2xl">
       <div class="flex justify-between items-center pb-3 border-b border-brand-border">
         <div class="flex items-center gap-2.5">
