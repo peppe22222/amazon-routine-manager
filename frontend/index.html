@@ -857,6 +857,23 @@
           </div>
         </details>
 
+        <!-- Google Gemini AI Key per Recensioni Avanzate -->
+        <div class="space-y-2 p-3.5 rounded-2xl bg-brand-bg border border-brand-border shadow-sm">
+          <div class="flex items-center justify-between">
+            <p class="font-bold text-cyan-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <i class="fa-solid fa-brain"></i> Google Gemini AI (Recensioni 5★ IA)
+            </p>
+            <span class="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Attivo / Gratis</span>
+          </div>
+          <p class="text-slate-400 text-[11px]">Chiave API per generare recensioni super dettagliate con intelligenza artificiale.</p>
+          <div class="relative">
+            <input type="password" id="set_gemini_api_key" placeholder="AQ.Ab8... o AIzaSy..." class="w-full bg-brand-surface border border-brand-border rounded-xl p-2 pr-9 text-white text-xs mt-1 font-mono">
+            <button type="button" onclick="togglePasswordVisibility('set_gemini_api_key', 'icon-toggle-gemini')" class="absolute right-2.5 top-3 text-slate-400 hover:text-white">
+              <i id="icon-toggle-gemini" class="fa-regular fa-eye text-xs"></i>
+            </button>
+          </div>
+        </div>
+
         <!-- Password & Sicurezza Accesso -->
         <div class="space-y-2.5 p-3.5 rounded-2xl bg-brand-bg border border-brand-border shadow-sm">
           <div class="flex items-center justify-between">
@@ -1109,6 +1126,6 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
     <i class="fa-solid fa-arrow-up"></i>
   </button>
 
-  <script src="/app.js?v=5.9.0"></script>
+  <script src="/app.js?v=5.9.4"></script>
 </body>
 </html>

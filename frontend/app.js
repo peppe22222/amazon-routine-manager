@@ -3225,6 +3225,9 @@ async function loadSettings() {
     if (s.telegram_api_hash && document.getElementById('set_telegram_api_hash')) {
       document.getElementById('set_telegram_api_hash').value = s.telegram_api_hash;
     }
+    if (s.gemini_api_key && document.getElementById('set_gemini_api_key')) {
+      document.getElementById('set_gemini_api_key').value = s.gemini_api_key;
+    }
     if (s.email_user && document.getElementById('set_email_user')) {
       document.getElementById('set_email_user').value = s.email_user;
     }
@@ -3249,6 +3252,7 @@ async function saveSettings() {
   
   const items = [
     { key: 'test_mode', value: isTest ? 'true' : 'false' },
+    { key: 'gemini_api_key', value: getInputValue('set_gemini_api_key') },
     { key: 'telegram_phone', value: getInputValue('set_telegram_phone') },
     { key: 'telegram_api_id', value: getInputValue('set_telegram_api_id') },
     { key: 'telegram_api_hash', value: getInputValue('set_telegram_api_hash') },

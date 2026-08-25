@@ -1110,7 +1110,9 @@ def dismiss_offer(offer_id: int, db: Session = Depends(get_db)):
 
 def get_gemini_api_key(db: Session) -> Optional[str]:
     s = db.query(Setting).filter_by(key="gemini_api_key").first()
-    return s.value.strip() if s and s.value and s.value.strip() else None
+    if s and s.value and s.value.strip():
+        return s.value.strip()
+    return os.getenv("GEMINI_API_KEY", "").strip() or None
 
 @app.get("/api/orders")
 def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):

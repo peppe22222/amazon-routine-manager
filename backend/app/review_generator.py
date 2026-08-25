@@ -1226,29 +1226,33 @@ def generate_review(product_title: str, gemini_api_key: str = None) -> dict:
     # 1. TENTATIVO CON INTELLIGENZA ARTIFICIALE GEMINI (ANALISI TECNICA APPROFONDITA)
     if gemini_api_key and gemini_api_key.strip():
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_api_key.strip()}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={gemini_api_key.strip()}"
             prompt = (
                 f"Sei un acquirente italiano competente ed entusiasta che ha acquistato e testato su Amazon il seguente articolo: '{clean_title}'.\n"
                 f"Scrivi una recensione a 5 stelle ricca di dettagli tecnici, funzionali e pratici in perfetto italiano.\n"
                 f"REGOLA TASSATIVA ASSOLUTA:\n"
-                f"- È SEVERAMENTE VIETATO scrivere frasi generiche o scambiare la tipologia di prodotto (es. se è un idropulsore dentale parla di getto d'acqua, pulizia interdentale, serbatoio e gengive; se è un phon parla di flusso d'aria, ioni e calore; se è un PC parla di CPU, RAM, SSD; se è una friggitrice parla di cestello e cottura croccante).\n"
+                f"- È SEVERAMENTE VIETATO scrivere frasi generiche o scambiare la tipologia di prodotto.\n"
                 f"- Devi leggere ATTENTAMENTE il titolo e attenerti fedelmente alla funzione d'uso del prodotto.\n"
                 f"- Rispondi ESCLUSIVAMENTE in formato JSON con due chiavi: 'title' (titolo specifico e accattivante di 5-10 parole) e 'body' (testo della recensione di 3-4 frasi articolate e tecniche)."
             )
             payload = {
                 "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"response_mime_type": "application/json"}
+                "generationConfig": {
+                    "responseMimeType": "application/json",
+                    "temperature": 0.7
+                }
             }
-            resp = requests.post(url, json=payload, timeout=7)
+            resp = requests.post(url, json=payload, timeout=6)
             if resp.status_code == 200:
                 data = resp.json()
                 text = data["candidates"][0]["content"]["parts"][0]["text"]
                 parsed = json.loads(text)
-                return {
-                    "title": parsed.get("title", f"Ottime prestazioni tecniche per {clean_product_subject(clean_title)}!"),
-                    "body": parsed.get("body", "Recensione generata con successo."),
-                    "source": "AI (Gemini Technical Engine)"
-                }
+                if parsed.get("title") and parsed.get("body"):
+                    return {
+                        "title": parsed.get("title").strip(),
+                        "body": parsed.get("body").strip(),
+                        "source": "AI (Gemini Technical Engine)"
+                    }
         except Exception as e:
             print(f"[Review Generator AI Fallback] {e}")
 
