@@ -780,28 +780,8 @@ async function loadOrders() {
     if (!res.ok) return;
     let orders = await res.json();
 
-    // Schermatura di sicurezza client-side:
-    // Se il browser ha ordini che non sono presenti sul server (es. dopo un riavvio/deploy), sincronizza
-    const localBackupStr = localStorage.getItem('amz_shielded_orders');
-    let localBackup = [];
-    try { localBackup = JSON.parse(localBackupStr) || []; } catch(e) {}
-
-    const serverIds = new Set((orders || []).map(o => o.id || o.order_number));
-    const missingOnServer = localBackup.filter(lo => lo && lo.id && !serverIds.has(lo.id) && !serverIds.has(lo.order_number));
-
-    if (missingOnServer.length > 0) {
-      console.log('[Shield] Ripristino automatico ordini mancanti dal browser al server...', missingOnServer);
-      await fetch('/api/orders/client-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orders: localBackup })
-      });
-      const refreshRes = await fetch('/api/orders');
-      if (refreshRes.ok) {
-        orders = await refreshRes.json();
-      }
-    }
-    if (orders && orders.length > 0) {
+    // Sincronizza lo stato reale con la memoria locale del browser
+    if (orders) {
       localStorage.setItem('amz_shielded_orders', JSON.stringify(orders));
     }
 
