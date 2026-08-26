@@ -601,7 +601,7 @@ def consolidate_offer_albums(db: Session):
         pass
 
 def find_matching_order_for_offer(offer_title: str, orders: List[Order]) -> Optional[Order]:
-    """Trova in modo intelligente l'ordine corrispondente a un'offerta tramite titolo esatto, duplicato o parole chiave"""
+    """Trova l'ordine corrispondente a un'offerta solo se c'è corrispondenza esatta o ad altissima confidenza del modello"""
     if not offer_title or not orders:
         return None
     
@@ -612,45 +612,11 @@ def find_matching_order_for_offer(offer_title: str, orders: List[Order]) -> Opti
         if o.product_title and o.product_title.strip().lower() == t_clean:
             return o
             
-    # 2. Corrispondenza duplicato intelligente
+    # 2. Corrispondenza duplicato identico normalizzato
     for o in orders:
         if o.product_title and is_title_duplicate(offer_title, o.product_title):
             return o
             
-    # 3. Corrispondenza chiave normalizzata
-    k_offer = normalize_text_key(offer_title)
-    for o in orders:
-        if o.product_title:
-            k_order = normalize_text_key(o.product_title)
-            if k_offer and k_order and (k_offer in k_order or k_order in k_offer):
-                return o
-                
-    # 4. Corrispondenza per parole chiave primarie
-    words_offer = set(k_offer.split())
-    if words_offer:
-        for o in orders:
-            if o.product_title:
-                words_order = set(normalize_text_key(o.product_title).split())
-                if words_order:
-                    common = words_offer.intersection(words_order)
-                    # Caso speciale: Barattolo Caffè
-                    if ("barattolo" in common or "caffè" in common or "caffe" in common) and ("barattolo" in words_offer or "caffè" in words_offer or "caffe" in words_offer):
-                        return o
-                    # Caso speciale: Power Bank
-                    if ("power" in common or "bank" in common or "powerbank" in common) and ("power" in words_offer or "powerbank" in words_offer):
-                        return o
-                    # Caso speciale: Lavatappeti
-                    if ("lavatappeti" in common or "divani" in common or "tappeti" in common) and ("lavatappeti" in words_offer or "divani" in words_offer):
-                        return o
-                    # Caso speciale: Comodino
-                    if ("comodino" in common) and ("comodino" in words_offer):
-                        return o
-                    # Caso speciale: Auricolari
-                    if ("auricolari" in common or "cuffie" in common) and ("auricolari" in words_offer or "cuffie" in words_offer):
-                        return o
-                    if len(common) >= 2 and (len(common) / min(len(words_offer), len(words_order))) >= 0.5:
-                        return o
-                        
     return None
 
 def cleanup_unwanted_demo_offers(db: Session):
