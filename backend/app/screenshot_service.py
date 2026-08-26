@@ -264,7 +264,7 @@ def parse_delivery_date_text(ocr_text: str, base_date: datetime = None) -> tuple
         candidates.append(raw_val)
 
     for raw in candidates:
-        raw_lower = raw.lower()
+        raw_lower = raw.lower().strip()
         if 'domani' in raw_lower or 'tomorrow' in raw_lower:
             dt = ref_date + timedelta(days=1)
             return dt, 'Domani'
@@ -273,13 +273,14 @@ def parse_delivery_date_text(ocr_text: str, base_date: datetime = None) -> tuple
             return dt, 'Oggi'
 
         for w_name, w_idx in weekdays_map.items():
-            if re.search(r'\b' + re.escape(w_name) + r'\b', raw_lower):
+            if re.search(r'\b' + re.escape(w_name) + r'\b', raw_lower) or (w_name in raw_lower) or (w_name[:4] in raw_lower):
                 cur_w = ref_date.weekday()
                 days_ahead = (w_idx - cur_w) % 7
                 if days_ahead == 0:
                     days_ahead = 7
                 dt = ref_date + timedelta(days=days_ahead)
-                return dt, f'{w_name.capitalize()}'
+                canonical_day = ['Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato', 'Domenica'][w_idx]
+                return dt, canonical_day
 
         m_num = re.search(r'\b([0-9]{1,2})\s*([a-zàèìòù]+)\b', raw_lower)
         if m_num:
@@ -296,7 +297,7 @@ def parse_delivery_date_text(ocr_text: str, base_date: datetime = None) -> tuple
                 pass
 
     if candidates:
-        return None, candidates[0]
+        return None, candidates[0].strip()
 
     return None, None
 
