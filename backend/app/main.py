@@ -1145,6 +1145,9 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
         is_jar_prod = any(w in prod_low for w in ["barattolo", "chicchi", "valvola co2", "contenitore caffè"])
         is_jar_rev = any(w in rev_t_low or w in rev_b_low for w in ["barattolo", "chicchi", "valvola co2", "cucchiaio dosatore"])
 
+        is_furniture_rev = any(w in rev_b_low or w in rev_t_low for w in ["ferramenta inclusa", "assemblaggio rapido anche da soli", "i pannelli e la struttura", "la verniciatura è uniforme", "pezzi di scorta e le istruzioni"])
+        is_furniture_prod = any(w in prod_low for w in ["comodino", "tavolo", "sedia", "scaffale", "libreria", "mobiletto", "cassettiera", "mobile tv", "armadio", "scrivania", "mensola", "struttura letto", "giroletto", "scarpiera"])
+
         is_old_generic = (
             not o.review_title 
             or not o.review_body
@@ -1158,6 +1161,8 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             or (not is_jar_prod and is_jar_rev)
             or (is_power_prod and is_watch_rev)
             or (not any(w in prod_low for w in ["smartwatch", "smartband", "orologio"]) and is_watch_rev)
+            or (not is_furniture_prod and is_furniture_rev)
+            or (any(w in prod_low for w in ["ventilatore", "raffreddamento", "lenzuola", "aria fresca", "climatizzatore", "raffrescatore"]) and is_furniture_rev)
         )
         if is_old_generic:
             rev_data = generate_review(o.product_title, gemini_api_key=gemini_key)

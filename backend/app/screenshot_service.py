@@ -331,73 +331,75 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
     # 1. TENTATIVO CON GEMINI VISION AI (Se API Key disponibile in Impostazioni o ENV)
     api_key = (gemini_api_key or os.getenv("GEMINI_API_KEY", "")).strip()
     if api_key:
-        try:
-            # Rileva dinamicamente il formato dell'immagine (JPEG, PNG, WEBP)
-            mime_type = "image/jpeg"
-            if image_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
-                mime_type = "image/png"
-            elif image_bytes.startswith(b'RIFF') and b'WEBP' in image_bytes[:16]:
-                mime_type = "image/webp"
+        candidate_models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
+        for mod in candidate_models:
+            try:
+                # Rileva dinamicamente il formato dell'immagine (JPEG, PNG, WEBP)
+                mime_type = "image/jpeg"
+                if image_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
+                    mime_type = "image/png"
+                elif image_bytes.startswith(b'RIFF') and b'WEBP' in image_bytes[:16]:
+                    mime_type = "image/webp"
 
-            b64_data = base64.b64encode(image_bytes).decode("utf-8")
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-            prompt = (
-                "Sei un assistente specializzato nell'analisi di schermate e ricevute di ordini Amazon.it.\n"
-                "Analizza questa immagine con la massima attenzione ed estrai in formato JSON valido:\n"
-                "1. 'order_number': il numero d'ordine Amazon a 17 cifre 'xxx-xxxxxxx-xxxxxxx' (es. '408-1234567-8901234'). Se non presente scrivi null.\n"
-                "2. 'price_paid': il totale complessivo pagato/speso su Amazon in euro come numero decimale (es. 24.99 o 99.00). Cerca diciture come 'Totale', 'Totale ordine', 'EUR', '€', 'Importo'. Se presente il prezzo dell'articolo o il totale, estrailo come float. Se assente scrivi null.\n"
-                "3. 'product_title': il titolo o descrizione del prodotto/articolo ordinato. Se non presente scrivi null.\n"
-                "4. 'delivery_info': la data, giorno o indicazione di consegna/arrivo (es. 'In arrivo lunedì', 'Consegna: 28 agosto', 'Consegnato', 'Domani'). Se non presente scrivi null.\n"
-                "5. 'raw_text': breve riepilogo del testo letto.\n"
-                "Rispondi ESCLUSIVAMENTE con il blocco JSON puro, senza spiegazioni."
-            )
-            payload = {
-                "contents": [{
-                    "parts": [
-                        {"text": prompt},
-                        {
-                            "inline_data": {
-                                "mime_type": mime_type,
-                                "data": b64_data
+                b64_data = base64.b64encode(image_bytes).decode("utf-8")
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={api_key}"
+                prompt = (
+                    "Sei un assistente specializzato nell'analisi di schermate e ricevute di ordini Amazon.it.\n"
+                    "Analizza questa immagine con la massima attenzione ed estrai in formato JSON valido:\n"
+                    "1. 'order_number': il numero d'ordine Amazon a 17 cifre 'xxx-xxxxxxx-xxxxxxx' (es. '408-1234567-8901234'). Se non presente scrivi null.\n"
+                    "2. 'price_paid': il totale complessivo pagato/speso su Amazon in euro come numero decimale (es. 24.99 o 99.00). Cerca diciture come 'Totale', 'Totale ordine', 'EUR', '€', 'Importo'. Se presente il prezzo dell'articolo o il totale, estrailo come float. Se assente scrivi null.\n"
+                    "3. 'product_title': il titolo o descrizione del prodotto/articolo ordinato. Se non presente scrivi null.\n"
+                    "4. 'delivery_info': la data, giorno o indicazione di consegna/arrivo (es. 'In arrivo lunedì', 'Consegna: 28 agosto', 'Consegnato', 'Domani'). Se non presente scrivi null.\n"
+                    "5. 'raw_text': breve riepilogo del testo letto.\n"
+                    "Rispondi ESCLUSIVAMENTE con il blocco JSON puro, senza spiegazioni."
+                )
+                payload = {
+                    "contents": [{
+                        "parts": [
+                            {"text": prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": mime_type,
+                                    "data": b64_data
+                                }
                             }
-                        }
-                    ]
-                }],
-                "generationConfig": {"response_mime_type": "application/json"}
-            }
-            resp = requests.post(url, json=payload, timeout=15)
-            if resp.status_code == 200:
-                data = resp.json()
-                raw_text_content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                # Pulisci eventuale markdown backticks ```json ... ```
-                if raw_text_content.startswith("```"):
-                    raw_text_content = re.sub(r'^```(?:json)?\s*', '', raw_text_content)
-                    raw_text_content = re.sub(r'\s*```$', '', raw_text_content)
-                parsed = json.loads(raw_text_content)
-                if parsed.get("order_number"):
-                    result["order_number"] = str(parsed["order_number"]).strip()
-                if parsed.get("price_paid") is not None:
-                    try:
-                        clean_p = str(parsed["price_paid"]).replace('€', '').replace('EUR', '').replace(',', '.').strip()
-                        p_val = float(clean_p)
-                        if p_val > 0:
-                            result["price_paid"] = p_val
-                    except (ValueError, TypeError):
-                        pass
-                if parsed.get("product_title"):
-                    result["product_title"] = str(parsed["product_title"]).strip()
-                
-                delivery_raw = parsed.get("delivery_info")
-                if delivery_raw:
-                    dt, d_info = parse_delivery_date_text(str(delivery_raw) + " " + str(parsed.get("raw_text", "")))
-                    if dt:
-                        result["estimated_delivery_date"] = dt.isoformat()
-                    result["delivery_info"] = d_info or str(delivery_raw).strip()
+                        ]
+                    }],
+                    "generationConfig": {"response_mime_type": "application/json"}
+                }
+                resp = requests.post(url, json=payload, timeout=12)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    raw_text_content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    # Pulisci eventuale markdown backticks ```json ... ```
+                    if raw_text_content.startswith("```"):
+                        raw_text_content = re.sub(r'^```(?:json)?\s*', '', raw_text_content)
+                        raw_text_content = re.sub(r'\s*```$', '', raw_text_content)
+                    parsed = json.loads(raw_text_content)
+                    if parsed.get("order_number"):
+                        result["order_number"] = str(parsed["order_number"]).strip()
+                    if parsed.get("price_paid") is not None:
+                        try:
+                            clean_p = str(parsed["price_paid"]).replace('€', '').replace('EUR', '').replace(',', '.').strip()
+                            p_val = float(clean_p)
+                            if p_val > 0:
+                                result["price_paid"] = p_val
+                        except (ValueError, TypeError):
+                            pass
+                    if parsed.get("product_title"):
+                        result["product_title"] = str(parsed["product_title"]).strip()
+                    
+                    delivery_raw = parsed.get("delivery_info")
+                    if delivery_raw:
+                        dt, d_info = parse_delivery_date_text(str(delivery_raw) + " " + str(parsed.get("raw_text", "")))
+                        if dt:
+                            result["estimated_delivery_date"] = dt.isoformat()
+                        result["delivery_info"] = d_info or str(delivery_raw).strip()
 
-                result["method"] = "gemini_vision"
-                return result
-        except Exception as e:
-            print(f"[OCR Gemini Vision Error] {e}")
+                    result["method"] = f"gemini_vision_{mod}"
+                    return result
+            except Exception as e:
+                print(f"[OCR Gemini Vision Error with {mod}] {e}")
 
     # 2. TENTATIVO CON MOTORE OCR CLOUD ALTA PRECISIONE (OCR.space - Zero installazione, ultra preciso)
     try:

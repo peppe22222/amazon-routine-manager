@@ -660,12 +660,43 @@ CATEGORIES = {
         ]
     },
 
-    # --- 22. MOBILI & ARREDAMENTO ---
+    # --- 22. VENTILATORI, CLIMATIZZAZIONE & RAFFREDDAMENTO LETTO ---
+    "ventilatori_raffreddamento_letto": {
+        "keywords": [
+            "raffreddamento per letto", "raffreddamento letto", "sotto le lenzuola", "ventilatore letto", 
+            "ventilatore da letto", "ventilatore sotto lenzuola", "ventilatore a piantana", "ventilatore a torre", 
+            "ventilatore da tavolo", "ventilatore usb", "ventilatore portatile", "condizionatore portatile", 
+            "rinfrescatore d'aria", "ventilatore silenzioso", "ventilatore", "bed fan", "cooling fan", "raffrescatore"
+        ],
+        "titles": [
+            "Flusso d'aria fresco e costante sotto le lenzuola: notti estive fresche e sonno rigenerante!",
+            "Ventilatore ultra-silenzioso con velocità regolabili: fresco immediato nel letto senza rumori fastidiosi",
+            "Sistema di raffreddamento per letto formidabile: consumi ridottissimi, montaggio rapido e freschezza totale",
+            "Addio afa notturna: 5 velocità comodissime, getto d'aria omogeneo e massima silenziosità!"
+        ],
+        "openings": [
+            "Ho acquistato questo sistema di ventilazione e raffreddamento per affrontare le notti calde e afose ed è stata la migliore decisione per il mio riposo.",
+            "Arrivato perfettamente imballato con tutti gli accessori, il tubo/diffusore d'aria flessibile per posizionamento sotto le lenzuola e il pratico controller di velocità.",
+            "L'installazione a bordo letto è facilissima e immediata: si adatta a qualsiasi materasso e lenzuolo senza creare ingombro."
+        ],
+        "bodies": [
+            "Il motore eroga un flusso d'aria fresca e piacevole che circola in modo uniforme sotto le coperte allontanando subito l'umidità e il calore corporeo.",
+            "Le 5 velocità selezionabili permettono di calibrare l'intensità perfetta: le prime marce sono così silenziose da poter dormire senza alcun disturbo, mentre le marce superiori rinfrescano il letto in pochi minuti prima di coricarsi.",
+            "La costruzione è solida, i consumi elettrici sono minimi e il sistema evita il getto diretto d'aria fredda sul corpo, garantendo un comfort ideale senza rischiare malanni."
+        ],
+        "closings": [
+            "Un dispositivo geniale che ha migliorato drasticamente la qualità del mio sonno estivo. 5 stelle meritate!",
+            "Efficacissimo, silenzioso e dai consumi irrisori rispetto a un condizionatore. Consigliatissimo!",
+            "Letto fresco e sonno profondo tutta la notte. Pienamente soddisfatto dell'acquisto!"
+        ]
+    },
+
+    # --- 23. MOBILI & ARREDAMENTO ---
     "mobili_arredamento": {
         "keywords": [
-            "comodino", "tavolino", "tavolo", "sedia ergonomica", "sedia", "poltrona", "scaffale", 
-            "libreria", "armadietto", "mobiletto", "cassettiera", "mobile tv", "divano", "letto", 
-            "scrivania", "mensola", "appendiabiti", "scarpiera"
+            "comodino", "tavolino", "tavolo", "sedia ergonomica", "sedia da ufficio", "poltrona", "scaffale", 
+            "libreria", "armadietto", "mobiletto", "cassettiera", "mobile tv", "divano", "struttura letto", 
+            "giroletto", "telaio letto", "testiera letto", "scrivania", "mensola", "appendiabiti", "scarpiera"
         ],
         "titles": [
             "Design moderno ed elegante: solido, capiente e facilissimo da montare!",
@@ -1225,36 +1256,41 @@ def generate_review(product_title: str, gemini_api_key: str = None) -> dict:
     
     # 1. TENTATIVO CON INTELLIGENZA ARTIFICIALE GEMINI (ANALISI TECNICA APPROFONDITA)
     if gemini_api_key and gemini_api_key.strip():
-        try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key={gemini_api_key.strip()}"
-            prompt = (
-                f"Sei un acquirente italiano competente ed entusiasta che ha acquistato e testato su Amazon il seguente articolo: '{clean_title}'.\n"
-                f"Scrivi una recensione a 5 stelle ricca di dettagli tecnici, funzionali e pratici in perfetto italiano.\n"
-                f"REGOLA TASSATIVA ASSOLUTA:\n"
-                f"- È SEVERAMENTE VIETATO scrivere frasi generiche o scambiare la tipologia di prodotto.\n"
-                f"- Devi leggere ATTENTAMENTE il titolo e attenerti fedelmente alla funzione d'uso del prodotto.\n"
-                f"- Rispondi ESCLUSIVAMENTE in formato JSON con due chiavi: 'title' (titolo specifico e accattivante di 5-10 parole) e 'body' (testo della recensione di 3-4 frasi articolate e tecniche)."
-            )
-            payload = {
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {
-                    "responseMimeType": "application/json",
-                    "temperature": 0.7
-                }
-            }
-            resp = requests.post(url, json=payload, timeout=6)
-            if resp.status_code == 200:
-                data = resp.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-                parsed = json.loads(text)
-                if parsed.get("title") and parsed.get("body"):
-                    return {
-                        "title": parsed.get("title").strip(),
-                        "body": parsed.get("body").strip(),
-                        "source": "AI (Gemini Technical Engine)"
+        candidate_models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
+        for mod in candidate_models:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={gemini_api_key.strip()}"
+                prompt = (
+                    f"Sei un acquirente italiano competente ed esperto che ha acquistato e testato a fondo su Amazon il seguente articolo: '{clean_title}'.\n"
+                    f"Scrivi una recensione a 5 stelle autentica, ricca di dettagli d'uso, ergonomici, tecnici e funzionali in perfetto italiano.\n"
+                    f"REGOLA TASSATIVA ASSOLUTA:\n"
+                    f"- È SEVERAMENTE VIETATO scrivere frasi generiche o scambiare la tipologia di prodotto.\n"
+                    f"- Devi leggere ATTENTAMENTE il titolo e attenerti fedelmente alla funzione d'uso del prodotto.\n"
+                    f"- Rispondi ESCLUSIVAMENTE in formato JSON con due chiavi: 'title' (titolo specifico e accattivante di 5-10 parole) e 'body' (testo della recensione di 3-4 frasi articolate e tecniche)."
+                )
+                payload = {
+                    "contents": [{"parts": [{"text": prompt}]}],
+                    "generationConfig": {
+                        "responseMimeType": "application/json",
+                        "temperature": 0.7
                     }
-        except Exception as e:
-            print(f"[Review Generator AI Fallback] {e}")
+                }
+                resp = requests.post(url, json=payload, timeout=8)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    raw_text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    if raw_text.startswith("```"):
+                        raw_text = re.sub(r'^```(?:json)?\s*', '', raw_text)
+                        raw_text = re.sub(r'\s*```$', '', raw_text)
+                    parsed = json.loads(raw_text)
+                    if parsed.get("title") and parsed.get("body"):
+                        return {
+                            "title": parsed.get("title").strip(),
+                            "body": parsed.get("body").strip(),
+                            "source": f"AI (Gemini {mod})"
+                        }
+            except Exception as e:
+                print(f"[Review Generator AI Error with {mod}] {e}")
 
     # 2. RICONOSCIMENTO CATEGORIALE ULTRA-SPECIFICO
     cat_name, cat_data = detect_specific_category(clean_title)
