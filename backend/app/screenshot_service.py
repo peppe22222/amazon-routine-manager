@@ -331,17 +331,24 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
     api_key = (gemini_api_key or os.getenv("GEMINI_API_KEY", "")).strip()
     if api_key:
         try:
+            # Rileva dinamicamente il formato dell'immagine (JPEG, PNG, WEBP)
+            mime_type = "image/jpeg"
+            if image_bytes.startswith(b'\x89PNG\r\n\x1a\n'):
+                mime_type = "image/png"
+            elif image_bytes.startswith(b'RIFF') and b'WEBP' in image_bytes[:16]:
+                mime_type = "image/webp"
+
             b64_data = base64.b64encode(image_bytes).decode("utf-8")
             url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
             prompt = (
-                "Analizza questa immagine di conferma o ricevuta ordine Amazon.\n"
-                "Estrai con la massima precisione in formato JSON:\n"
-                "1. 'order_number': il numero d'ordine Amazon reale a 17 cifre nel formato 'xxx-xxxxxxx-xxxxxxx' (es. '404-1867984-8717122'). Se non presente scrivi null.\n"
-                "2. 'price_paid': il totale complessivo pagato su Amazon in euro come numero float (es. 22.99 o 100.00). Se non presente scrivi null.\n"
-                "3. 'product_title': il nome o descrizione dell'articolo ordinato. Se non presente scrivi null.\n"
-                "4. 'delivery_info': il testo che indica la data o giorno stimato di arrivo/consegna (es. 'In arrivo lunedì', 'Consegna prevista: 25 agosto', 'In consegna domani', ecc.). Se non presente scrivi null.\n"
-                "5. 'raw_text': eventuale testo rilevante trovato nell'immagine.\n"
-                "Rispondi ESCLUSIVAMENTE con il JSON."
+                "Sei un assistente specializzato nell'analisi di schermate e ricevute di ordini Amazon.it.\n"
+                "Analizza questa immagine con la massima attenzione ed estrai in formato JSON valido:\n"
+                "1. 'order_number': il numero d'ordine Amazon a 17 cifre 'xxx-xxxxxxx-xxxxxxx' (es. '408-1234567-8901234'). Se non presente scrivi null.\n"
+                "2. 'price_paid': il totale complessivo pagato/speso su Amazon in euro come numero decimale (es. 24.99 o 99.00). Cerca diciture come 'Totale', 'Totale ordine', 'EUR', '€', 'Importo'. Se presente il prezzo dell'articolo o il totale, estrailo come float. Se assente scrivi null.\n"
+                "3. 'product_title': il titolo o descrizione del prodotto/articolo ordinato. Se non presente scrivi null.\n"
+                "4. 'delivery_info': la data, giorno o indicazione di consegna/arrivo (es. 'In arrivo lunedì', 'Consegna: 28 agosto', 'Consegnato', 'Domani'). Se non presente scrivi null.\n"
+                "5. 'raw_text': breve riepilogo del testo letto.\n"
+                "Rispondi ESCLUSIVAMENTE con il blocco JSON puro, senza spiegazioni."
             )
             payload = {
                 "contents": [{
@@ -349,7 +356,7 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
                         {"text": prompt},
                         {
                             "inline_data": {
-                                "mime_type": "image/jpeg",
+                                "mime_type": mime_type,
                                 "data": b64_data
                             }
                         }
@@ -357,27 +364,34 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
                 }],
                 "generationConfig": {"response_mime_type": "application/json"}
             }
-            resp = requests.post(url, json=payload, timeout=8)
+            resp = requests.post(url, json=payload, timeout=15)
             if resp.status_code == 200:
                 data = resp.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
-                parsed = json.loads(text)
+                raw_text_content = data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                # Pulisci eventuale markdown backticks ```json ... ```
+                if raw_text_content.startswith("```"):
+                    raw_text_content = re.sub(r'^```(?:json)?\s*', '', raw_text_content)
+                    raw_text_content = re.sub(r'\s*```$', '', raw_text_content)
+                parsed = json.loads(raw_text_content)
                 if parsed.get("order_number"):
-                    result["order_number"] = parsed["order_number"].strip()
+                    result["order_number"] = str(parsed["order_number"]).strip()
                 if parsed.get("price_paid") is not None:
                     try:
-                        result["price_paid"] = float(parsed["price_paid"])
-                    except ValueError:
+                        clean_p = str(parsed["price_paid"]).replace('€', '').replace('EUR', '').replace(',', '.').strip()
+                        p_val = float(clean_p)
+                        if p_val > 0:
+                            result["price_paid"] = p_val
+                    except (ValueError, TypeError):
                         pass
                 if parsed.get("product_title"):
-                    result["product_title"] = parsed["product_title"].strip()
+                    result["product_title"] = str(parsed["product_title"]).strip()
                 
                 delivery_raw = parsed.get("delivery_info")
                 if delivery_raw:
                     dt, d_info = parse_delivery_date_text(str(delivery_raw) + " " + str(parsed.get("raw_text", "")))
                     if dt:
                         result["estimated_delivery_date"] = dt.isoformat()
-                    result["delivery_info"] = d_info or delivery_raw
+                    result["delivery_info"] = d_info or str(delivery_raw).strip()
 
                 result["method"] = "gemini_vision"
                 return result
@@ -393,7 +407,7 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
             "isOverlayRequired": False,
             "apikey": "K88728994588957"
         }
-        ocr_resp = requests.post("https://api.ocr.space/parse/image", data=ocr_payload, timeout=8)
+        ocr_resp = requests.post("https://api.ocr.space/parse/image", data=ocr_payload, timeout=10)
         if ocr_resp.status_code == 200:
             ocr_data = ocr_resp.json()
             parsed_res = ocr_data.get("ParsedResults", [])
@@ -405,17 +419,23 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
                 result["order_number"] = re.sub(r'\s+', '-', order_m.group(0)).strip()
                 result["method"] = "cloud_ocr"
 
-            # Cerca importo totale pagato
-            price_m = re.search(r'(?:totale|importo|pagato|totale ordine)[\s:]*(?:€|eur)?\s*([0-9]+(?:[.,][0-9]{2}))', ocr_text, re.IGNORECASE)
-            if not price_m:
-                price_m = re.search(r'([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur)\b', ocr_text, re.IGNORECASE)
-            if price_m:
-                try:
-                    val = float(price_m.group(1).replace(',', '.'))
-                    if val > 0:
-                        result["price_paid"] = val
-                except ValueError:
-                    pass
+            # Cerca importo totale pagato (supporta EUR 29,99, € 29,99, 29,99 €, Totale: 29,99)
+            price_patterns = [
+                r'(?:totale|importo|pagato|totale ordine|prezzo)[\s:\n\r]*(?:€|eur)?\s*([0-9]+(?:[.,][0-9]{2}))',
+                r'(?:€|eur)\s*([0-9]+(?:[.,][0-9]{2}))',
+                r'([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur)\b',
+                r'(?:totale|eur|€)[\s\S]{1,30}?([0-9]+[.,][0-9]{2})'
+            ]
+            for pat in price_patterns:
+                price_m = re.search(pat, ocr_text, re.IGNORECASE)
+                if price_m:
+                    try:
+                        val = float(price_m.group(1).replace(',', '.'))
+                        if val > 0:
+                            result["price_paid"] = val
+                            break
+                    except ValueError:
+                        pass
 
             # Cerca giorno/data di consegna
             dt, d_info = parse_delivery_date_text(ocr_text)
@@ -436,14 +456,14 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
         ocr_text = pytesseract.image_to_string(image, lang="ita+eng")
         
         # Cerca numero ordine Amazon (es. 404-1867984-8717122 o 408-1234567-8901234)
-        order_match = re.search(r'\b([0-9]{3}-[0-9]{7}-[0-9]{7})\b', ocr_text)
+        order_match = re.search(r'\b([0-9]{3}[-\s][0-9]{7}[-\s][0-9]{7})\b', ocr_text)
         if order_match:
-            result["order_number"] = order_match.group(1).strip()
+            result["order_number"] = re.sub(r'\s+', '-', order_match.group(1)).strip()
             result["method"] = "tesseract_ocr"
 
-        # Cerca prezzo pagato (es. Totale: 22,99 € o € 100,00)
+        # Cerca prezzo pagato
         price_patterns = [
-            r'(?:totale|totale ordine|importo|pagato|totale da pagare)[\s:]*(?:€|eur)?\s*([0-9]+(?:[.,][0-9]{2}))',
+            r'(?:totale|totale ordine|importo|pagato|totale da pagare|prezzo)[\s:\n\r]*(?:€|eur)?\s*([0-9]+(?:[.,][0-9]{2}))',
             r'(?:€|eur)\s*([0-9]+(?:[.,][0-9]{2}))',
             r'([0-9]+(?:[.,][0-9]{2}))\s*(?:€|eur)\b'
         ]
@@ -468,3 +488,4 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
         print(f"[OCR Tesseract Error] {e}")
 
     return result
+
