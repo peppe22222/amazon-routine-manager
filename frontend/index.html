@@ -190,10 +190,10 @@
 
       <!-- Action Buttons (Slim & Ghost Buttons) -->
       <div class="flex items-center space-x-1.5 md:space-x-2 shrink-0">
-        <!-- Tasto Sincronizza: Visibile su Desktop/PC -->
-        <button onclick="triggerManualFullSync(this)" title="Sincronizza" class="hidden md:flex h-8 px-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 border border-slate-700 items-center justify-center gap-1.5 text-emerald-300 hover:text-white transition-all text-xs font-bold active:scale-95 shadow-sm">
+        <!-- Tasto Sincronizza: Visibile su Mobile & Desktop -->
+        <button id="btn-header-sync" onclick="triggerManualFullSync(this)" title="Sincronizza Canale e Risposte" class="flex h-8 px-2 md:px-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 border border-slate-700/80 items-center justify-center gap-1.5 text-emerald-300 hover:text-white transition-all text-xs font-bold active:scale-95 shadow-sm">
           <i class="fa-solid fa-rotate-right text-xs"></i>
-          <span>Sincronizza</span>
+          <span class="text-[11px] md:text-xs">Sincronizza</span>
         </button>
         <!-- Impostazioni -->
         <button onclick="openSettingsModal()" title="Impostazioni" class="w-8 h-8 md:w-9 md:h-9 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700/80 flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-90 shadow-sm">

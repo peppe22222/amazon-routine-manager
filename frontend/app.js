@@ -35,16 +35,16 @@ let lightboxState = {
   currentSrc: ''
 };
 
-function loadAllData() {
-  loadStats();
-  loadOffers();
-  loadOrders();
-  loadLogs();
-  loadSettings();
-  loadActiveChannel();
-  loadTelegramStatus();
-  // Auto-sync live Telegram channel in background
-  syncActiveChannel(true);
+async function loadAllData() {
+  await Promise.all([
+    loadStats(),
+    loadOffers(),
+    loadOrders(),
+    loadLogs(),
+    loadSettings(),
+    loadActiveChannel(),
+    loadTelegramStatus()
+  ]);
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -53,7 +53,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   initPullToRefresh();
   const isAuth = await checkAuth();
   if (isAuth) {
-    loadAllData();
+    await loadAllData();
+    // Auto-sync live Telegram channel in background
+    syncActiveChannel(true);
   }
   
   // Timer live per conto alla rovescia recensioni (aggiorna solo i numeri dei secondi senza ricaricare la pagina)
@@ -98,11 +100,10 @@ async function triggerManualFullSync(btn) {
   showToast('Sincronizzazione in corso...');
   try {
     await Promise.all([
-      loadAllData(),
-      syncTelegramReplies(true),
-      syncActiveChannel(true)
+      syncActiveChannel(false),
+      syncTelegramReplies(false),
+      loadAllData()
     ]);
-    showToast('Sincronizzazione completata!');
   } catch (err) {
     showToast('Sincronizzazione terminata');
   } finally {
@@ -126,12 +127,17 @@ function initPullToRefresh() {
   let isPulling = false;
   let isRefreshing = false;
   let thresholdVibrated = false;
-  const triggerThreshold = 55;
+  const triggerThreshold = 50;
+
+  function getScrollTop() {
+    return window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+  }
 
   window.addEventListener('touchstart', (e) => {
     const hasOpenModal = !!document.querySelector('.modal:not(.hidden), #modal-lightbox:not(.hidden), #auth-lock-screen:not(.hidden)');
-    if (window.scrollY <= 2 && !isRefreshing && !hasOpenModal && e.touches.length === 1) {
+    if (getScrollTop() <= 2 && !isRefreshing && !hasOpenModal && e.touches.length === 1) {
       startY = e.touches[0].clientY;
+      currentY = startY;
       isPulling = true;
       thresholdVibrated = false;
     }
@@ -142,8 +148,8 @@ function initPullToRefresh() {
     currentY = e.touches[0].clientY;
     const deltaY = currentY - startY;
 
-    if (deltaY > 0 && window.scrollY <= 2) {
-      const pullDistance = Math.min(deltaY * 0.42, 80);
+    if (deltaY > 0 && getScrollTop() <= 2) {
+      const pullDistance = Math.min(deltaY * 0.45, 85);
       ptrIndicator.style.transition = 'none';
       ptrIndicator.style.transform = `translateY(${pullDistance + 10}px)`;
 
@@ -168,9 +174,9 @@ function initPullToRefresh() {
     }
     isPulling = false;
     const deltaY = currentY - startY;
-    const pullDistance = Math.min(deltaY * 0.42, 80);
+    const pullDistance = Math.min(deltaY * 0.45, 85);
 
-    if (pullDistance >= triggerThreshold && window.scrollY <= 2) {
+    if (pullDistance >= triggerThreshold && getScrollTop() <= 5) {
       isRefreshing = true;
       ptrIndicator.style.transition = 'transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
       ptrIndicator.style.transform = 'translateY(48px)';
@@ -182,9 +188,9 @@ function initPullToRefresh() {
 
       try {
         await Promise.all([
-          loadAllData(),
+          syncActiveChannel(false),
           syncTelegramReplies(true),
-          syncActiveChannel(true)
+          loadAllData()
         ]);
         ptrIcon.className = 'fa-solid fa-check text-base text-emerald-400';
         if (navigator.vibrate) navigator.vibrate([15, 30]);
@@ -1127,26 +1133,41 @@ async function markOrderAsPurchased(orderId) {
   }
 }
 
+let activeRepliesSyncPromise = null;
+
 async function syncTelegramReplies(silent = false) {
-  try {
-    const res = await fetch('/api/telegram/sync-replies', { method: 'POST' });
-    const data = await res.json();
-    if (res.ok && data.success) {
-      if (data.updated_count > 0) {
-        showToast(`🎉 Alex ti ha inviato il link Amazon! Pronta per l'acquisto.`);
-        await loadOrders();
-        loadOffers();
-        loadStats();
-      } else if (!silent) {
-        showToast(data.message || 'Risposte di Alex sincronizzate!');
-        await loadOrders();
-      }
-    } else if (!silent) {
-      showToast(data.error || 'Nessun nuovo messaggio da Alex', true);
-    }
-  } catch (err) {
-    if (!silent) console.error('Sync replies error:', err);
+  if (activeRepliesSyncPromise) {
+    return activeRepliesSyncPromise;
   }
+
+  activeRepliesSyncPromise = (async () => {
+    try {
+      const res = await fetch('/api/telegram/sync-replies', { method: 'POST' });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (data.updated_count > 0) {
+          showToast(`🎉 Alex ti ha inviato il link Amazon! Pronta per l'acquisto.`);
+          await Promise.all([
+            loadOrders(),
+            loadOffers(),
+            loadStats()
+          ]);
+        } else if (!silent) {
+          showToast(data.message || 'Risposte di Alex sincronizzate!');
+          await loadOrders();
+        }
+      } else if (!silent) {
+        showToast(data.error || 'Nessun nuovo messaggio da Alex', true);
+      }
+      return data;
+    } catch (err) {
+      if (!silent) console.error('Sync replies error:', err);
+    } finally {
+      activeRepliesSyncPromise = null;
+    }
+  })();
+
+  return activeRepliesSyncPromise;
 }
 
 function renderConfirmations(orders) {
@@ -3432,56 +3453,73 @@ async function submitParsedPost() {
   }
 }
 
-let isSyncingChannel = false;
+let activeChannelSyncPromise = null;
 
 async function syncActiveChannel(isSilent = false) {
-  if (isSyncingChannel) return;
-  isSyncingChannel = true;
-
   const btn = document.getElementById('btn-sync-channel');
+  const headerBtn = document.getElementById('btn-header-sync');
+  const headerIcon = headerBtn ? headerBtn.querySelector('i') : null;
   const syncBadge = document.getElementById('last-sync-time-badge');
 
-  if (!isSilent && btn) {
-    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Download offerte live...';
-    btn.disabled = true;
+  if (activeChannelSyncPromise) {
+    if (!isSilent) showToast('Sincronizzazione già in corso...');
+    return activeChannelSyncPromise;
   }
 
-  try {
-    const res = await fetch('/api/telegram/sync-channel', { method: 'POST' });
-    const data = await res.json();
-    
-    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    if (syncBadge) {
-      syncBadge.innerText = `Sinc: ${nowTime}`;
-      syncBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
-    }
-
-    if (res.ok && data.success) {
-      if (!isSilent) {
-        showToast(data.message || 'Sincronizzazione completata!');
-      }
-      loadOffers();
-      loadStats();
-      loadLogs();
-    } else if (data.auth_required) {
-      if (!isSilent) {
-        showToast(data.message || data.error || 'Collega il tuo account Telegram per scaricare dal canale', true);
-        openTelegramAuthModal();
-      }
-    } else {
-      if (!isSilent) {
-        showToast(data.message || data.error || 'Nessun post scaricato. Usa "Incolla Post"', true);
-      }
-    }
-  } catch (err) {
-    if (!isSilent) {
-      showToast('Errore di sincronizzazione canale', true);
-    }
-  } finally {
-    isSyncingChannel = false;
+  if (!isSilent) {
     if (btn) {
-      btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Sincronizza Canale Live';
-      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Download offerte live...';
+      btn.disabled = true;
     }
+    if (headerIcon) headerIcon.classList.add('fa-spin');
   }
+
+  activeChannelSyncPromise = (async () => {
+    try {
+      const res = await fetch('/api/telegram/sync-channel', { method: 'POST' });
+      const data = await res.json();
+      
+      const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      if (syncBadge) {
+        syncBadge.innerText = `Sinc: ${nowTime}`;
+        syncBadge.className = 'text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40';
+      }
+
+      if (res.ok && data.success) {
+        if (!isSilent) {
+          showToast(data.message || 'Sincronizzazione completata!');
+        }
+        await Promise.all([
+          loadOffers(),
+          loadStats(),
+          loadLogs()
+        ]);
+      } else if (data.auth_required) {
+        if (!isSilent) {
+          showToast(data.message || data.error || 'Collega il tuo account Telegram per scaricare dal canale', true);
+          openTelegramAuthModal();
+        }
+      } else {
+        if (!isSilent) {
+          showToast(data.message || data.error || 'Nessun post scaricato. Usa "Incolla Post"', true);
+        }
+      }
+      return data;
+    } catch (err) {
+      if (!isSilent) {
+        showToast('Errore di sincronizzazione canale', true);
+      }
+    } finally {
+      activeChannelSyncPromise = null;
+      if (btn) {
+        btn.innerHTML = '<i class="fa-solid fa-cloud-arrow-down"></i> Sincronizza Canale Live';
+        btn.disabled = false;
+      }
+      if (headerIcon) {
+        setTimeout(() => headerIcon.classList.remove('fa-spin'), 400);
+      }
+    }
+  })();
+
+  return activeChannelSyncPromise;
 }

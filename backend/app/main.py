@@ -405,7 +405,7 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
     
     # 1. Prova con il client Telegram autorizzato
     try:
-        tele_res = await telegram_service.sync_channel_live(db, channel, limit=500)
+        tele_res = await telegram_service.sync_channel_live(db, channel, limit=100)
         if tele_res.get("success"):
             return tele_res
         elif tele_res.get("auth_required"):
@@ -415,7 +415,7 @@ async def sync_telegram_channel(payload: Optional[TelegramChannelPayload] = None
         print(f"[Telethon Sync Error] {e}")
 
     # 2. Fallback su anteprima web pubblica per canali pubblici
-    offers_data = scrape_telegram_channel_offers(channel, limit=150)
+    offers_data = scrape_telegram_channel_offers(channel, limit=100)
     if offers_data:
         # Preleva tutte le offerte già esistenti nel DB
         existing_all = db.query(Offer).all()

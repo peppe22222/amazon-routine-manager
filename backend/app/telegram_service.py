@@ -149,7 +149,7 @@ def extract_refund_percentage(text: str) -> float:
             pass
     return 100.0
 
-def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) -> list:
+def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 150) -> list:
     clean = channel_identifier.strip().lstrip('@')
     clean = clean.replace('https://t.me/s/', '').replace('https://t.me/', '').strip('/')
     
@@ -165,11 +165,11 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 300) ->
     all_message_blocks = []
     seen_post_ids = set()
     current_url = base_url
-    max_pages = 15
+    max_pages = 3
 
     for page in range(max_pages):
         try:
-            resp = requests.get(current_url, headers=headers, timeout=12)
+            resp = requests.get(current_url, headers=headers, timeout=6)
             if resp.status_code != 200:
                 break
                 
@@ -309,6 +309,7 @@ class TelegramManager:
         self.is_connected = False
         self.phone_code_hash = None
         self.last_auth_phone = None
+        self._cached_entities = {}
 
     @property
     def client(self):
@@ -334,6 +335,7 @@ class TelegramManager:
                 pass
         _global_telethon_client = None
         self.is_connected = False
+        self._cached_entities.clear()
         if db:
             s = db.query(Setting).filter_by(key='telegram_session_string').first()
             if s:
@@ -521,7 +523,7 @@ class TelegramManager:
         self._cleanup_session()
         return {'success': True, 'message': 'Account Telegram disconnesso con successo.'}
 
-    async def sync_channel_live(self, db: Session, channel_identifier: str = None, limit: int = 500) -> dict:
+    async def sync_channel_live(self, db: Session, channel_identifier: str = None, limit: int = 100) -> dict:
         client = await self._ensure_connected_client(db)
         if not await client.is_user_authorized():
             return {
@@ -535,54 +537,57 @@ class TelegramManager:
         screenshots_dir = os.path.join(base_dir, 'data', 'screenshots')
         os.makedirs(screenshots_dir, exist_ok=True)
 
-        entity = None
+        entity = self._cached_entities.get(target)
         raw_target = (target or '').strip()
         clean_target = re.sub(r'[^a-zA-Z0-9]', '', raw_target).lower()
 
-        dialog_entities = []
-        try:
-            async for dialog in client.iter_dialogs():
-                dialog_entities.append((dialog.name, dialog.entity))
-        except Exception as e:
-            print(f'[iter_dialogs error] {e}')
-
-        for d_name, d_ent in dialog_entities:
-            d_clean = re.sub(r'[^a-zA-Z0-9]', '', d_name).lower()
-            if clean_target and clean_target not in ['canaleoffertetest', 'test'] and (clean_target in d_clean or d_clean in clean_target):
-                entity = d_ent
-                break
-
         if not entity:
+            dialog_entities = []
+            try:
+                async for dialog in client.iter_dialogs():
+                    dialog_entities.append((dialog.name, dialog.entity))
+            except Exception as e:
+                print(f'[iter_dialogs error] {e}')
+
             for d_name, d_ent in dialog_entities:
-                d_lower = d_name.lower()
-                if 'articoli' in d_lower and 'addicted' in d_lower:
-                    entity = d_ent
-                    break
-                elif 'articoli' in d_lower or 'addicted' in d_lower:
+                d_clean = re.sub(r'[^a-zA-Z0-9]', '', d_name).lower()
+                if clean_target and clean_target not in ['canaleoffertetest', 'test'] and (clean_target in d_clean or d_clean in clean_target):
                     entity = d_ent
                     break
 
-        if not entity:
-            for cand in [-1001273415420, 'https://t.me/+bJVdSCzoIygwODE0', '+bJVdSCzoIygwODE0', 'https://t.me/joinchat/bJVdSCzoIygwODE0']:
-                try:
-                    entity = await client.get_entity(cand)
-                    if entity:
+            if not entity:
+                for d_name, d_ent in dialog_entities:
+                    d_lower = d_name.lower()
+                    if 'articoli' in d_lower and 'addicted' in d_lower:
+                        entity = d_ent
                         break
-                except Exception:
-                    pass
+                    elif 'articoli' in d_lower or 'addicted' in d_lower:
+                        entity = d_ent
+                        break
 
-        if not entity:
-            if raw_target.startswith('@') or 't.me/' in raw_target:
-                try:
-                    entity = await client.get_entity(raw_target)
-                except Exception:
-                    pass
+            if not entity:
+                for cand in [-1001273415420, 'https://t.me/+bJVdSCzoIygwODE0', '+bJVdSCzoIygwODE0', 'https://t.me/joinchat/bJVdSCzoIygwODE0']:
+                    try:
+                        entity = await client.get_entity(cand)
+                        if entity:
+                            break
+                    except Exception:
+                        pass
+
+            if not entity:
+                if raw_target.startswith('@') or 't.me/' in raw_target:
+                    try:
+                        entity = await client.get_entity(raw_target)
+                    except Exception:
+                        pass
 
         if not entity:
             return {
                 'success': False,
                 'error': f"Impossibile trovare il canale Telegram '{target}' tra i tuoi canali."
             }
+
+        self._cached_entities[target] = entity
 
         channel_title = getattr(entity, 'title', getattr(entity, 'username', 'Articoli Addicted'))
 
