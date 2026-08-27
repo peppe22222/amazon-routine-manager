@@ -124,8 +124,8 @@ CATEGORIES = {
     "rasoi_regolabarba_tagliacapelli": {
         "keywords": [
             "rasoio elettrico", "rasoio da barba", "tagliacapelli", "tagliabarba", "regolabarba", 
-            "rifinitore barba", "epilatore", "depilatore", "lamette da barba", "rasoio corpo", 
-            "rifinitore naso", "shaver", "trimmer", "rasoio"
+            "rifinitore barba", "lamette da barba", "rasoio corpo", "rifinitore naso", 
+            "shaver", "trimmer", "rasoio"
         ],
         "titles": [
             "Lame affilate di precisione e zero irritazioni: taglio perfetto e scorrevole!",
@@ -147,6 +147,66 @@ CATEGORIES = {
             "Uno strumento affidabile, robusto e preciso in ogni dettaglio. Consigliatissimo!",
             "Ottimo investimento per chi cerca qualità professionale e risparmio di tempo. 5 stelle!",
             "Superiore alle aspettative: pelle liscia, zero tagli e massima comodità d'uso."
+        ]
+    },
+
+    # --- 3b. EPILATORI A LUCE PULSATA (IPL / LASER CON ICE COOLING) ---
+    "epilatore_luce_pulsata_ipl": {
+        "keywords": [
+            "epilatore luce pulsata", "epilatore a luce pulsata", "luce pulsata", "epilatore laser", 
+            "epilazione laser", "epilatore ipl", "ipl epilator", "ipl", "laser peli", 
+            "dispositivo ipl", "epilatore pulsata", "depilatore laser", "depilatore luce pulsata", 
+            "depilazione definitiva", "raffreddamento a ghiaccio", "ice cooling epilatore", 
+            "ice cooling", "epilazione a casa", "impulsi di luce", "epilatore permanente", 
+            "epilatore viso e corpo", "depilazione ipl"
+        ],
+        "titles": [
+            "Epilazione IPL indolore ed efficace: funzione raffreddamento a ghiaccio favolosa e pelle liscia!",
+            "Riduzione progressiva dei peli visibile già dopo poche sedute: zero bruciore e flash veloci",
+            "Trattamento a luce pulsata comodo e sicuro a casa: display touch chiaro, sensore pelle e occhiali inclusi",
+            "Epilatore a luce pulsata eccezionale: flash automatici continui, testina rinfrescante e risultati duraturi",
+            "Tecnologia IPL con raffreddamento a ghiaccio top: delicatissimo sulla pelle e peli visibilmente ridotti!"
+        ],
+        "openings": [
+            "Utilizzo questo epilatore a luce pulsata regolarmente per il trattamento di gambe, braccia, ascelle e viso, e i risultati hanno superato ogni aspettativa.",
+            "Arrivato in una confezione completa ed elegante con occhialini protettivi UV, rasoio per preparare la cute, alimentatore dedicato e manuale d'istruzioni chiarissimo.",
+            "L'impugnatura è ergonomica e maneggevole, con un display LCD touch intuitivo che mostra chiaramente il livello di energia, i flash rimanenti e la modalità attiva."
+        ],
+        "bodies": [
+            "La funzione di raffreddamento a ghiaccio (Ice Cooling) integrata nella testina abbassa istantaneamente la temperatura a contatto con la cute a 5-10°C, eliminando qualsiasi sensazione di calore o bruciore e rendendo la seduta completamente indolore anche nelle zone più sensibili come ascelle e inguine.",
+            "I molteplici livelli di intensità regolabili e la modalità a scorrimento continuo (auto-flash) velocizzano l'applicazione, consentendo di trattare aree estese come le gambe in meno di 10 minuti con impulsi rapidi e precisi.",
+            "Dopo le prime 3-4 settimane di utilizzo costante, la ricrescita risulta nettamente rallentata, con peli molto più radi, morbidi e sottili, senza causare follicolite, peli incarniti o arrossamenti cutanei."
+        ],
+        "closings": [
+            "Un dispositivo di livello professionale che permette di ottenere gli stessi risultati di un centro estetico comodamente a casa. 5 stelle meritatissime!",
+            "Pelle liscia a lungo, zero dolore grazie alla testina refrigerante e facilità d'uso disarmante. Consiglio vivamente!",
+            "Rapporto qualità-prezzo imbattibile per un epilatore IPL così completo, indolore ed efficace. Pienamente soddisfatta!"
+        ]
+    },
+
+    # --- 3c. EPILATORI ELETTRICI A PINZETTE (WET & DRY) ---
+    "epilatore_elettrico_pinzette": {
+        "keywords": [
+            "epilatore elettrico", "epilatore wet & dry", "epilatore pinzette", "silk epil", 
+            "silk-epil", "epilatore gambe", "epilatore corpo", "epilatore ricaricabile", 
+            "epilatore impermeabile", "depilatore elettrico", "depilatore", "epilatore"
+        ],
+        "titles": [
+            "Epilazione rapida e precisa alla radice: pelle liscia come seta per settimane!",
+            "Testina a micropinzette efficiente e delicata: cattura anche i peli più corti senza spezzarli",
+            "Epilatore ergonomico e potente: ricaricabile, impermeabile Wet & Dry e accessori completi"
+        ],
+        "openings": [
+            "Utilizzo questo epilatore regolarmente per la cura di gambe e corpo e la comodità d'uso è eccellente.",
+            "Dotazione ricca di testine intercambiabili, cappuccio massaggiante per ridurre la sensibilità, spazzolina di pulizia e cavo di ricarica rapida."
+        ],
+        "bodies": [
+            "Le micropinzette ad alta precisione catturano con efficacia anche i peli più corti e sottili (fino a 0.5 mm) estraendoli dalla radice in una sola passata senza spezzarli o irritare la pelle.",
+            "La luce LED integrata illumina perfettamente l'area di passaggio evidenziando ogni singolo pelo, mentre la tecnologia Wet & Dry ne consente l'utilizzo confortevole e rilassante sotto la doccia o nella vasca."
+        ],
+        "closings": [
+            "Gambe lisce per settimane con una ricrescita molto più morbida e diradata. 5 stelle meritate!",
+            "Uno strumento indispensabile per la cura della persona, robusto, affidabile e maneggevole. Consigliatissimo!"
         ]
     },
 

@@ -1136,9 +1136,12 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
         rev_t_low = (o.review_title or "").lower()
         rev_b_low = (o.review_body or "").lower()
         
-        is_shaver_prod = any(w in prod_low for w in ["rasoio", "tagliacapelli", "tagliabarba", "regolabarba", "epilatore", "depilatore", "lamette", "shaver", "trimmer"])
-        is_shaver_rev = any(w in rev_t_low or w in rev_b_low for w in ["lame affilate", "taglio perfetto", "sessioni di rifinitura", "rasatura", "tiraggi di peli", "pelle liscia e zero tagli"])
+        is_shaver_prod = any(w in prod_low for w in ["rasoio", "tagliacapelli", "tagliabarba", "regolabarba", "lamette", "shaver", "trimmer"]) and not any(w in prod_low for w in ["luce pulsata", "ipl", "laser", "epilatore", "depilatore"])
+        is_shaver_rev = any(w in rev_t_low or w in rev_b_low for w in ["lame affilate", "taglio perfetto", "sessioni di rifinitura", "rasatura", "tiraggi di peli", "pelle liscia e zero tagli", "barba", "schiuma", "motore ad alti giri"])
         
+        is_ipl_prod = any(w in prod_low for w in ["luce pulsata", "ipl", "laser", "epilatore", "depilatore"])
+        is_mismatched_ipl_rev = is_ipl_prod and any(w in rev_t_low or w in rev_b_low for w in ["rasatura", "barba", "lame", "schiuma", "tagliacapelli", "taglio omogeneo", "taglio", "ferramenta"])
+
         is_power_prod = any(w in prod_low for w in ["power bank", "powerbank", "batteria esterna", "batteria portatile"])
         is_watch_rev = any(w in rev_t_low or w in rev_b_low for w in ["polso", "smartwatch", "cardio", "frequenza cardiaca", "sportive"])
         
@@ -1157,6 +1160,7 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             or "I materiali impiegati sono resistenti e piacevoli al tatto" in (o.review_body or "")
             or "sicurezza elettrica" in (o.review_body or "")
             or "risolve ogni esigenza di ricarica" in (o.review_title or "")
+            or is_mismatched_ipl_rev
             or (not is_shaver_prod and is_shaver_rev)
             or (not is_jar_prod and is_jar_rev)
             or (is_power_prod and is_watch_rev)
