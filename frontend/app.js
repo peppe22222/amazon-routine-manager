@@ -3713,16 +3713,18 @@ function hideToast() {
   const t = document.getElementById('toast');
   if (!t) return;
   t.style.opacity = '0';
-  t.style.transform = 'translateY(-20px)';
+  t.style.transform = 'translate(-50%, -15px) scale(0.95)';
   t.style.pointerEvents = 'none';
   setTimeout(() => {
     t.style.display = 'none';
-  }, 350);
+  }, 300);
 }
 
 function showToast(msg, isError = false) {
   const t = document.getElementById('toast');
   const m = document.getElementById('toast-msg');
+  const iconWrap = document.getElementById('toast-icon-wrap');
+  const icon = document.getElementById('toast-icon');
   if (!t || !m) return;
 
   if (toastTimer) {
@@ -3732,25 +3734,30 @@ function showToast(msg, isError = false) {
 
   m.innerText = msg;
   
-  const icon = t.querySelector('i');
-  if (icon) {
-    icon.className = isError ? 'fa-solid fa-circle-exclamation text-base' : 'fa-solid fa-circle-check text-base';
+  if (isError) {
+    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-md w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-rose-500/40 cursor-pointer select-none';
+    if (iconWrap) iconWrap.className = 'w-7 h-7 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center shrink-0 shadow-sm';
+    if (icon) icon.className = 'fa-solid fa-circle-exclamation text-xs text-rose-400';
+  } else {
+    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-md w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-emerald-500/40 cursor-pointer select-none';
+    if (iconWrap) iconWrap.className = 'w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0 shadow-sm';
+    if (icon) icon.className = 'fa-solid fa-circle-check text-xs text-emerald-400';
   }
 
-  const bgBorder = isError 
-    ? 'bg-red-600 border-red-400' 
-    : 'bg-emerald-600 border-emerald-400';
-
-  t.className = `fixed top-5 right-5 z-50 ${bgBorder} text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold border cursor-pointer`;
   t.style.display = 'flex';
-  t.style.transition = 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
-  t.style.opacity = '1';
-  t.style.transform = 'translateY(0)';
+  t.style.opacity = '0';
+  t.style.transform = 'translate(-50%, -15px) scale(0.95)';
   t.style.pointerEvents = 'auto';
+  
+  setTimeout(() => {
+    t.style.transition = 'all 0.28s cubic-bezier(0.34, 1.56, 0.64, 1)';
+    t.style.opacity = '1';
+    t.style.transform = 'translate(-50%, 0) scale(1)';
+  }, 10);
 
   toastTimer = setTimeout(() => {
     hideToast();
-  }, 2500);
+  }, 3200);
 }
 
 function formatDate(isoStr) {

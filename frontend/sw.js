@@ -1,4 +1,4 @@
-const CACHE_NAME = 'amz-routine-v24';
+const CACHE_NAME = 'amz-routine-v25';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
