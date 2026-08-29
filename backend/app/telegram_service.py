@@ -125,28 +125,70 @@ def clean_html_text(raw_html: str) -> str:
     text = re.sub(r'<[^>]+>', '', text)
     return html.unescape(text).strip()
 
-def extract_refund_percentage(text: str) -> float:
+def extract_refund_percentage(text: str, condition_text: str = '') -> float:
     """Estrae con precisione la percentuale di rimborso dal testo o dalle condizioni (default 100.0)"""
-    if not text:
+    if not text and not condition_text:
         return 100.0
-    clean = text.lower()
-    pct_match = re.search(r'(?:rimborso\s*(?:al\s*)?([0-9]{1,3})\s*%)|(?:\\b([0-9]{1,3})\s*%\s*(?:di\s*)?rimborso)', clean)
-    if pct_match:
-        val = pct_match.group(1) or pct_match.group(2)
+    
+    # 1. Se condition_text è presente, controlla prioritariamente le condizioni finanziarie
+    combined_texts = [condition_text, text] if condition_text else [text]
+    
+    # Materiali e caratteristiche comuni da escludere (per evitare '10% Argento', '90% Cotone', ecc.)
+    material_keywords = (
+        r'argento|cotone|poliestere|polyester|lana|seta|viscosa|lino|acrilico|elastan|elastam|'
+        r'nylon|spugna|microfibra|batteria|pelle|fibra|legno|alluminio|ferro|acciaio|vetro|'
+        r'plastica|rame|gomma|puro|naturale|biologico|organico|memory\s*foam'
+    )
+    
+    for t in combined_texts:
+        if not t:
+            continue
+        clean = t.lower()
+        
+        # Regex prioritaria: "rimborso al 100%", "rimborso 100%", "100% rimborso", "100% di rimborso", "copertura 100%"
+        pct_match = re.search(
+            r'(?:rimborso\s*(?:al\s*|del\s*)?([0-9]{1,3})\s*%)|'
+            r'(?:\b([0-9]{1,3})\s*%\s*(?:di\s*)?(?:rimborso|copert\w*))|'
+            r'(?:copert\w*\s*(?:al\s*|del\s*)?([0-9]{1,3})\s*%)',
+            clean
+        )
+        if pct_match:
+            val = pct_match.group(1) or pct_match.group(2) or pct_match.group(3)
+            try:
+                p = float(val)
+                if 0 < p <= 100:
+                    return p
+            except Exception:
+                pass
+
+    # 2. Controlla percentuali isolate nelle righe di condizione specifiche (es. riga con "100%")
+    if condition_text:
+        cond_clean = condition_text.lower()
+        cond_clean_no_mat = re.sub(rf'\b[0-9]{{1,3}}\s*%\s*(?:{material_keywords})\b', '', cond_clean)
+        cond_pct = re.search(r'\b([0-9]{1,3})\s*%', cond_clean_no_mat)
+        if cond_pct:
+            try:
+                p = float(cond_pct.group(1))
+                if 0 < p <= 100:
+                    return p
+            except Exception:
+                pass
+
+    # 3. Pulizia del testo generale rimuovendo le percentuali di materiali/composizioni
+    full_clean = f'{condition_text} {text}'.lower()
+    full_clean_no_mat = re.sub(rf'\b[0-9]{{1,3}}\s*%\s*(?:{material_keywords})\b', '', full_clean)
+    full_clean_no_mat = re.sub(rf'\b(?:{material_keywords})\s*[0-9]{{1,3}}\s*%', '', full_clean_no_mat)
+    
+    # 4. Cerca qualsiasi percentuale rimanente nel testo pulito
+    gen_pct = re.search(r'\b([0-9]{1,3})\s*%', full_clean_no_mat)
+    if gen_pct:
         try:
-            p = float(val)
+            p = float(gen_pct.group(1))
             if 0 < p <= 100:
                 return p
         except Exception:
             pass
-    gen_pct = re.search(r'\b([0-9]{1,3})\s*%', clean)
-    if gen_pct:
-        try:
-            p = float(gen_pct.group(1))
-            if 10 <= p <= 100:
-                return p
-        except Exception:
-            pass
+
     return 100.0
 
 def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 150) -> list:
@@ -275,7 +317,7 @@ def scrape_telegram_channel_offers(channel_identifier: str, limit: int = 150) ->
         else:
             price_info = '100% rimborso'
 
-        refund_pct = extract_refund_percentage(f'{raw_text} {price_info}')
+        refund_pct = extract_refund_percentage(raw_text, price_info)
 
         taxes_covered = True
         if any(w in raw_text.lower() for w in ['tasse forse', 'tasse a parte', 'no tasse', 'tasse non coperte', 'forse']):
@@ -731,7 +773,7 @@ class TelegramManager:
             else:
                 price_info = '100% rimborso'
 
-            refund_pct = extract_refund_percentage(f'{raw_text} {price_info}')
+            refund_pct = extract_refund_percentage(raw_text, price_info)
 
             taxes_covered = True
             if any(w in raw_text.lower() for w in ['tasse forse', 'tasse a parte', 'no tasse', 'tasse non coperte', 'forse']):
@@ -745,7 +787,6 @@ class TelegramManager:
                 batch_seen_msg_ids.add(mid)
                 existing_active_msg_ids.add(mid)
 
-            refund_pct = extract_refund_percentage(f'{raw_text} {price_info}')
             all_ids_str = ','.join(all_msg_ids)
             off = Offer(
                 title=title,
