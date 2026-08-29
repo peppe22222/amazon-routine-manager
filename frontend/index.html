@@ -191,7 +191,7 @@
       transform-origin: center center;
     }
 
-    /* Ancoraggio hardware blindato barra mobile inferiore iPhone (Floating Dock iOS) */
+    /* Ancoraggio hardware blindato barra mobile inferiore iPhone */
     .mobile-bottom-nav {
       position: fixed !important;
       bottom: 0 !important;
@@ -204,14 +204,12 @@
       transform: translate3d(0, 0, 0) !important;
       -webkit-backface-visibility: hidden !important;
       backface-visibility: hidden !important;
-      padding-bottom: max(env(safe-area-inset-bottom, 0px), 4px) !important;
-      background: transparent !important;
-      border: none !important;
-      pointer-events: none !important;
-    }
-
-    .mobile-bottom-nav > * {
-      pointer-events: auto !important;
+      padding-top: 6px !important;
+      padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px) !important;
+      background: rgba(8, 13, 26, 0.94) !important;
+      backdrop-filter: blur(20px) !important;
+      -webkit-backdrop-filter: blur(20px) !important;
+      border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
     }
 
     .mob-tab-icon-wrap {
@@ -490,54 +488,52 @@
 
   </main>
 
-  <!-- MOBILE BOTTOM NAV BAR (Floating Dock iOS Glassmorphism) -->
-  <nav id="mobile-bottom-nav" class="mobile-bottom-nav md:hidden px-2.5 pt-0 pb-0.5">
-    <div class="max-w-md mx-auto rounded-3xl bg-slate-950/92 backdrop-blur-2xl border border-white/10 shadow-2xl shadow-black/90 p-1.5 flex justify-between items-center">
-      
-      <!-- Tab 1: Offerte -->
-      <button onclick="switchTab('offers')" id="mob-btn-offers" class="flex flex-col items-center flex-1 py-0.5 text-emerald-400 font-extrabold transition-all active:scale-90 relative">
-        <div id="mob-icon-wrap-offers" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-950/40 transition-all scale-105">
-          <i class="fa-solid fa-tags text-sm"></i>
-        </div>
-        <span class="text-[10px] tracking-tight mt-1">Offerte</span>
-      </button>
+  <!-- MOBILE BOTTOM NAV BAR (Full-Width Glassmorphism Bar con Capsule Luminose) -->
+  <nav id="mobile-bottom-nav" class="mobile-bottom-nav md:hidden px-1.5 flex justify-around items-center shadow-2xl">
+    
+    <!-- Tab 1: Offerte -->
+    <button onclick="switchTab('offers')" id="mob-btn-offers" class="flex flex-col items-center flex-1 py-0.5 text-emerald-400 font-extrabold transition-all active:scale-90 relative">
+      <div id="mob-icon-wrap-offers" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-950/40 transition-all scale-105">
+        <i class="fa-solid fa-tags text-sm"></i>
+      </div>
+      <span class="text-[10px] tracking-tight mt-0.5">Offerte</span>
+    </button>
 
-      <!-- Tab 2: Da Comprare -->
-      <button onclick="switchTab('approved_links')" id="mob-btn-approved_links" class="flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative">
-        <div id="mob-icon-wrap-approved_links" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all">
-          <i class="fa-solid fa-cart-shopping text-sm"></i>
-        </div>
-        <span class="text-[10px] tracking-tight mt-1">Da Comprare</span>
-        <span id="mob-badge-links" class="hidden absolute -top-1 right-2 min-w-[17px] h-[17px] px-1 text-[9px] font-black rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
-      </button>
+    <!-- Tab 2: Da Comprare -->
+    <button onclick="switchTab('approved_links')" id="mob-btn-approved_links" class="flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative">
+      <div id="mob-icon-wrap-approved_links" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all">
+        <i class="fa-solid fa-cart-shopping text-sm"></i>
+      </div>
+      <span class="text-[10px] tracking-tight mt-0.5">Da Comprare</span>
+      <span id="mob-badge-links" class="hidden absolute -top-0.5 right-2 min-w-[17px] h-[17px] px-1 text-[9px] font-black rounded-full bg-cyan-400 text-slate-950 flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
+    </button>
 
-      <!-- Tab 3: Conferma -->
-      <button onclick="switchTab('confirmations')" id="mob-btn-confirmations" class="flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative">
-        <div id="mob-icon-wrap-confirmations" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all">
-          <i class="fa-solid fa-camera text-sm"></i>
-        </div>
-        <span class="text-[10px] tracking-tight mt-1">Conferma</span>
-        <span id="mob-badge-confirm" class="hidden absolute -top-1 right-2 min-w-[17px] h-[17px] px-1 text-[9px] font-black rounded-full bg-amber-400 text-slate-950 flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
-      </button>
+    <!-- Tab 3: Conferma -->
+    <button onclick="switchTab('confirmations')" id="mob-btn-confirmations" class="flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative">
+      <div id="mob-icon-wrap-confirmations" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all">
+        <i class="fa-solid fa-camera text-sm"></i>
+      </div>
+      <span class="text-[10px] tracking-tight mt-0.5">Conferma</span>
+      <span id="mob-badge-confirm" class="hidden absolute -top-0.5 right-2 min-w-[17px] h-[17px] px-1 text-[9px] font-black rounded-full bg-amber-400 text-slate-950 flex items-center justify-center border-2 border-slate-950 shadow-md">0</span>
+    </button>
 
-      <!-- Tab 4: Recensioni -->
-      <button onclick="switchTab('reviews')" id="mob-btn-reviews" class="flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative">
-        <div id="mob-icon-wrap-reviews" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all">
-          <i class="fa-solid fa-star text-sm"></i>
-        </div>
-        <span class="text-[10px] tracking-tight mt-1">Recensioni</span>
-        <span id="mob-badge-reviews" class="hidden absolute -top-1 right-2 min-w-[17px] h-[17px] px-1 text-[9px] font-black rounded-full bg-rose-500 text-white flex items-center justify-center border-2 border-slate-950 shadow-md animate-pulse">0</span>
-      </button>
+    <!-- Tab 4: Recensioni -->
+    <button onclick="switchTab('reviews')" id="mob-btn-reviews" class="flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative">
+      <div id="mob-icon-wrap-reviews" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all">
+        <i class="fa-solid fa-star text-sm"></i>
+      </div>
+      <span class="text-[10px] tracking-tight mt-0.5">Recensioni</span>
+      <span id="mob-badge-reviews" class="hidden absolute -top-0.5 right-2 min-w-[17px] h-[17px] px-1 text-[9px] font-black rounded-full bg-rose-500 text-white flex items-center justify-center border-2 border-slate-950 shadow-md animate-pulse">0</span>
+    </button>
 
-      <!-- Tab 5: Rimborsi -->
-      <button onclick="switchTab('refunds')" id="mob-btn-refunds" class="flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative">
-        <div id="mob-icon-wrap-refunds" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all">
-          <i class="fa-brands fa-paypal text-sm"></i>
-        </div>
-        <span class="text-[10px] tracking-tight mt-1">Rimborsi</span>
-      </button>
+    <!-- Tab 5: Rimborsi -->
+    <button onclick="switchTab('refunds')" id="mob-btn-refunds" class="flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative">
+      <div id="mob-icon-wrap-refunds" class="mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all">
+        <i class="fa-brands fa-paypal text-sm"></i>
+      </div>
+      <span class="text-[10px] tracking-tight mt-0.5">Rimborsi</span>
+    </button>
 
-    </div>
   </nav>
 
   <!-- ========================================================================= -->
@@ -1372,6 +1368,6 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
     <i class="fa-solid fa-arrow-up"></i>
   </button>
 
-  <script src="/app.js?v=5.9.9"></script>
+  <script src="/app.js?v=6.0.0"></script>
 </body>
 </html>
