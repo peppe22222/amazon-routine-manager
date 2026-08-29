@@ -1353,11 +1353,11 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
   </div>
 
   <!-- TOAST NOTIFICATION (Dynamic Island Floating Glass Pill) -->
-  <div id="toast" onclick="hideToast()" style="display: none;" class="fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-md w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-emerald-500/40 cursor-pointer select-none">
+  <div id="toast" onclick="hideToast()" style="display: none;" class="fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-lg w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-emerald-500/40 cursor-pointer select-none">
     <div id="toast-icon-wrap" class="w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0 shadow-sm">
       <i id="toast-icon" class="fa-solid fa-circle-check text-xs"></i>
     </div>
-    <span id="toast-msg" class="leading-snug truncate">Operazione completata!</span>
+    <span id="toast-msg" class="leading-snug break-words whitespace-normal text-left flex-1 min-w-0">Operazione completata!</span>
     <button type="button" onclick="event.stopPropagation(); hideToast();" class="ml-1 w-5 h-5 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-[10px] transition-colors shrink-0">
       <i class="fa-solid fa-xmark"></i>
     </button>
@@ -1368,6 +1368,6 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
     <i class="fa-solid fa-arrow-up"></i>
   </button>
 
-  <script src="/app.js?v=6.0.0"></script>
+  <script src="/app.js?v=6.0.1"></script>
 </body>
 </html>

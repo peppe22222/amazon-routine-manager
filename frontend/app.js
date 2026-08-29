@@ -3735,11 +3735,11 @@ function showToast(msg, isError = false) {
   m.innerText = msg;
   
   if (isError) {
-    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-md w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-rose-500/40 cursor-pointer select-none';
+    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-lg w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-rose-500/40 cursor-pointer select-none';
     if (iconWrap) iconWrap.className = 'w-7 h-7 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center shrink-0 shadow-sm';
     if (icon) icon.className = 'fa-solid fa-circle-exclamation text-xs text-rose-400';
   } else {
-    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-md w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-emerald-500/40 cursor-pointer select-none';
+    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-lg w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-emerald-500/40 cursor-pointer select-none';
     if (iconWrap) iconWrap.className = 'w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0 shadow-sm';
     if (icon) icon.className = 'fa-solid fa-circle-check text-xs text-emerald-400';
   }
