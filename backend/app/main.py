@@ -359,17 +359,19 @@ async def telegram_logout(db: Session = Depends(get_db)):
 
 def resolve_telegram_channel_url(channel_name: str) -> str:
     if not channel_name:
-        return "https://t.me/articoliaddicted"
+        return "https://t.me/+bJVdSCzoIygwODE0"
     clean = channel_name.strip()
     if clean.startswith("http://") or clean.startswith("https://") or clean.startswith("tg://"):
         return clean
+    if clean.startswith("+"):
+        return f"https://t.me/{clean}"
     if clean.startswith("@"):
         return f"https://t.me/{clean[1:]}"
     if clean.lower() in ["articoli addicted", "articoliaddicted"]:
-        return "https://t.me/articoliaddicted"
+        return "https://t.me/+bJVdSCzoIygwODE0"
     if " " not in clean:
         return f"https://t.me/{clean}"
-    return f"https://t.me/{clean.replace(' ', '')}"
+    return "https://t.me/+bJVdSCzoIygwODE0"
 
 @app.get("/api/telegram/channel")
 def get_active_channel(db: Session = Depends(get_db)):
@@ -388,7 +390,7 @@ def get_active_channel(db: Session = Depends(get_db)):
 @app.post("/api/telegram/channel")
 def set_active_channel(payload: TelegramChannelPayload, db: Session = Depends(get_db)):
     clean_channel = payload.channel_name.strip()
-    if clean_channel.startswith("https://t.me/+"):
+    if clean_channel.startswith("https://t.me/+") or clean_channel.startswith("https://t.me/joinchat/"):
         clean_channel = clean_channel
     elif clean_channel.startswith("https://t.me/s/"):
         clean_channel = "@" + clean_channel.replace("https://t.me/s/", "").strip("/")

@@ -3805,21 +3805,24 @@ function escapeHtml(text) {
 // ----------------- ACTIVE CHANNEL & SMART POST PARSER -----------------
 
 function getTelegramChannelUrl(channelName) {
-  if (!channelName) return 'https://t.me/articoliaddicted';
+  if (!channelName) return 'https://t.me/+bJVdSCzoIygwODE0';
   const clean = String(channelName).trim();
   if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('tg://')) {
     return clean;
+  }
+  if (clean.startsWith('+')) {
+    return `https://t.me/${clean}`;
   }
   if (clean.startsWith('@')) {
     return `https://t.me/${clean.substring(1)}`;
   }
   if (clean.toLowerCase() === 'articoli addicted' || clean.toLowerCase() === 'articoliaddicted') {
-    return 'https://t.me/articoliaddicted';
+    return 'https://t.me/+bJVdSCzoIygwODE0';
   }
   if (!clean.includes(' ')) {
     return `https://t.me/${clean}`;
   }
-  return `https://t.me/${clean.replace(/\s+/g, '')}`;
+  return 'https://t.me/+bJVdSCzoIygwODE0';
 }
 
 function openTelegramOffersChannel() {
