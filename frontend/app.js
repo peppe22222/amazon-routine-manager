@@ -363,7 +363,7 @@ function switchTab(tabId) {
   const target = document.getElementById(`tab-${tabId}`);
   if (target) target.classList.remove('hidden');
 
-  // Aggiorna stile bottoni pillole
+  // Aggiorna stile bottoni pillole desktop
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.className = 'tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white flex items-center gap-2 hover:bg-brand-surface border border-transparent transition-all active:scale-95';
   });
@@ -372,17 +372,25 @@ function switchTab(tabId) {
     activeBtn.className = 'tab-btn whitespace-nowrap shrink-0 px-3.5 py-2 md:px-4 md:py-2.5 rounded-xl text-xs md:text-sm font-bold flex items-center gap-2 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm transition-all active:scale-95';
   }
 
-  // Aggiorna stile bottoni mobile
-  const mobTabs = ['offers', 'approved_links', 'confirmations', 'reviews', 'refunds'];
-  mobTabs.forEach(t => {
-    const mBtn = document.getElementById(`mob-btn-${t}`);
-    if (mBtn) {
-      if (t === tabId) {
-        mBtn.classList.remove('text-slate-400');
-        mBtn.classList.add('text-emerald-400');
+  // Aggiorna stile bottoni mobile con pillola luminosa dedicata
+  const mobTabs = [
+    { id: 'offers', color: 'emerald', textClass: 'text-emerald-400', bgClass: 'bg-emerald-500/20', borderClass: 'border-emerald-500/40', textActive: 'text-emerald-300', shadowClass: 'shadow-emerald-950/40' },
+    { id: 'approved_links', color: 'cyan', textClass: 'text-cyan-400', bgClass: 'bg-cyan-500/20', borderClass: 'border-cyan-500/40', textActive: 'text-cyan-300', shadowClass: 'shadow-cyan-950/40' },
+    { id: 'confirmations', color: 'amber', textClass: 'text-amber-400', bgClass: 'bg-amber-500/20', borderClass: 'border-amber-500/40', textActive: 'text-amber-300', shadowClass: 'shadow-amber-950/40' },
+    { id: 'reviews', color: 'purple', textClass: 'text-purple-400', bgClass: 'bg-purple-500/20', borderClass: 'border-purple-500/40', textActive: 'text-purple-300', shadowClass: 'shadow-purple-950/40' },
+    { id: 'refunds', color: 'blue', textClass: 'text-blue-400', bgClass: 'bg-blue-500/20', borderClass: 'border-blue-500/40', textActive: 'text-blue-300', shadowClass: 'shadow-blue-950/40' }
+  ];
+
+  mobTabs.forEach(item => {
+    const mBtn = document.getElementById(`mob-btn-${item.id}`);
+    const iconWrap = document.getElementById(`mob-icon-wrap-${item.id}`);
+    if (mBtn && iconWrap) {
+      if (item.id === tabId) {
+        mBtn.className = `flex flex-col items-center flex-1 py-0.5 ${item.textClass} font-extrabold transition-all active:scale-90 relative`;
+        iconWrap.className = `mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center ${item.bgClass} ${item.textActive} border ${item.borderClass} shadow-sm ${item.shadowClass} transition-all scale-105`;
       } else {
-        mBtn.classList.remove('text-emerald-400');
-        mBtn.classList.add('text-slate-400');
+        mBtn.className = 'flex flex-col items-center flex-1 py-0.5 text-slate-400 font-medium hover:text-slate-200 transition-all active:scale-90 relative';
+        iconWrap.className = 'mob-tab-icon-wrap w-11 h-8 rounded-2xl flex items-center justify-center bg-transparent text-slate-400 border border-transparent transition-all';
       }
     }
   });
@@ -420,17 +428,20 @@ async function loadStats() {
 
     const mobBadgeLinks = document.getElementById('mob-badge-links');
     if (mobBadgeLinks) {
-      if ((data.links_count || 0) > 0) mobBadgeLinks.classList.remove('hidden');
+      const count = data.links_count || 0;
+      mobBadgeLinks.innerText = count;
+      if (count > 0) mobBadgeLinks.classList.remove('hidden');
       else mobBadgeLinks.classList.add('hidden');
     }
 
     document.getElementById('badge-confirm-count').innerText = data.pending_confirmation_count;
 
     const mobBadge = document.getElementById('mob-badge-confirm');
-    if (data.pending_confirmation_count > 0) {
-      mobBadge.classList.remove('hidden');
-    } else {
-      mobBadge.classList.add('hidden');
+    if (mobBadge) {
+      const count = data.pending_confirmation_count || 0;
+      mobBadge.innerText = count;
+      if (count > 0) mobBadge.classList.remove('hidden');
+      else mobBadge.classList.add('hidden');
     }
   } catch (err) {
     console.error('Errore caricamento statistiche:', err);
@@ -1613,7 +1624,10 @@ function updateAppBadging(readyCount) {
   const deskBadge = document.getElementById('badge-reviews-ready-count');
 
   if (readyCount > 0) {
-    if (mobBadge) mobBadge.classList.remove('hidden');
+    if (mobBadge) {
+      mobBadge.innerText = readyCount;
+      mobBadge.classList.remove('hidden');
+    }
     if (deskBadge) {
       deskBadge.classList.remove('hidden');
       deskBadge.innerText = readyCount;
