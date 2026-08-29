@@ -467,13 +467,13 @@ async function loadOffers() {
 
     if (offers.length === 0) {
       container.innerHTML = `
-        <div class="col-span-full py-16 text-center text-slate-400 glass-card rounded-2xl p-8 border border-dashed border-slate-700">
-          <div class="w-16 h-16 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-3xl text-emerald-400/80 mb-3 shadow-inner">
-            <i class="fa-solid fa-inbox"></i>
+        <div class="col-span-full py-14 text-center glass-card rounded-3xl p-8 border border-emerald-500/20 bg-gradient-to-b from-emerald-950/20 via-slate-900/80 to-slate-900 shadow-xl">
+          <div class="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 mx-auto flex items-center justify-center text-3xl text-emerald-400 mb-4 shadow-lg shadow-emerald-950/50">
+            <i class="fa-solid fa-bolt"></i>
           </div>
-          <h3 class="text-base font-bold text-white">Nessuna nuova offerta dal canale Telegram</h3>
-          <p class="text-xs text-slate-300 mt-1 max-w-sm mx-auto">Non appena un'offerta viene pubblicata sul canale Telegram, comparirà qui con la foto zoomabile e le condizioni.</p>
-          <button onclick="openSimulatorModal()" class="mt-4 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-900/30 inline-flex items-center gap-2">
+          <h3 class="text-base font-extrabold text-white">Nessuna nuova offerta dal canale</h3>
+          <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">I prodotti pubblicati sul canale Telegram compariranno qui con foto e condizioni di rimborso al 100%.</p>
+          <button onclick="openSimulatorModal()" class="mt-4 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-950/60 inline-flex items-center gap-2 transition-all active:scale-95">
             <i class="fa-solid fa-wand-magic-sparkles"></i> Simula Offerta di Prova
           </button>
         </div>
@@ -808,12 +808,12 @@ function renderApprovedLinks(orders) {
 
   if (linkOrders.length === 0) {
     container.innerHTML = `
-      <div class="py-16 text-center text-slate-400 glass-card rounded-2xl p-8 border border-dashed border-slate-700">
-        <div class="w-16 h-16 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-3xl text-cyan-400/80 mb-3 shadow-inner">
+      <div class="py-14 text-center glass-card rounded-3xl p-8 border border-cyan-500/20 bg-gradient-to-b from-cyan-950/20 via-slate-900/80 to-slate-900 shadow-xl">
+        <div class="w-16 h-16 rounded-3xl bg-cyan-500/10 border border-cyan-500/30 mx-auto flex items-center justify-center text-3xl text-cyan-400 mb-4 shadow-lg shadow-cyan-950/50">
           <i class="fa-solid fa-cart-shopping"></i>
         </div>
-        <h3 class="text-base font-bold text-white">Nessun link in attesa o approvato</h3>
-        <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto">Quando invii una richiesta da "Offerte Telegram", la troverai qui in attesa del link di Alex per procedere all'acquisto.</p>
+        <h3 class="text-base font-extrabold text-white">Nessun link in attesa o approvato</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">Quando invii una richiesta da "Offerte Telegram", la troverai qui pronta per procedere all'acquisto su Amazon.</p>
       </div>
     `;
     return;
@@ -1176,12 +1176,12 @@ function renderConfirmations(orders) {
 
   if (pendingOrders.length === 0) {
     container.innerHTML = `
-      <div class="py-16 text-center text-slate-400 glass-card rounded-2xl p-8 border border-dashed border-slate-700">
-        <div class="w-16 h-16 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-3xl text-amber-400/80 mb-3 shadow-inner">
-          <i class="fa-solid fa-camera"></i>
+      <div class="py-14 text-center glass-card rounded-3xl p-8 border border-amber-500/20 bg-gradient-to-b from-amber-950/20 via-slate-900/80 to-slate-900 shadow-xl">
+        <div class="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 mx-auto flex items-center justify-center text-3xl text-amber-400 mb-4 shadow-lg shadow-amber-950/50">
+          <i class="fa-solid fa-receipt"></i>
         </div>
-        <h3 class="text-base font-bold text-white">Nessuna schermata ordine in attesa di conferma</h3>
-        <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto">Non appena invii una richiesta ad Alex, la scheda comparirà qui pronta per collegare la ricevuta dell'ordine fatto su Amazon.</p>
+        <h3 class="text-base font-extrabold text-white">Nessun ordine in attesa di conferma</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">Gli ordini acquistati compariranno qui per allegare la schermata e inviare la conferma al venditore.</p>
       </div>
     `;
     return;
@@ -1290,12 +1290,12 @@ function renderReviews(orders) {
   if (reviewOrders.length === 0) {
     updateAppBadging(0);
     container.innerHTML = `
-      <div class="col-span-full py-16 text-center text-slate-400 glass-card rounded-2xl p-8 border border-dashed border-slate-700">
-        <div class="w-16 h-16 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-3xl text-purple-400/80 mb-3 shadow-inner">
+      <div class="col-span-full py-14 text-center glass-card rounded-3xl p-8 border border-purple-500/20 bg-gradient-to-b from-purple-950/20 via-slate-900/80 to-slate-900 shadow-xl">
+        <div class="w-16 h-16 rounded-3xl bg-purple-500/10 border border-purple-500/30 mx-auto flex items-center justify-center text-3xl text-purple-400 mb-4 shadow-lg shadow-purple-950/50">
           <i class="fa-solid fa-star"></i>
         </div>
-        <h3 class="text-base font-bold text-white">Nessuna recensione attiva al momento</h3>
-        <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto">Dopo aver confermato l'ordine, si avvierà il conto alla rovescia di 10 giorni con il testo a 5 stelle pre-generato pronto da incollare su Amazon.</p>
+        <h3 class="text-base font-extrabold text-white">Tutto pronto! Nessuna recensione in sospeso</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">Dopo aver inviato la conferma dell'ordine, si avvierà il conto alla rovescia di 10 giorni con il testo a 5 stelle pronto.</p>
       </div>
     `;
     return;
@@ -1681,12 +1681,12 @@ function renderRefunds(orders) {
 
   if (eligibleOrders.length === 0) {
     container.innerHTML = `
-      <div class="py-16 text-center text-slate-400 glass-card rounded-2xl p-8 border border-dashed border-slate-700">
-        <div class="w-16 h-16 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-3xl text-blue-400/80 mb-3 shadow-inner">
+      <div class="py-14 text-center glass-card rounded-3xl p-8 border border-blue-500/20 bg-gradient-to-b from-blue-950/20 via-slate-900/80 to-slate-900 shadow-xl">
+        <div class="w-16 h-16 rounded-3xl bg-blue-500/10 border border-blue-500/30 mx-auto flex items-center justify-center text-3xl text-blue-400 mb-4 shadow-lg shadow-blue-950/50">
           <i class="fa-brands fa-paypal"></i>
         </div>
-        <h3 class="text-base font-bold text-white">Nessun rimborso da gestire</h3>
-        <p class="text-xs text-slate-300 mt-1 max-w-md mx-auto">Le pratiche per le quali hai inviato la recensione appariranno qui per tracciare l'accredito PayPal del 100%.</p>
+        <h3 class="text-base font-extrabold text-white">Nessun rimborso da gestire</h3>
+        <p class="text-xs text-slate-400 mt-1 max-w-sm mx-auto leading-relaxed">Le pratiche per le quali hai inviato la recensione appariranno qui per tracciare l'accredito PayPal del 100%.</p>
       </div>
     `;
     return;
@@ -3653,19 +3653,44 @@ async function saveSettings() {
   }
 }
 
-function copyToClipboard(text, msg) {
+function copyToClipboard(text, msg, btnEl = null) {
   if (!text) return;
-  navigator.clipboard.writeText(text).then(() => {
+  const notifySuccess = () => {
     showToast(msg || 'Copiato negli appunti!');
-  }).catch(() => {
-    const t = document.createElement('textarea');
-    t.value = text;
-    document.body.appendChild(t);
-    t.select();
+    if (btnEl && btnEl.innerHTML) {
+      const origHtml = btnEl.innerHTML;
+      btnEl.innerHTML = '<i class="fa-solid fa-check text-emerald-400"></i> Copiato!';
+      btnEl.classList.add('ring-2', 'ring-emerald-400/50');
+      setTimeout(() => {
+        btnEl.innerHTML = origHtml;
+        btnEl.classList.remove('ring-2', 'ring-emerald-400/50');
+      }, 1500);
+    }
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(notifySuccess).catch(() => {
+      fallbackCopyText(text, notifySuccess);
+    });
+  } else {
+    fallbackCopyText(text, notifySuccess);
+  }
+}
+
+function fallbackCopyText(text, cb) {
+  const t = document.createElement('textarea');
+  t.value = text;
+  t.style.position = 'fixed';
+  t.style.opacity = '0';
+  document.body.appendChild(t);
+  t.select();
+  try {
     document.execCommand('copy');
-    document.body.removeChild(t);
-    showToast(msg || 'Copiato negli appunti!');
-  });
+    if (cb) cb();
+  } catch (e) {
+    showToast('Errore durante la copia', true);
+  }
+  document.body.removeChild(t);
 }
 
 let toastTimer = null;
