@@ -1532,6 +1532,9 @@ function updateReviewLiveTimers() {
 
     if (isReady) {
       readyCount++;
+      // Notifica automatica sul dispositivo se non ancora inviata
+      checkAndNotifySingleReview(card);
+
       if (badgeEl) {
         badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
         badgeEl.innerText = '⭐ RECENSIONE PRONTA!';
@@ -3205,6 +3208,152 @@ function updateSandboxBadge(isTest) {
   }
 }
 
+// ----------------- NOTIFICHE AUTOMATICHE DISPOSITIVO (IPHONE / PC) -----------------
+
+function updateNotificationSettingUI() {
+  const badge = document.getElementById('notif-status-badge');
+  const btn = document.getElementById('btn-enable-notifications');
+  if (!badge) return;
+
+  if (!('Notification' in window)) {
+    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-500 border border-slate-700';
+    badge.innerText = 'Non Supportate';
+    if (btn) {
+      btn.disabled = true;
+      btn.className = 'flex-1 py-2 px-3 rounded-xl bg-slate-800/50 text-slate-500 border border-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 opacity-50 cursor-not-allowed';
+      btn.innerHTML = '<i class="fa-solid fa-bell-slash"></i> Non Disponibili';
+    }
+    return;
+  }
+
+  const perm = Notification.permission;
+  if (perm === 'granted') {
+    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1';
+    badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Attive ✓';
+    if (btn) {
+      btn.disabled = false;
+      btn.className = 'flex-1 py-2 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-200 border border-emerald-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all';
+      btn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Notifiche Attive';
+    }
+  } else if (perm === 'denied') {
+    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 flex items-center gap-1';
+    badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Bloccate';
+    if (btn) {
+      btn.disabled = false;
+      btn.className = 'flex-1 py-2 px-3 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-200 border border-amber-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all';
+      btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Sblocca nel Browser';
+    }
+  } else {
+    badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1';
+    badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Da Abilitare';
+    if (btn) {
+      btn.disabled = false;
+      btn.className = 'flex-1 py-2 px-3 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm';
+      btn.innerHTML = '<i class="fa-solid fa-bell"></i> Abilita Notifiche';
+    }
+  }
+}
+
+async function enableDeviceNotifications() {
+  if (!('Notification' in window)) {
+    showToast('Le notifiche non sono supportate da questo browser.', true);
+    return;
+  }
+
+  if (Notification.permission === 'denied') {
+    alert('Le notifiche risultano bloccate nelle impostazioni del browser o del dispositivo.\nPer attivarle, apri le impostazioni del browser/iPhone e consenti le notifiche per questo sito.');
+    return;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    updateNotificationSettingUI();
+    if (permission === 'granted') {
+      showToast('Notifiche dispositivo abilitate con successo! 🔔');
+      sendDeviceNotification(
+        'Notifiche Attive! 🔔',
+        'Riceverai un promemoria sullo schermo quando una recensione è pronta da pubblicare.',
+        'welcome-notif'
+      );
+    } else {
+      showToast('Permesso notifiche non concesso', true);
+    }
+  } catch (err) {
+    console.error('Errore richiesta notifiche:', err);
+    showToast('Errore durante la richiesta permessi', true);
+  }
+}
+
+function testDeviceNotification() {
+  if (!('Notification' in window)) {
+    showToast('Notifiche non supportate su questo browser', true);
+    return;
+  }
+  if (Notification.permission !== 'granted') {
+    enableDeviceNotifications();
+    return;
+  }
+  sendDeviceNotification(
+    '⭐ Test Notifica Amazon Routine',
+    'Le notifiche funzionano perfettamente! Riceverai un avviso quando un ordine compie 10 giorni.',
+    'test-' + Date.now()
+  );
+  showToast('Notifica di prova inviata sullo schermo! 🔔');
+}
+
+function sendDeviceNotification(title, body, tag = null) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    return;
+  }
+
+  const options = {
+    body: body,
+    icon: '/favicon.ico',
+    badge: '/favicon.ico',
+    tag: tag || ('amz-notif-' + Date.now()),
+    renotify: false,
+    silent: false
+  };
+
+  try {
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.showNotification(title, options);
+      }).catch(() => {
+        new Notification(title, options);
+      });
+    } else {
+      new Notification(title, options);
+    }
+  } catch (e) {
+    console.error('Errore invio notifica:', e);
+  }
+}
+
+function checkAndNotifySingleReview(card) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') {
+    return;
+  }
+  const orderId = card.dataset.reviewOrderId;
+  if (!orderId) return;
+
+  const todayKey = new Date().toISOString().split('T')[0];
+  const storageKey = `notified_review_ready_${orderId}_${todayKey}`;
+
+  // Se è già stato notificato per oggi, non ripetere
+  if (localStorage.getItem(storageKey)) {
+    return;
+  }
+
+  const prodTitle = card.querySelector('h3')?.innerText?.trim() || 'Prodotto Amazon';
+  sendDeviceNotification(
+    '⭐ Recensione Pronta!',
+    `È arrivato il momento di recensire "${prodTitle}". Tocca per visualizzare il testo generato!`,
+    `review-ready-${orderId}`
+  );
+  localStorage.setItem(storageKey, '1');
+}
+
 function getInputValue(id, fallback = '') {
   const el = document.getElementById(id);
   return el ? el.value : fallback;
@@ -3212,6 +3361,7 @@ function getInputValue(id, fallback = '') {
 
 async function loadSettings() {
   try {
+    updateNotificationSettingUI();
     const res = await fetch('/api/settings');
     if (!res.ok) return;
     const s = await res.json();
