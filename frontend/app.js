@@ -735,7 +735,7 @@ function bindHoldButtons() {
     btn.onpointerup = (e) => {
       const duration = Date.now() - (currentHoldState.startTime || 0);
       if (duration < 1300 && currentHoldState.offerId === offerId) {
-        showToast('💡 Tieni premuto 1.5 secondi per confermare');
+        showToast(' Tieni premuto 1.5 secondi per confermare');
       }
       abortHold();
     };
@@ -1157,7 +1157,7 @@ async function syncTelegramReplies(silent = false) {
       const data = await res.json();
       if (res.ok && data.success) {
         if (data.updated_count > 0) {
-          showToast(`🎉 Alex ti ha inviato il link Amazon! Pronta per l'acquisto.`);
+          showToast(` Alex ti ha inviato il link Amazon! Pronta per l'acquisto.`);
           await Promise.all([
             loadOrders(),
             loadOffers(),
@@ -2347,7 +2347,7 @@ async function confirmAndSendOrder(orderId) {
     if (enteredNum === null) return; // Annullato dall'utente
     const cleanNum = enteredNum.trim();
     if (!cleanNum) {
-      showToast('❌ Invio annullato: Devi inserire il Numero d\'Ordine Amazon reale!', true);
+      showToast(' Invio annullato: Devi inserire il Numero d\'Ordine Amazon reale!', true);
       return;
     }
 
@@ -2385,7 +2385,7 @@ async function confirmAndSendOrder(orderId) {
     if (enteredPrice === null) return; // Annullato dall'utente
     const cleanPrice = parseFloat(enteredPrice.replace(',', '.').trim());
     if (isNaN(cleanPrice) || cleanPrice <= 0) {
-      showToast('❌ Invio bloccato: Inserisci l\'importo speso su Amazon!', true);
+      showToast(' Invio bloccato: Inserisci l\'importo speso su Amazon!', true);
       return;
     }
 
@@ -2505,7 +2505,7 @@ async function pasteFromIPhoneClipboard() {
               body: JSON.stringify({ image_base64: base64 })
             });
             if (res.ok) {
-              showToast(currentUploadType === 'review' ? '⭐ Screenshot Recensione incollato da iPhone!' : '📦 Screenshot Ordine incollato da iPhone!');
+              showToast(currentUploadType === 'review' ? '⭐ Screenshot Recensione incollato da iPhone!' : ' Screenshot Ordine incollato da iPhone!');
               closeModal('modal-iphone-upload');
               loadOrders();
             } else {
@@ -2545,7 +2545,7 @@ function triggerIPhonePhotoLibrary() {
         ? `/api/orders/${currentUploadOrderId}/upload-review-screenshot` 
         : `/api/orders/${currentUploadOrderId}/upload-screenshot`;
 
-      showToast('📤 Caricamento screenshot in corso...');
+      showToast(' Caricamento screenshot in corso...');
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target.result;
@@ -2577,7 +2577,7 @@ function triggerIPhonePhotoLibrary() {
                 showToast('Screenshot salvato! Puoi inserire il N° Ordine in qualsiasi momento cliccando "Inserisci N°"');
               }
             } else {
-              showToast(data.message || '📦 Screenshot caricato con successo!');
+              showToast(data.message || ' Screenshot caricato con successo!');
             }
           } else {
             showToast(data.detail || 'Errore nel caricamento dello screenshot', true);
@@ -2611,7 +2611,7 @@ function triggerIPhoneCamera() {
         ? `/api/orders/${currentUploadOrderId}/upload-review-screenshot` 
         : `/api/orders/${currentUploadOrderId}/upload-screenshot`;
 
-      showToast('📤 Caricamento foto in corso...');
+      showToast(' Caricamento foto in corso...');
       const reader = new FileReader();
       reader.onload = async (event) => {
         const base64 = event.target.result;
@@ -2643,7 +2643,7 @@ function triggerIPhoneCamera() {
                 showToast('Foto salvata!');
               }
             } else {
-              showToast(data.message || '📷 Foto salvata con successo!');
+              showToast(data.message || ' Foto salvata con successo!');
             }
           } else {
             showToast(data.detail || 'Errore nel salvataggio della foto', true);
@@ -2722,11 +2722,11 @@ window.addEventListener('paste', async (e) => {
                   showToast('Screenshot salvato!');
                 }
               } else {
-                showToast(data.message || `📋 Screenshot incollato con successo all'ordine!`);
+                showToast(data.message || ` Screenshot incollato con successo all'ordine!`);
               }
             }
           } else {
-            showToast('📋 Screenshot copiato negli appunti! Seleziona una pratica per associarlo.');
+            showToast(' Screenshot copiato negli appunti! Seleziona una pratica per associarlo.');
           }
         } catch (err) {
           console.error(err);
@@ -2818,9 +2818,9 @@ async function toggleSandboxDirect(isChecked) {
       const chk = document.getElementById('set_test_mode');
       if (chk) chk.checked = isChecked;
       if (isChecked) {
-        showToast('🧪 Modalità SANDBOX Attiva (Zero messaggi reali ad Alex)');
+        showToast(' Modalità SANDBOX Attiva (Zero messaggi reali ad Alex)');
       } else {
-        showToast('🟢 Modalità LIVE Attiva (Messaggi reali)');
+        showToast(' Modalità LIVE Attiva (Messaggi reali)');
       }
     }
   } catch (err) {
@@ -2847,9 +2847,9 @@ async function toggleSandboxQuick() {
       const chk = document.getElementById('set_test_mode');
       if (chk) chk.checked = newIsTest;
       if (newIsTest) {
-        showToast('🧪 Modalità Sandbox ATTIVA: nessun messaggio verrà inviato ad Alex!');
+        showToast(' Modalità Sandbox ATTIVA: nessun messaggio verrà inviato ad Alex!');
       } else {
-        showToast('🟢 Modalità LIVE ATTIVA: i messaggi verranno inviati realmente ad Alex!');
+        showToast(' Modalità LIVE ATTIVA: i messaggi verranno inviati realmente ad Alex!');
       }
     }
   } catch (err) {
@@ -3499,7 +3499,7 @@ async function enableDeviceNotifications() {
     const permission = await Notification.requestPermission();
     updateNotificationSettingUI();
     if (permission === 'granted') {
-      showToast('Notifiche dispositivo abilitate con successo! 🔔');
+      showToast('Notifiche dispositivo abilitate con successo! ');
       sendDeviceNotification(
         'Notifiche Attive! 🔔',
         'Riceverai un promemoria sullo schermo quando una recensione è pronta da pubblicare.',
@@ -3528,7 +3528,7 @@ function testDeviceNotification() {
     'Le notifiche funzionano perfettamente! Riceverai un avviso quando un ordine compie 10 giorni.',
     'test-' + Date.now()
   );
-  showToast('Notifica di prova inviata sullo schermo! 🔔');
+  showToast('Notifica di prova inviata sullo schermo! ');
 }
 
 function sendDeviceNotification(title, body, tag = null) {
@@ -3656,7 +3656,7 @@ async function saveSettings() {
     });
     if (res.ok) {
       updateSandboxBadge(isTest);
-      showToast(isTest ? '🧪 Modalità Sandbox (Test) salvata!' : '🟢 Modalità Live salvata!');
+      showToast(isTest ? ' Modalità Sandbox (Test) salvata!' : ' Modalità Live salvata!');
       closeModal('modal-settings');
     } else {
       showToast('Errore nel salvataggio', true);
@@ -3732,15 +3732,20 @@ function showToast(msg, isError = false) {
     toastTimer = null;
   }
 
-  m.innerText = msg;
+  // Rimuovi eventuali emoji per massima pulizia ed eleganza
+  let cleanMsg = msg ? String(msg) : '';
+  cleanMsg = cleanMsg.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}\u{1FA70}-\u{1FAFF}]/gu, '');
+  cleanMsg = cleanMsg.replace(/\s+/g, ' ').trim();
+
+  m.innerText = cleanMsg || 'Operazione completata';
   
   if (isError) {
-    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-lg w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-rose-500/40 cursor-pointer select-none';
-    if (iconWrap) iconWrap.className = 'w-7 h-7 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center shrink-0 shadow-sm';
+    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-lg w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-4 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center justify-center gap-2.5 text-xs font-semibold border border-rose-500/40 cursor-pointer select-none';
+    if (iconWrap) iconWrap.className = 'w-6 h-6 rounded-lg bg-rose-500/20 text-rose-400 border border-rose-500/40 flex items-center justify-center shrink-0 shadow-sm';
     if (icon) icon.className = 'fa-solid fa-circle-exclamation text-xs text-rose-400';
   } else {
-    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-lg w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-3.5 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center gap-3 text-xs font-bold border border-emerald-500/40 cursor-pointer select-none';
-    if (iconWrap) iconWrap.className = 'w-7 h-7 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0 shadow-sm';
+    t.className = 'fixed top-14 md:top-16 left-1/2 -translate-x-1/2 z-50 max-w-[92vw] sm:max-w-lg w-auto bg-slate-950/92 backdrop-blur-2xl text-white px-4 py-2.5 rounded-2xl shadow-2xl shadow-black/90 flex items-center justify-center gap-2.5 text-xs font-semibold border border-emerald-500/40 cursor-pointer select-none';
+    if (iconWrap) iconWrap.className = 'w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center shrink-0 shadow-sm';
     if (icon) icon.className = 'fa-solid fa-circle-check text-xs text-emerald-400';
   }
 
