@@ -3805,9 +3805,13 @@ function escapeHtml(text) {
 // ----------------- ACTIVE CHANNEL & SMART POST PARSER -----------------
 
 function getTelegramDeepLink(urlOrName) {
-  if (!urlOrName) return 'tg://join?invite=bJVdSCzoIygwODE0';
+  if (!urlOrName) return 'tg://resolve?domain=c/1273415420';
   const str = String(urlOrName).trim();
   if (str.startsWith('tg://')) return str;
+
+  if (str.toLowerCase().includes('articoli') || str.toLowerCase().includes('addicted')) {
+    return 'tg://resolve?domain=c/1273415420';
+  }
 
   const inviteMatch = str.match(/(?:t\.me\/\+|t\.me\/joinchat\/|^\+)([a-zA-Z0-9_-]+)/);
   if (inviteMatch) {
@@ -3819,19 +3823,15 @@ function getTelegramDeepLink(urlOrName) {
     return `tg://resolve?domain=${userMatch[1]}`;
   }
 
-  if (str.toLowerCase().includes('articoli') || str.toLowerCase().includes('addicted')) {
-    return 'tg://join?invite=bJVdSCzoIygwODE0';
-  }
-
   if (!str.includes(' ') && !str.startsWith('http')) {
     return `tg://resolve?domain=${str.replace(/^@/, '')}`;
   }
 
-  return 'tg://join?invite=bJVdSCzoIygwODE0';
+  return 'tg://resolve?domain=c/1273415420';
 }
 
 function getTelegramChannelUrl(channelName) {
-  if (!channelName) return 'https://t.me/+bJVdSCzoIygwODE0';
+  if (!channelName) return 'https://t.me/c/1273415420';
   const clean = String(channelName).trim();
   if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('tg://')) {
     return clean;
@@ -3843,12 +3843,21 @@ function getTelegramChannelUrl(channelName) {
     return `https://t.me/${clean.substring(1)}`;
   }
   if (clean.toLowerCase() === 'articoli addicted' || clean.toLowerCase() === 'articoliaddicted') {
-    return 'https://t.me/+bJVdSCzoIygwODE0';
+    return 'https://t.me/c/1273415420';
   }
   if (!clean.includes(' ')) {
     return `https://t.me/${clean}`;
   }
-  return 'https://t.me/+bJVdSCzoIygwODE0';
+  return 'https://t.me/c/1273415420';
+}
+
+function handleTelegramHeaderClick(e) {
+  const rawTarget = window._activeChannelUrl || window._activeChannelName || 'Articoli Addicted';
+  const deepLink = window._activeChannelDeepLink || getTelegramDeepLink(rawTarget);
+  const tgBtn = document.getElementById('btn-header-telegram');
+  if (tgBtn) {
+    tgBtn.href = deepLink;
+  }
 }
 
 function openTelegramOffersChannel() {
@@ -3856,8 +3865,6 @@ function openTelegramOffersChannel() {
   const deepLink = window._activeChannelDeepLink || getTelegramDeepLink(rawTarget);
   const webUrl = window._activeChannelUrl || getTelegramChannelUrl(rawTarget);
 
-  // Apertura diretta e istantanea dell'app Telegram (tg://)
-  // Questo apre direttamente l'app saltando la schermata web intermedia e i passaggi nel browser
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isAndroid = /Android/i.test(navigator.userAgent);
 
@@ -3866,14 +3873,12 @@ function openTelegramOffersChannel() {
     return;
   }
 
-  // Su PC / Desktop:
   const a = document.createElement('a');
   a.href = deepLink;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
 
-  // Fallback web leggero se non risponde il client desktop entro 1 secondo
   setTimeout(() => {
     if (document.hasFocus()) {
       window.open(webUrl, '_blank', 'noopener,noreferrer');
@@ -3898,7 +3903,10 @@ async function loadActiveChannel() {
     if (badge) badge.innerText = data.channel_name;
     if (setBadge) setBadge.innerText = data.channel_name;
     if (input) input.value = data.channel_name;
-    if (tgBtn) tgBtn.title = `Apri Canale Telegram (${data.channel_name})`;
+    if (tgBtn) {
+      tgBtn.href = window._activeChannelDeepLink;
+      tgBtn.title = `Apri Canale Telegram (${data.channel_name})`;
+    }
   } catch (err) {
     console.error('Errore caricamento canale:', err);
   }

@@ -359,25 +359,25 @@ async def telegram_logout(db: Session = Depends(get_db)):
 
 def resolve_telegram_deep_link(channel_name: str) -> str:
     if not channel_name:
-        return "tg://join?invite=bJVdSCzoIygwODE0"
+        return "tg://resolve?domain=c/1273415420"
     clean = channel_name.strip()
     if clean.startswith("tg://"):
         return clean
+    if "articoli" in clean.lower() or "addicted" in clean.lower():
+        return "tg://resolve?domain=c/1273415420"
     m_inv = re.search(r'(?:t\.me/\+|t\.me/joinchat/|^\+)([a-zA-Z0-9_-]+)', clean)
     if m_inv:
         return f"tg://join?invite={m_inv.group(1)}"
     m_user = re.search(r'(?:t\.me/|^@)([a-zA-Z0-9_]{3,32})', clean)
     if m_user and m_user.group(1).lower() not in ["joinchat", "s", "addstickers", "share"]:
         return f"tg://resolve?domain={m_user.group(1)}"
-    if "articoli" in clean.lower() or "addicted" in clean.lower():
-        return "tg://join?invite=bJVdSCzoIygwODE0"
     if " " not in clean:
         return f"tg://resolve?domain={clean.lstrip('@')}"
-    return "tg://join?invite=bJVdSCzoIygwODE0"
+    return "tg://resolve?domain=c/1273415420"
 
 def resolve_telegram_channel_url(channel_name: str) -> str:
     if not channel_name:
-        return "https://t.me/+bJVdSCzoIygwODE0"
+        return "https://t.me/c/1273415420"
     clean = channel_name.strip()
     if clean.startswith("http://") or clean.startswith("https://") or clean.startswith("tg://"):
         return clean
@@ -386,10 +386,10 @@ def resolve_telegram_channel_url(channel_name: str) -> str:
     if clean.startswith("@"):
         return f"https://t.me/{clean[1:]}"
     if clean.lower() in ["articoli addicted", "articoliaddicted"]:
-        return "https://t.me/+bJVdSCzoIygwODE0"
+        return "https://t.me/c/1273415420"
     if " " not in clean:
         return f"https://t.me/{clean}"
-    return "https://t.me/+bJVdSCzoIygwODE0"
+    return "https://t.me/c/1273415420"
 
 @app.get("/api/telegram/channel")
 def get_active_channel(db: Session = Depends(get_db)):
