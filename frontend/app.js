@@ -3804,17 +3804,46 @@ function escapeHtml(text) {
 
 // ----------------- ACTIVE CHANNEL & SMART POST PARSER -----------------
 
+function getTelegramChannelUrl(channelName) {
+  if (!channelName) return 'https://t.me/articoliaddicted';
+  const clean = String(channelName).trim();
+  if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('tg://')) {
+    return clean;
+  }
+  if (clean.startsWith('@')) {
+    return `https://t.me/${clean.substring(1)}`;
+  }
+  if (clean.toLowerCase() === 'articoli addicted' || clean.toLowerCase() === 'articoliaddicted') {
+    return 'https://t.me/articoliaddicted';
+  }
+  if (!clean.includes(' ')) {
+    return `https://t.me/${clean}`;
+  }
+  return `https://t.me/${clean.replace(/\s+/g, '')}`;
+}
+
+function openTelegramOffersChannel() {
+  const url = window._activeChannelUrl || getTelegramChannelUrl(window._activeChannelName || 'Articoli Addicted');
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 async function loadActiveChannel() {
   try {
     const res = await fetch('/api/telegram/channel');
     if (!res.ok) return;
     const data = await res.json();
+    window._activeChannelName = data.channel_name;
+    window._activeChannelUrl = data.channel_url || getTelegramChannelUrl(data.channel_name);
+    
     const badge = document.getElementById('active-channel-badge');
     const setBadge = document.getElementById('set-active-channel-name');
     const input = document.getElementById('input-channel-name');
+    const tgBtn = document.getElementById('btn-header-telegram');
+    
     if (badge) badge.innerText = data.channel_name;
     if (setBadge) setBadge.innerText = data.channel_name;
     if (input) input.value = data.channel_name;
+    if (tgBtn) tgBtn.title = `Apri Canale Telegram (${data.channel_name})`;
   } catch (err) {
     console.error('Errore caricamento canale:', err);
   }

@@ -357,6 +357,20 @@ async def telegram_logout(db: Session = Depends(get_db)):
     """Disconnette l'account Telegram e rimuove la sessione"""
     return await telegram_service.logout(db)
 
+def resolve_telegram_channel_url(channel_name: str) -> str:
+    if not channel_name:
+        return "https://t.me/articoliaddicted"
+    clean = channel_name.strip()
+    if clean.startswith("http://") or clean.startswith("https://") or clean.startswith("tg://"):
+        return clean
+    if clean.startswith("@"):
+        return f"https://t.me/{clean[1:]}"
+    if clean.lower() in ["articoli addicted", "articoliaddicted"]:
+        return "https://t.me/articoliaddicted"
+    if " " not in clean:
+        return f"https://t.me/{clean}"
+    return f"https://t.me/{clean.replace(' ', '')}"
+
 @app.get("/api/telegram/channel")
 def get_active_channel(db: Session = Depends(get_db)):
     """Restituisce il canale Telegram attualmente attivo e monitorato"""
@@ -367,6 +381,7 @@ def get_active_channel(db: Session = Depends(get_db)):
     )
     return {
         "channel_name": channel_name,
+        "channel_url": resolve_telegram_channel_url(channel_name),
         "is_active": True
     }
 
