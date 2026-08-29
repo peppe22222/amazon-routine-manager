@@ -3805,13 +3805,9 @@ function escapeHtml(text) {
 // ----------------- ACTIVE CHANNEL & SMART POST PARSER -----------------
 
 function getTelegramDeepLink(urlOrName) {
-  if (!urlOrName) return 'tg://resolve?domain=c/1273415420';
+  if (!urlOrName) return 'tg://join?invite=bJVdSCzoIygwODE0';
   const str = String(urlOrName).trim();
   if (str.startsWith('tg://')) return str;
-
-  if (str.toLowerCase().includes('articoli') || str.toLowerCase().includes('addicted')) {
-    return 'tg://resolve?domain=c/1273415420';
-  }
 
   const inviteMatch = str.match(/(?:t\.me\/\+|t\.me\/joinchat\/|^\+)([a-zA-Z0-9_-]+)/);
   if (inviteMatch) {
@@ -3823,17 +3819,21 @@ function getTelegramDeepLink(urlOrName) {
     return `tg://resolve?domain=${userMatch[1]}`;
   }
 
+  if (str.toLowerCase().includes('articoli') || str.toLowerCase().includes('addicted')) {
+    return 'tg://join?invite=bJVdSCzoIygwODE0';
+  }
+
   if (!str.includes(' ') && !str.startsWith('http')) {
     return `tg://resolve?domain=${str.replace(/^@/, '')}`;
   }
 
-  return 'tg://resolve?domain=c/1273415420';
+  return 'tg://join?invite=bJVdSCzoIygwODE0';
 }
 
 function getTelegramChannelUrl(channelName) {
-  if (!channelName) return 'https://t.me/c/1273415420';
+  if (!channelName) return 'https://t.me/+bJVdSCzoIygwODE0';
   const clean = String(channelName).trim();
-  if (clean.startsWith('http://') || clean.startsWith('https://') || clean.startsWith('tg://')) {
+  if (clean.startsWith('http://') || clean.startsWith('https://')) {
     return clean;
   }
   if (clean.startsWith('+')) {
@@ -3843,47 +3843,27 @@ function getTelegramChannelUrl(channelName) {
     return `https://t.me/${clean.substring(1)}`;
   }
   if (clean.toLowerCase() === 'articoli addicted' || clean.toLowerCase() === 'articoliaddicted') {
-    return 'https://t.me/c/1273415420';
+    return 'https://t.me/+bJVdSCzoIygwODE0';
   }
   if (!clean.includes(' ')) {
     return `https://t.me/${clean}`;
   }
-  return 'https://t.me/c/1273415420';
+  return 'https://t.me/+bJVdSCzoIygwODE0';
 }
 
 function handleTelegramHeaderClick(e) {
-  const rawTarget = window._activeChannelUrl || window._activeChannelName || 'Articoli Addicted';
-  const deepLink = window._activeChannelDeepLink || getTelegramDeepLink(rawTarget);
+  const rawTarget = window._activeChannelUrl || window._activeChannelName || 'https://t.me/+bJVdSCzoIygwODE0';
+  const webUrl = getTelegramChannelUrl(rawTarget);
   const tgBtn = document.getElementById('btn-header-telegram');
   if (tgBtn) {
-    tgBtn.href = deepLink;
+    tgBtn.href = webUrl;
   }
 }
 
 function openTelegramOffersChannel() {
-  const rawTarget = window._activeChannelUrl || window._activeChannelName || 'Articoli Addicted';
-  const deepLink = window._activeChannelDeepLink || getTelegramDeepLink(rawTarget);
-  const webUrl = window._activeChannelUrl || getTelegramChannelUrl(rawTarget);
-
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isAndroid = /Android/i.test(navigator.userAgent);
-
-  if (isIOS || isAndroid) {
-    window.location.href = deepLink;
-    return;
-  }
-
-  const a = document.createElement('a');
-  a.href = deepLink;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-
-  setTimeout(() => {
-    if (document.hasFocus()) {
-      window.open(webUrl, '_blank', 'noopener,noreferrer');
-    }
-  }, 900);
+  const rawTarget = window._activeChannelUrl || window._activeChannelName || 'https://t.me/+bJVdSCzoIygwODE0';
+  const webUrl = getTelegramChannelUrl(rawTarget);
+  window.open(webUrl, '_blank', 'noopener,noreferrer');
 }
 
 async function loadActiveChannel() {
@@ -3904,7 +3884,7 @@ async function loadActiveChannel() {
     if (setBadge) setBadge.innerText = data.channel_name;
     if (input) input.value = data.channel_name;
     if (tgBtn) {
-      tgBtn.href = window._activeChannelDeepLink;
+      tgBtn.href = window._activeChannelUrl || 'https://t.me/+bJVdSCzoIygwODE0';
       tgBtn.title = `Apri Canale Telegram (${data.channel_name})`;
     }
   } catch (err) {
