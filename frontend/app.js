@@ -1563,12 +1563,18 @@ function updateReviewLiveTimers() {
       const minutes = Math.floor((totalSec % 3600) / 60);
       const seconds = totalSec % 60;
 
-      const currentDay = Math.min(10, Math.max(1, Math.floor(elapsedMs / 86400000) + 1));
       const progressPct = Math.min(99.9, Math.max(2, (elapsedMs / totalDurationMs) * 100)).toFixed(1);
+
+      const daysOfWeek = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+      const targetDateObj = new Date(targetMs);
+      const dayName = daysOfWeek[targetDateObj.getDay()];
+      const dayNum = targetDateObj.getDate();
+      const monthNum = targetDateObj.getMonth() + 1;
+      const formattedTargetDate = `${dayName} ${dayNum}/${monthNum}`;
 
       if (badgeEl) {
         badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-purple-500/20 text-purple-300 border border-purple-500/40';
-        badgeEl.innerText = `Giorno ${currentDay}/10`;
+        badgeEl.innerText = formattedTargetDate;
       }
       if (countdownEl) {
         countdownEl.className = 'review-countdown-text font-extrabold text-purple-300 font-mono tracking-tight';
@@ -1586,7 +1592,7 @@ function updateReviewLiveTimers() {
       if (btnScreen) {
         btnScreen.disabled = true;
         btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
-        btnScreen.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Screen (Giorno ${currentDay}/10)`;
+        btnScreen.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Screen (${formattedTargetDate})`;
       }
       if (btnSend) {
         btnSend.disabled = true;
