@@ -797,8 +797,29 @@ async function loadOrders() {
     if (!res.ok) return;
     let orders = await res.json();
 
+    // Auto-Recovery blindato: Se il server dovesse essere vuoto (es. riavvio senza storage persistente), ripristina istantaneamente dalla memoria locale protetta
+    if (!orders || orders.length === 0) {
+      const localBackupStr = localStorage.getItem('amz_shielded_orders');
+      if (localBackupStr) {
+        try {
+          const cached = JSON.parse(localBackupStr);
+          if (Array.isArray(cached) && cached.length > 0) {
+            const syncRes = await fetch('/api/orders/client-sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orders: cached })
+            });
+            if (syncRes.ok) {
+              const freshRes = await fetch('/api/orders');
+              if (freshRes.ok) orders = await freshRes.json();
+            }
+          }
+        } catch(e) {}
+      }
+    }
+
     // Sincronizza lo stato reale con la memoria locale del browser
-    if (orders) {
+    if (orders && orders.length > 0) {
       localStorage.setItem('amz_shielded_orders', JSON.stringify(orders));
     }
 
