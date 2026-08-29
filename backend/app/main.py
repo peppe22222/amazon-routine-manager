@@ -1977,9 +1977,6 @@ def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db
 import io
 import csv
 from fastapi.responses import Response
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 
 EXPORT_STATUS_MAP_IT = {
     "waiting_link": "In attesa link Alex",
@@ -1995,6 +1992,13 @@ EXPORT_STATUS_MAP_IT = {
 @app.get("/api/export/excel")
 def export_orders_excel(db: Session = Depends(get_db)):
     """Esporta l'intero registro ordini e rimborsi in formato Excel professionale (.xlsx)"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+    except ImportError:
+        return export_orders_csv(db)
+
     orders = db.query(Order).order_by(Order.order_date.desc()).all()
     
     wb = openpyxl.Workbook()
