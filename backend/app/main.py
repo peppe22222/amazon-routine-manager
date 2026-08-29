@@ -1973,6 +1973,224 @@ def delete_all_orders(status: Optional[str] = None, db: Session = Depends(get_db
     db.commit()
     return {"success": True, "deleted_count": deleted_count, "message": f"{deleted_count} pratiche eliminate definitivamente!"}
 
+# ----------------- ESPORTAZIONE REGISTRO EXCEL & CSV -----------------
+import io
+import csv
+from fastapi.responses import Response
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
+EXPORT_STATUS_MAP_IT = {
+    "waiting_link": "In attesa link Alex",
+    "pending_confirmation": "Da confermare / inviare screen",
+    "confirmed_sent": "Screen inviato al venditore",
+    "waiting_review": "In attesa sblocco 10gg",
+    "review_ready": "⭐ Recensione pronta",
+    "review_submitted": "Recensione inviata al venditore",
+    "reimbursed": "✅ Rimborsato 100%",
+    "cancelled": "Annullato"
+}
+
+@app.get("/api/export/excel")
+def export_orders_excel(db: Session = Depends(get_db)):
+    """Esporta l'intero registro ordini e rimborsi in formato Excel professionale (.xlsx)"""
+    orders = db.query(Order).order_by(Order.order_date.desc()).all()
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Registro Amazon Routine"
+    ws.views.sheetView[0].showGridLines = True
+    
+    # Palette colori professionali (Emerald / Navy Dark Theme per Excel)
+    header_fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    alt_row_fill = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    
+    title_font = Font(name="Segoe UI", size=14, bold=True, color="10B981")
+    subtitle_font = Font(name="Segoe UI", size=9, italic=True, color="64748B")
+    header_font = Font(name="Segoe UI", size=10, bold=True, color="FFFFFF")
+    data_font = Font(name="Segoe UI", size=10, color="1E293B")
+    total_font = Font(name="Segoe UI", size=11, bold=True, color="10B981")
+    
+    thin_border = Border(
+        left=Side(style='thin', color='E2E8F0'),
+        right=Side(style='thin', color='E2E8F0'),
+        top=Side(style='thin', color='E2E8F0'),
+        bottom=Side(style='thin', color='E2E8F0')
+    )
+    total_border = Border(
+        top=Side(style='thin', color='10B981'),
+        bottom=Side(style='double', color='10B981')
+    )
+
+    # Intestazione Documento
+    ws.merge_cells("A1:K1")
+    ws["A1"] = "AMAZON ROUTINE MANAGER — REGISTRO ACQUISTI, RECENSIONI & RIMBORSI"
+    ws["A1"].font = title_font
+    ws["A1"].alignment = Alignment(vertical="center")
+    
+    now_str = datetime.now().strftime("%d/%m/%Y alle %H:%M")
+    ws.merge_cells("A2:K2")
+    ws["A2"] = f"Report generato il {now_str} • Totale Pratiche: {len(orders)}"
+    ws["A2"].font = subtitle_font
+    ws["A2"].alignment = Alignment(vertical="center")
+    
+    ws.row_dimensions[1].height = 28
+    ws.row_dimensions[2].height = 18
+    ws.row_dimensions[3].height = 10 # Spazio vuoto
+    
+    headers = [
+        "ID",
+        "Data Ordine",
+        "N° Ordine Amazon",
+        "Titolo Prodotto",
+        "Venditore TG",
+        "Prezzo Speso (€)",
+        "Rimborso Atteso (€)",
+        "Stato Pratica",
+        "Data Sblocco Recensione",
+        "Data Rimborso",
+        "Modalità"
+    ]
+    
+    header_row = 4
+    ws.row_dimensions[header_row].height = 24
+    for col_idx, h in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col_idx, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal="center" if col_idx not in [4, 5] else "left", vertical="center", wrap_text=True)
+    
+    start_row = 5
+    for idx, o in enumerate(orders):
+        current_r = start_row + idx
+        ws.row_dimensions[current_r].height = 20
+        
+        status_label = EXPORT_STATUS_MAP_IT.get(o.status, o.status or "")
+        order_date_str = o.order_date.strftime("%d/%m/%Y %H:%M") if o.order_date else ""
+        rev_date_str = o.review_target_date.strftime("%d/%m/%Y") if o.review_target_date else ""
+        ref_date_str = o.refunded_at.strftime("%d/%m/%Y") if o.refunded_at else ""
+        mode_label = "SANDBOX (TEST)" if o.is_test else "LIVE"
+        
+        row_data = [
+            o.id,
+            order_date_str,
+            o.order_number or "",
+            o.product_title or "",
+            o.seller_contact or "",
+            float(o.price_paid or 0.0),
+            float(o.refund_amount or (o.price_paid or 0.0)),
+            status_label,
+            rev_date_str,
+            ref_date_str,
+            mode_label
+        ]
+        
+        is_even = (idx % 2 == 1)
+        for col_idx, val in enumerate(row_data, 1):
+            c = ws.cell(row=current_r, column=col_idx, value=val)
+            c.font = data_font
+            c.border = thin_border
+            if is_even:
+                c.fill = alt_row_fill
+                
+            if col_idx in [6, 7]: # Valute
+                c.number_format = '€ #,##0.00'
+                c.alignment = Alignment(horizontal="right", vertical="center")
+            elif col_idx in [1, 2, 9, 10, 11]:
+                c.alignment = Alignment(horizontal="center", vertical="center")
+            elif col_idx == 8:
+                c.alignment = Alignment(horizontal="center", vertical="center")
+            else:
+                c.alignment = Alignment(horizontal="left", vertical="center")
+                
+    total_row = start_row + len(orders)
+    ws.row_dimensions[total_row].height = 24
+    ws.cell(row=total_row, column=4, value="TOTALI:").font = total_font
+    ws.cell(row=total_row, column=4).alignment = Alignment(horizontal="right", vertical="center")
+    
+    if len(orders) > 0:
+        c_spent = ws.cell(row=total_row, column=6, value=f"=SUM(F{start_row}:F{total_row-1})")
+        c_spent.number_format = '€ #,##0.00'
+        c_spent.font = total_font
+        c_spent.border = total_border
+        c_spent.alignment = Alignment(horizontal="right", vertical="center")
+        
+        c_ref = ws.cell(row=total_row, column=7, value=f"=SUM(G{start_row}:G{total_row-1})")
+        c_ref.number_format = '€ #,##0.00'
+        c_ref.font = total_font
+        c_ref.border = total_border
+        c_ref.alignment = Alignment(horizontal="right", vertical="center")
+    
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            if cell.row < 4:
+                continue
+            if cell.value:
+                max_len = max(max_len, len(str(cell.value)))
+        ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['D'].width = 38
+    
+    out = io.BytesIO()
+    wb.save(out)
+    out.seek(0)
+    
+    filename = f"registro_amazon_routine_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return Response(
+        content=out.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
+@app.get("/api/export/csv")
+def export_orders_csv(db: Session = Depends(get_db)):
+    """Esporta il registro ordini in formato CSV (compatibile Excel e Google Fogli)"""
+    orders = db.query(Order).order_by(Order.order_date.desc()).all()
+    
+    out = io.StringIO()
+    out.write('\ufeff') # BOM per UTF-8 in Excel
+    writer = csv.writer(out, delimiter=';', quoting=csv.QUOTE_MINIMAL)
+    
+    writer.writerow([
+        "ID",
+        "Data Ordine",
+        "Numero Ordine Amazon",
+        "Titolo Prodotto",
+        "Venditore Telegram",
+        "Prezzo Pagato (€)",
+        "Rimborso Atteso (€)",
+        "Stato Pratica",
+        "Data Sblocco Recensione",
+        "Data Rimborso Ricevuto",
+        "Modalità"
+    ])
+    
+    for o in orders:
+        status_label = EXPORT_STATUS_MAP_IT.get(o.status, o.status or "")
+        writer.writerow([
+            o.id,
+            o.order_date.strftime("%d/%m/%Y %H:%M") if o.order_date else "",
+            o.order_number or "",
+            o.product_title or "",
+            o.seller_contact or "",
+            f"{o.price_paid or 0.0:.2f}".replace('.', ','),
+            f"{o.refund_amount or (o.price_paid or 0.0):.2f}".replace('.', ','),
+            status_label,
+            o.review_target_date.strftime("%d/%m/%Y") if o.review_target_date else "",
+            o.refunded_at.strftime("%d/%m/%Y") if o.refunded_at else "",
+            "SANDBOX (TEST)" if o.is_test else "LIVE"
+        ])
+        
+    filename = f"registro_amazon_routine_{datetime.now().strftime('%Y%m%d')}.csv"
+    return Response(
+        content=out.getvalue().encode('utf-8-sig'),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
+
 # Evento di avvio: imposta di default la modalità Sandbox a true e ripristina SOLO le pratiche reali dell'utente
 @app.on_event("startup")
 def on_app_startup():

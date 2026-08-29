@@ -2853,6 +2853,222 @@ function closeModal(modalId) {
   if (m) m.classList.add('hidden');
 }
 
+// ----------------- ANTEPRIMA REGISTRO & CONTABILITÀ (EXCEL / CSV) -----------------
+
+window._registryOrders = [];
+window._registryCurrentFilter = 'all';
+
+async function openRegistryPreviewModal() {
+  try {
+    const res = await fetch('/api/orders');
+    if (res.ok) {
+      window._registryOrders = await res.json();
+    }
+  } catch (err) {
+    console.error('Errore caricamento ordini registro:', err);
+  }
+
+  let totalSpent = 0;
+  let totalReimbursed = 0;
+  let totalPending = 0;
+  let totalReviewsReady = 0;
+
+  const now = Date.now();
+
+  window._registryOrders.forEach(o => {
+    const price = parseFloat(o.price_paid || 0);
+    const refund = parseFloat(o.refund_amount || o.price_paid || 0);
+
+    totalSpent += price;
+
+    if (o.status === 'reimbursed') {
+      totalReimbursed += refund;
+    } else {
+      totalPending += refund;
+    }
+
+    const targetMs = o.review_target_date ? new Date(o.review_target_date).getTime() : 0;
+    if ((targetMs > 0 && targetMs <= now) || o.status === 'review_ready') {
+      if (o.status !== 'review_submitted' && o.status !== 'reimbursed') {
+        totalReviewsReady++;
+      }
+    }
+  });
+
+  const spentEl = document.getElementById('reg-kpi-spent');
+  const reimbEl = document.getElementById('reg-kpi-reimbursed');
+  const pendEl = document.getElementById('reg-kpi-pending');
+  const revReadyEl = document.getElementById('reg-kpi-reviews-ready');
+  const countBadge = document.getElementById('reg-count-badge');
+
+  if (spentEl) spentEl.innerText = `€${totalSpent.toFixed(2)}`;
+  if (reimbEl) reimbEl.innerText = `€${totalReimbursed.toFixed(2)}`;
+  if (pendEl) pendEl.innerText = `€${totalPending.toFixed(2)}`;
+  if (revReadyEl) revReadyEl.innerText = totalReviewsReady;
+  if (countBadge) countBadge.innerText = `${window._registryOrders.length} pratiche`;
+
+  const searchInp = document.getElementById('reg-search-input');
+  if (searchInp) searchInp.value = '';
+  window._registryCurrentFilter = 'all';
+  updateRegistryFilterButtonsUI('all');
+
+  renderRegistryTable();
+  openModal('modal-registry-preview');
+}
+
+function updateRegistryFilterButtonsUI(filterType) {
+  document.querySelectorAll('.reg-filter-btn').forEach(btn => {
+    const isTarget = btn.getAttribute('onclick')?.includes(`'${filterType}'`);
+    if (isTarget) {
+      btn.className = 'reg-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white transition-all shadow-sm';
+    } else {
+      btn.className = 'reg-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all';
+    }
+  });
+}
+
+function setRegistryFilter(filterType, btnEl) {
+  window._registryCurrentFilter = filterType;
+  updateRegistryFilterButtonsUI(filterType);
+  renderRegistryTable();
+}
+
+function filterRegistryTable() {
+  renderRegistryTable();
+}
+
+function renderRegistryTable() {
+  const tbody = document.getElementById('reg-table-body');
+  if (!tbody) return;
+
+  const searchVal = (document.getElementById('reg-search-input')?.value || '').toLowerCase().trim();
+  const filter = window._registryCurrentFilter || 'all';
+
+  const orders = window._registryOrders || [];
+
+  const filtered = orders.filter(o => {
+    if (filter === 'reimbursed' && o.status !== 'reimbursed') return false;
+    if (filter === 'reviews' && (o.status !== 'waiting_review' && o.status !== 'review_ready' && o.status !== 'review_submitted')) return false;
+    if (filter === 'pending' && (o.status === 'reimbursed' || o.status === 'cancelled')) return false;
+
+    if (searchVal) {
+      const matchTitle = (o.product_title || '').toLowerCase().includes(searchVal);
+      const matchOrderNum = (o.order_number || '').toLowerCase().includes(searchVal);
+      const matchSeller = (o.seller_contact || '').toLowerCase().includes(searchVal);
+      const matchStatus = (o.status || '').toLowerCase().includes(searchVal);
+      if (!matchTitle && !matchOrderNum && !matchSeller && !matchStatus) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="9" class="py-8 text-center text-slate-500 font-medium">
+          <i class="fa-solid fa-folder-open text-2xl mb-2 text-slate-600 block"></i>
+          Nessuna pratica trovata con i filtri correnti.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(o => {
+    const isReimbursed = o.status === 'reimbursed';
+    const isReviewReady = o.status === 'review_ready';
+    const isReviewSubmitted = o.status === 'review_submitted';
+    const isConfirmed = o.status === 'confirmed_sent' || o.status === 'waiting_review';
+
+    let statusBadge = '';
+    if (isReimbursed) {
+      statusBadge = '<span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold whitespace-nowrap">✅ Rimborsato 100%</span>';
+    } else if (isReviewSubmitted) {
+      statusBadge = '<span class="px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[10px] font-extrabold whitespace-nowrap">Recensione Inviata</span>';
+    } else if (isReviewReady) {
+      statusBadge = '<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-extrabold whitespace-nowrap animate-pulse">⭐ Da Recensire</span>';
+    } else if (isConfirmed) {
+      statusBadge = '<span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[10px] font-bold whitespace-nowrap">In Attesa 10gg</span>';
+    } else if (o.status === 'pending_confirmation') {
+      statusBadge = '<span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-bold whitespace-nowrap">Da Confermare</span>';
+    } else {
+      statusBadge = `<span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-bold whitespace-nowrap">${escapeHtml(o.status || 'Attivo')}</span>`;
+    }
+
+    const orderDateStr = o.order_date ? new Date(o.order_date).toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }) : '-';
+    const revDateStr = o.review_target_date ? new Date(o.review_target_date).toLocaleDateString([], { day: '2-digit', month: '2-digit' }) : '-';
+    const refDateStr = o.refunded_at ? new Date(o.refunded_at).toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }) : (isReimbursed ? 'Confermato' : '-');
+
+    const cleanOrderNum = (o.order_number || '').replace(/_old_\d+$/, '');
+    const isRealNum = cleanOrderNum && !cleanOrderNum.toLowerCase().includes('in attesa') && !cleanOrderNum.toLowerCase().includes('pending');
+
+    const price = parseFloat(o.price_paid || 0).toFixed(2);
+    const refund = parseFloat(o.refund_amount || o.price_paid || 0).toFixed(2);
+
+    return `
+      <tr class="hover:bg-slate-800/40 transition-colors">
+        <td class="py-2.5 px-3 whitespace-nowrap text-slate-400 font-mono text-[11px]">${orderDateStr}</td>
+        <td class="py-2.5 px-3 whitespace-nowrap font-mono font-bold text-slate-300 text-[11px]">
+          ${isRealNum ? cleanOrderNum : '<span class="text-slate-500 italic">In attesa N°</span>'}
+        </td>
+        <td class="py-2.5 px-3 min-w-[160px]">
+          <p class="font-extrabold text-white line-clamp-1">${escapeHtml(o.product_title || 'Prodotto Amazon')}</p>
+        </td>
+        <td class="py-2.5 px-3 whitespace-nowrap text-cyan-300 font-mono font-bold text-[11px]">
+          ${escapeHtml(o.seller_contact || '-')}
+        </td>
+        <td class="py-2.5 px-3 text-right whitespace-nowrap font-bold text-white font-mono">
+          €${price}
+        </td>
+        <td class="py-2.5 px-3 text-right whitespace-nowrap font-bold text-emerald-400 font-mono">
+          €${refund}
+        </td>
+        <td class="py-2.5 px-3 text-center whitespace-nowrap text-purple-300 font-mono text-[11px]">
+          ${revDateStr}
+        </td>
+        <td class="py-2.5 px-3 text-center whitespace-nowrap">
+          ${statusBadge}
+        </td>
+        <td class="py-2.5 px-3 text-center whitespace-nowrap text-slate-400 font-mono text-[11px]">
+          ${refDateStr}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function copyRegistryTableData() {
+  const orders = window._registryOrders || [];
+  if (orders.length === 0) {
+    showToast('Nessun dato da copiare', true);
+    return;
+  }
+
+  const headers = ['Data Ordine', 'N° Ordine Amazon', 'Prodotto', 'Venditore TG', 'Prezzo Speso (€)', 'Rimborso Atteso (€)', 'Data Sblocco Recensione', 'Stato Pratica', 'Data Rimborso'];
+  const rows = orders.map(o => {
+    const orderDateStr = o.order_date ? new Date(o.order_date).toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }) : '';
+    const revDateStr = o.review_target_date ? new Date(o.review_target_date).toLocaleDateString([], { day: '2-digit', month: '2-digit' }) : '';
+    const refDateStr = o.refunded_at ? new Date(o.refunded_at).toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' }) : (o.status === 'reimbursed' ? 'Rimborsato' : '');
+    const cleanOrderNum = (o.order_number || '').replace(/_old_\d+$/, '');
+
+    return [
+      orderDateStr,
+      cleanOrderNum,
+      o.product_title || '',
+      o.seller_contact || '',
+      parseFloat(o.price_paid || 0).toFixed(2),
+      parseFloat(o.refund_amount || o.price_paid || 0).toFixed(2),
+      revDateStr,
+      o.status || '',
+      refDateStr
+    ].join('\t');
+  });
+
+  const tsvText = [headers.join('\t'), ...rows].join('\n');
+  copyToClipboard(tsvText, 'Tabella copiata! Puoi incollarla direttamente in Excel o Google Fogli.');
+}
+
 // ----------------- SIMULATOR HELPERS -----------------
 
 async function resetFullDemo() {

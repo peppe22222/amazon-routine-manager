@@ -347,6 +347,18 @@
 
     <!-- TAB 4: RIMBORSI PAYPAL -->
     <div id="tab-refunds" class="tab-content hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2.5 pb-1">
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-brands fa-paypal text-blue-400 text-sm"></i> Pratiche Rimborsi
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="openRegistryPreviewModal()" class="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600/30 to-teal-600/30 hover:from-emerald-600/50 hover:to-teal-600/50 text-emerald-200 border border-emerald-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95">
+            <i class="fa-solid fa-table-list text-emerald-400"></i> Visiona Registro & Excel
+          </button>
+        </div>
+      </div>
       <div id="refunds-list" class="space-y-3">
         <!-- Renderizzato via JS -->
       </div>
@@ -864,6 +876,19 @@
           </div>
         </div>
 
+        <!-- Registro Completo & Esportazione Excel / CSV -->
+        <div class="space-y-2 p-3.5 rounded-2xl bg-brand-bg border border-brand-border shadow-sm">
+          <div class="flex items-center justify-between">
+            <p class="font-bold text-emerald-400 uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+              <i class="fa-solid fa-file-excel"></i> Registro Ordini & Esporta Excel / CSV
+            </p>
+          </div>
+          <p class="text-slate-400 text-[11px]">Visiona l'intera tabella contabile delle pratiche o scarica il file pronto per Excel e Numbers.</p>
+          <button type="button" onclick="closeModal('modal-settings'); openRegistryPreviewModal();" class="w-full py-2.5 px-3 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-200 border border-emerald-500/40 text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm">
+            <i class="fa-solid fa-table-list text-emerald-400"></i> Apri Tabella Registro & Download
+          </button>
+        </div>
+
         <!-- Password & Sicurezza Accesso -->
         <div class="space-y-2.5 p-3.5 rounded-2xl bg-brand-bg border border-brand-border shadow-sm">
           <div class="flex items-center justify-between">
@@ -1099,6 +1124,109 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
         </button>
         <button onclick="closeModal('modal-paste-post')" class="px-4 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold">Annulla</button>
       </div>
+    </div>
+  <!-- ========================================================================= -->
+  <!-- MODAL: ANTEPRIMA REGISTRO ORDINI, RECENSIONI & RIMBORSI (EXCEL / CSV) -->
+  <!-- ========================================================================= -->
+  <div id="modal-registry-preview" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-2.5 md:p-6">
+    <div class="glass-panel max-w-5xl w-full p-4 md:p-6 rounded-3xl max-h-[94vh] flex flex-col shadow-2xl border border-brand-border bg-slate-950/95">
+      
+      <!-- Header Modal -->
+      <div class="flex justify-between items-center pb-3 border-b border-brand-border gap-3">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-teal-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center text-lg shrink-0 shadow-md shadow-emerald-950/40">
+            <i class="fa-solid fa-file-excel"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-sm md:text-lg font-extrabold text-white flex items-center gap-2 flex-wrap">
+              <span>Registro Pratiche & Contabilità</span>
+              <span id="reg-count-badge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">0 pratiche</span>
+            </h3>
+            <p class="text-[11px] md:text-xs text-slate-400 mt-0.5 truncate">Visiona la tabella completa o esporta il foglio di calcolo per Excel, Numbers e Fogli</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modal-registry-preview')" class="w-8 h-8 rounded-xl bg-brand-surface text-slate-300 hover:text-white flex items-center justify-center transition-colors shrink-0">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+      </div>
+
+      <!-- Mini KPI Summary Bar -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 my-3.5 shrink-0">
+        <div class="p-2.5 md:p-3 rounded-2xl bg-slate-900/80 border border-slate-800">
+          <span class="text-[10px] uppercase tracking-wider font-bold text-slate-400 block">Spesa Totale</span>
+          <span id="reg-kpi-spent" class="text-base md:text-lg font-extrabold text-white mt-0.5 block">€0.00</span>
+        </div>
+        <div class="p-2.5 md:p-3 rounded-2xl bg-slate-900/80 border border-emerald-500/30 bg-gradient-to-b from-emerald-500/5 to-transparent">
+          <span class="text-[10px] uppercase tracking-wider font-bold text-emerald-300 block">Rimborsi Ricevuti</span>
+          <span id="reg-kpi-reimbursed" class="text-base md:text-lg font-extrabold text-emerald-400 mt-0.5 block">€0.00</span>
+        </div>
+        <div class="p-2.5 md:p-3 rounded-2xl bg-slate-900/80 border border-amber-500/30 bg-gradient-to-b from-amber-500/5 to-transparent">
+          <span class="text-[10px] uppercase tracking-wider font-bold text-amber-300 block">Da Rimborsare</span>
+          <span id="reg-kpi-pending" class="text-base md:text-lg font-extrabold text-amber-300 mt-0.5 block">€0.00</span>
+        </div>
+        <div class="p-2.5 md:p-3 rounded-2xl bg-slate-900/80 border border-purple-500/30 bg-gradient-to-b from-purple-500/5 to-transparent">
+          <span class="text-[10px] uppercase tracking-wider font-bold text-purple-300 block">Recensioni Pronte</span>
+          <span id="reg-kpi-reviews-ready" class="text-base md:text-lg font-extrabold text-purple-300 mt-0.5 block">0</span>
+        </div>
+      </div>
+
+      <!-- Barra di Ricerca e Filtri Tabella -->
+      <div class="flex flex-wrap items-center justify-between gap-2.5 mb-3 shrink-0">
+        <div class="relative flex-1 min-w-[180px]">
+          <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+          <input type="text" id="reg-search-input" oninput="filterRegistryTable()" placeholder="Cerca prodotto, venditore o N° ordine..." class="w-full bg-brand-bg border border-brand-border rounded-xl pl-8 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-0.5 shrink-0">
+          <button onclick="setRegistryFilter('all', this)" class="reg-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 text-white transition-all shadow-sm">Tutti</button>
+          <button onclick="setRegistryFilter('reimbursed', this)" class="reg-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all">✅ Rimborsati</button>
+          <button onclick="setRegistryFilter('reviews', this)" class="reg-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all">⭐ Recensioni</button>
+          <button onclick="setRegistryFilter('pending', this)" class="reg-filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:text-white border border-slate-700 transition-all">⏳ In Attesa</button>
+        </div>
+      </div>
+
+      <!-- Tabella Dati Scrollabile e Responsive -->
+      <div class="flex-1 overflow-y-auto overflow-x-auto rounded-2xl border border-brand-border bg-slate-900/60 custom-scrollbar">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead class="sticky top-0 bg-slate-950/95 backdrop-blur-sm border-b border-brand-border text-[11px] font-bold text-slate-300 uppercase tracking-wider z-10 select-none">
+            <tr>
+              <th class="py-2.5 px-3 whitespace-nowrap">Data</th>
+              <th class="py-2.5 px-3 whitespace-nowrap">N° Ordine</th>
+              <th class="py-2.5 px-3 min-w-[160px]">Prodotto</th>
+              <th class="py-2.5 px-3 whitespace-nowrap">Venditore</th>
+              <th class="py-2.5 px-3 text-right whitespace-nowrap">Speso</th>
+              <th class="py-2.5 px-3 text-right whitespace-nowrap">Rimborso</th>
+              <th class="py-2.5 px-3 text-center whitespace-nowrap">Sblocco 10gg</th>
+              <th class="py-2.5 px-3 text-center whitespace-nowrap">Stato</th>
+              <th class="py-2.5 px-3 text-center whitespace-nowrap">Data Rimborso</th>
+            </tr>
+          </thead>
+          <tbody id="reg-table-body" class="divide-y divide-slate-800/80 text-slate-200 font-medium">
+            <!-- Righe renderizzate via JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer con Pulsanti Download e Azioni -->
+      <div class="flex flex-wrap items-center justify-between gap-2.5 pt-3.5 mt-3 border-t border-brand-border shrink-0">
+        <div class="flex flex-wrap items-center gap-2">
+          <a href="/api/export/excel" download class="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-950/60 flex items-center gap-2 transition-all active:scale-95">
+            <i class="fa-solid fa-file-excel text-sm"></i>
+            <span>Scarica Excel (.xlsx)</span>
+          </a>
+          <a href="/api/export/csv" download class="px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95">
+            <i class="fa-solid fa-file-csv text-sm text-cyan-400"></i>
+            <span>Scarica CSV</span>
+          </a>
+          <button onclick="copyRegistryTableData()" class="px-3.5 py-2.5 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95">
+            <i class="fa-regular fa-copy"></i>
+            <span>Copia Tabella</span>
+          </button>
+        </div>
+        <button onclick="closeModal('modal-registry-preview')" class="px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-xs font-bold transition-colors">
+          Chiudi
+        </button>
+      </div>
+
     </div>
   </div>
 
