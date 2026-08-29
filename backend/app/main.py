@@ -357,6 +357,24 @@ async def telegram_logout(db: Session = Depends(get_db)):
     """Disconnette l'account Telegram e rimuove la sessione"""
     return await telegram_service.logout(db)
 
+def resolve_telegram_deep_link(channel_name: str) -> str:
+    if not channel_name:
+        return "tg://join?invite=bJVdSCzoIygwODE0"
+    clean = channel_name.strip()
+    if clean.startswith("tg://"):
+        return clean
+    m_inv = re.search(r'(?:t\.me/\+|t\.me/joinchat/|^\+)([a-zA-Z0-9_-]+)', clean)
+    if m_inv:
+        return f"tg://join?invite={m_inv.group(1)}"
+    m_user = re.search(r'(?:t\.me/|^@)([a-zA-Z0-9_]{3,32})', clean)
+    if m_user and m_user.group(1).lower() not in ["joinchat", "s", "addstickers", "share"]:
+        return f"tg://resolve?domain={m_user.group(1)}"
+    if "articoli" in clean.lower() or "addicted" in clean.lower():
+        return "tg://join?invite=bJVdSCzoIygwODE0"
+    if " " not in clean:
+        return f"tg://resolve?domain={clean.lstrip('@')}"
+    return "tg://join?invite=bJVdSCzoIygwODE0"
+
 def resolve_telegram_channel_url(channel_name: str) -> str:
     if not channel_name:
         return "https://t.me/+bJVdSCzoIygwODE0"
@@ -384,6 +402,7 @@ def get_active_channel(db: Session = Depends(get_db)):
     return {
         "channel_name": channel_name,
         "channel_url": resolve_telegram_channel_url(channel_name),
+        "deep_link": resolve_telegram_deep_link(channel_name),
         "is_active": True
     }
 

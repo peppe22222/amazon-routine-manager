@@ -3804,6 +3804,32 @@ function escapeHtml(text) {
 
 // ----------------- ACTIVE CHANNEL & SMART POST PARSER -----------------
 
+function getTelegramDeepLink(urlOrName) {
+  if (!urlOrName) return 'tg://join?invite=bJVdSCzoIygwODE0';
+  const str = String(urlOrName).trim();
+  if (str.startsWith('tg://')) return str;
+
+  const inviteMatch = str.match(/(?:t\.me\/\+|t\.me\/joinchat\/|^\+)([a-zA-Z0-9_-]+)/);
+  if (inviteMatch) {
+    return `tg://join?invite=${inviteMatch[1]}`;
+  }
+
+  const userMatch = str.match(/(?:t\.me\/|^@)([a-zA-Z0-9_]{3,32})/);
+  if (userMatch && !['joinchat', 's', 'addstickers', 'share'].includes(userMatch[1].toLowerCase())) {
+    return `tg://resolve?domain=${userMatch[1]}`;
+  }
+
+  if (str.toLowerCase().includes('articoli') || str.toLowerCase().includes('addicted')) {
+    return 'tg://join?invite=bJVdSCzoIygwODE0';
+  }
+
+  if (!str.includes(' ') && !str.startsWith('http')) {
+    return `tg://resolve?domain=${str.replace(/^@/, '')}`;
+  }
+
+  return 'tg://join?invite=bJVdSCzoIygwODE0';
+}
+
 function getTelegramChannelUrl(channelName) {
   if (!channelName) return 'https://t.me/+bJVdSCzoIygwODE0';
   const clean = String(channelName).trim();
@@ -3826,8 +3852,33 @@ function getTelegramChannelUrl(channelName) {
 }
 
 function openTelegramOffersChannel() {
-  const url = window._activeChannelUrl || getTelegramChannelUrl(window._activeChannelName || 'Articoli Addicted');
-  window.open(url, '_blank', 'noopener,noreferrer');
+  const rawTarget = window._activeChannelUrl || window._activeChannelName || 'Articoli Addicted';
+  const deepLink = window._activeChannelDeepLink || getTelegramDeepLink(rawTarget);
+  const webUrl = window._activeChannelUrl || getTelegramChannelUrl(rawTarget);
+
+  // Apertura diretta e istantanea dell'app Telegram (tg://)
+  // Questo apre direttamente l'app saltando la schermata web intermedia e i passaggi nel browser
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(navigator.userAgent);
+
+  if (isIOS || isAndroid) {
+    window.location.href = deepLink;
+    return;
+  }
+
+  // Su PC / Desktop:
+  const a = document.createElement('a');
+  a.href = deepLink;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  // Fallback web leggero se non risponde il client desktop entro 1 secondo
+  setTimeout(() => {
+    if (document.hasFocus()) {
+      window.open(webUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, 900);
 }
 
 async function loadActiveChannel() {
@@ -3837,6 +3888,7 @@ async function loadActiveChannel() {
     const data = await res.json();
     window._activeChannelName = data.channel_name;
     window._activeChannelUrl = data.channel_url || getTelegramChannelUrl(data.channel_name);
+    window._activeChannelDeepLink = data.deep_link || getTelegramDeepLink(data.channel_name);
     
     const badge = document.getElementById('active-channel-badge');
     const setBadge = document.getElementById('set-active-channel-name');
