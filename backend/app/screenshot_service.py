@@ -331,7 +331,7 @@ def extract_amazon_order_from_screenshot(image_bytes: bytes, gemini_api_key: str
     # 1. TENTATIVO CON GEMINI VISION AI (Se API Key disponibile in Impostazioni o ENV)
     api_key = (gemini_api_key or os.getenv("GEMINI_API_KEY", "")).strip()
     if api_key:
-        candidate_models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
+        candidate_models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
         for mod in candidate_models:
             try:
                 # Rileva dinamicamente il formato dell'immagine (JPEG, PNG, WEBP)

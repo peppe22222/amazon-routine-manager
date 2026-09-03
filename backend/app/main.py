@@ -25,7 +25,7 @@ from sqlalchemy import desc, or_
 
 from app.database import init_db, get_db, Offer, Order, Setting, ActivityLog, DATA_DIR
 from app.review_generator import generate_review
-from app.screenshot_service import generate_amazon_order_screenshot, SCREENSHOTS_DIR
+from app.screenshot_service import generate_amazon_order_screenshot, SCREENSHOTS_DIR, extract_amazon_order_from_screenshot, parse_delivery_date_text
 from app.telegram_service import telegram_service, scrape_telegram_channel_offers, is_title_duplicate, normalize_text_key, get_product_dedup_key
 from app.email_service import create_order_from_data
 
@@ -119,6 +119,16 @@ app = FastAPI(title="Amazon Routine Assistant", version="1.0.0")
 class ClientSyncPayload(BaseModel):
     orders: List[dict]
 
+def safe_parse_iso(dt_val: Optional[str]) -> Optional[datetime]:
+    if not dt_val or not isinstance(dt_val, str):
+        return None
+    try:
+        clean = dt_val.strip().replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(clean)
+        return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+    except Exception:
+        return None
+
 @app.post("/api/orders/client-sync")
 def sync_client_orders_backup(payload: ClientSyncPayload, db: Session = Depends(get_db)):
     """Sincronizza e blinda gli ordini memorizzati nel browser del cliente con il database del server"""
@@ -134,25 +144,25 @@ def sync_client_orders_backup(payload: ClientSyncPayload, db: Session = Depends(
         if not existing:
             o = Order(
                 id=item["id"],
-                order_number=item.get("order_number"),
-                product_title=item.get("product_title"),
+                order_number=item.get("order_number") or f"ORD-{item.get('id')}",
+                product_title=item.get("product_title") or "Articolo Amazon",
                 product_image=item.get("product_image"),
                 seller_contact=item.get("seller_contact"),
                 amazon_url=item.get("amazon_url"),
                 price_paid=float(item.get("price_paid") or 0.0),
                 refund_amount=float(item.get("refund_amount") or 0.0),
                 status=item.get("status") or "waiting_link",
-                order_date=datetime.fromisoformat(item["order_date"]) if item.get("order_date") else now,
-                estimated_delivery_date=datetime.fromisoformat(item["estimated_delivery_date"]) if item.get("estimated_delivery_date") else None,
+                order_date=safe_parse_iso(item.get("order_date")) or now,
+                estimated_delivery_date=safe_parse_iso(item.get("estimated_delivery_date")),
                 delivery_info=item.get("delivery_info"),
                 confirmation_screen_url=item.get("confirmation_screen_url"),
-                confirmation_sent_at=datetime.fromisoformat(item["confirmation_sent_at"]) if item.get("confirmation_sent_at") else None,
-                review_target_date=datetime.fromisoformat(item["review_target_date"]) if item.get("review_target_date") else None,
+                confirmation_sent_at=safe_parse_iso(item.get("confirmation_sent_at")),
+                review_target_date=safe_parse_iso(item.get("review_target_date")),
                 review_title=item.get("review_title"),
                 review_body=item.get("review_body"),
-                review_submitted_at=datetime.fromisoformat(item["review_submitted_at"]) if item.get("review_submitted_at") else None,
+                review_submitted_at=safe_parse_iso(item.get("review_submitted_at")),
                 review_screen_url=item.get("review_screen_url"),
-                refunded_at=datetime.fromisoformat(item["refunded_at"]) if item.get("refunded_at") else None,
+                refunded_at=safe_parse_iso(item.get("refunded_at")),
                 is_test=item.get("is_test", False)
             )
             db.add(o)
@@ -1259,6 +1269,7 @@ def update_offer(offer_id: int, payload: OfferUpdatePayload, db: Session = Depen
     if payload.price_info is not None and payload.price_info.strip():
         offer.price_info = payload.price_info.strip()
     db.commit()
+    return {"success": True, "message": "Offerta aggiornata con successo!", "id": offer.id}
 class OrderUpdatePayload(BaseModel):
     order_number: Optional[str] = None
     price_paid: Optional[float] = None
@@ -1296,7 +1307,6 @@ def update_order_details(order_id: int, payload: OrderUpdatePayload, db: Session
             order.estimated_delivery_date = datetime.utcnow()
             order.review_target_date = datetime.utcnow() + timedelta(days=10)
         else:
-            from backend.app.screenshot_service import parse_delivery_date_text
             dt, _ = parse_delivery_date_text(clean_del)
             if dt:
                 order.estimated_delivery_date = dt
@@ -1419,6 +1429,16 @@ def mark_order_refunded(order_id: int, db: Session = Depends(get_db)):
         details=f"Ordine {order.order_number} ({order.product_title}) saldato con successo!"
     )
     db.add(log)
+    db.commit()
+    save_orders_backup(db)
+    return {
+        "success": True,
+        "order_id": order.id,
+        "status": order.status,
+        "refunded_at": order.refunded_at.isoformat(),
+        "message": f"Rimborso di €{order.refund_amount:.2f} registrato con successo!"
+    }
+
 @app.delete("/api/orders/{order_id}")
 def delete_order(order_id: int, db: Session = Depends(get_db)):
     """Elimina definitivamente una pratica/ordine (recensione o rimborso)"""

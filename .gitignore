@@ -12,5 +12,6 @@ cloudflared.exe
 Thumbs.db
 *.db
 data/*.db
+data/*.txt
 backend/data/*.db
 backup_before_bandwidth_opt/

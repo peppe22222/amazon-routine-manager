@@ -1368,7 +1368,7 @@ function renderReviews(orders) {
         </div>
 
         <!-- Contenuto Card Recensione -->
-        <div class="swipe-card-content review-timer-card glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4 shadow-lg relative z-10 bg-brand-surface border border-brand-border"
+        <div class="swipe-card-content review-timer-card glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-lg relative z-10 bg-brand-surface border border-brand-border"
              data-review-order-id="${o.id}"
              data-target-date="${targetIso}"
              data-start-date="${startIso}"
@@ -1377,25 +1377,25 @@ function renderReviews(orders) {
              data-status="${o.status}">
           <div>
             <!-- Header Card con Immagine & Timer Badge -->
-            <div class="flex items-start justify-between gap-3">
-              <div class="flex items-center gap-3">
-                <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Ordine: ${escapeJsString(o.order_number || '')}')" class="cursor-pointer relative w-12 h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
+            <div class="flex items-start justify-between gap-2 sm:gap-3">
+              <div class="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+                <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Ordine: ${escapeJsString(o.order_number || '')}')" class="cursor-pointer relative w-11 h-11 sm:w-12 sm:h-12 rounded-xl overflow-hidden border border-slate-700 bg-slate-950 flex items-center justify-center shrink-0 group">
                   <img src="${prodImg}" alt="Foto" class="max-w-full max-h-full object-contain p-0.5 group-hover:scale-110 transition-transform">
                   <div class="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 text-white text-[10px]">
                     <i class="fa-solid fa-magnifying-glass-plus"></i>
                   </div>
                 </div>
-                <div>
-                  <span class="text-xs font-mono text-slate-400 font-bold">${((o.order_number || '').replace(/_old_\d+$/, '') && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending')) ? (o.order_number || '').replace(/_old_\d+$/, '') : ''}</span>
-                  <h3 class="text-sm font-extrabold text-white line-clamp-1 mt-0.5">${escapeHtml(o.product_title || 'Prodotto')}</h3>
+                <div class="min-w-0 flex-1">
+                  <span class="text-[11px] sm:text-xs font-mono text-slate-400 font-bold block truncate">${((o.order_number || '').replace(/_old_\d+$/, '') && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending')) ? (o.order_number || '').replace(/_old_\d+$/, '') : ''}</span>
+                  <h3 class="text-xs sm:text-sm font-extrabold text-white truncate mt-0.5" title="${escapeHtml(o.product_title || 'Prodotto')}">${escapeHtml(o.product_title || 'Prodotto')}</h3>
                 </div>
               </div>
               
-              <div class="flex items-center gap-2">
-                <span class="review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 ${isSubmitted ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
+              <div class="flex items-center gap-1 sm:gap-2 shrink-0">
+                <span class="review-badge text-[10px] sm:text-xs font-extrabold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg shrink-0 whitespace-nowrap ${isSubmitted ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
                   ${isSubmitted ? '✓ RECENSIONE PUBBLICATA' : 'Calcolo in corso...'}
                 </span>
-                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina recensione (o fai swipe a sinistra)" class="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina recensione (o fai swipe a sinistra)" class="text-slate-500 hover:text-red-400 p-1 sm:p-1.5 rounded-lg hover:bg-red-500/10 transition-colors shrink-0">
                   <i class="fa-solid fa-trash-can text-xs"></i>
                 </button>
               </div>
@@ -1536,7 +1536,7 @@ function updateReviewLiveTimers() {
 
     if (isSubmitted) {
       if (badgeEl) {
-        badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-blue-500/20 text-blue-300 border border-blue-500/40';
+        badgeEl.className = 'review-badge text-[10px] sm:text-xs font-extrabold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg shrink-0 whitespace-nowrap bg-blue-500/20 text-blue-300 border border-blue-500/40';
         badgeEl.innerText = '✓ RECENSIONE INVIATA';
       }
       if (countdownEl) {
@@ -1568,8 +1568,8 @@ function updateReviewLiveTimers() {
       checkAndNotifySingleReview(card);
 
       if (badgeEl) {
-        badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
-        badgeEl.innerText = '⭐ RECENSIONE PRONTA!';
+        badgeEl.className = 'review-badge text-[10px] sm:text-xs font-extrabold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg shrink-0 whitespace-nowrap bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
+        badgeEl.innerText = '⭐ RECENSIONE PRONTA';
       }
       if (countdownEl) {
         countdownEl.className = 'review-countdown-text font-extrabold text-emerald-400';
@@ -1608,7 +1608,7 @@ function updateReviewLiveTimers() {
       const formattedTargetDate = `${dayName} ${dayNum}/${monthNum}`;
 
       if (badgeEl) {
-        badgeEl.className = 'review-badge text-xs font-extrabold px-2.5 py-1 rounded-lg shrink-0 bg-purple-500/20 text-purple-300 border border-purple-500/40';
+        badgeEl.className = 'review-badge text-[10px] sm:text-xs font-extrabold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg shrink-0 whitespace-nowrap bg-purple-500/20 text-purple-300 border border-purple-500/40';
         badgeEl.innerText = formattedTargetDate;
       }
       if (countdownEl) {

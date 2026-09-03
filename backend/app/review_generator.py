@@ -1316,7 +1316,7 @@ def generate_review(product_title: str, gemini_api_key: str = None) -> dict:
     
     # 1. TENTATIVO CON INTELLIGENZA ARTIFICIALE GEMINI (ANALISI TECNICA APPROFONDITA)
     if gemini_api_key and gemini_api_key.strip():
-        candidate_models = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
+        candidate_models = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-flash-latest"]
         for mod in candidate_models:
             try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{mod}:generateContent?key={gemini_api_key.strip()}"
