@@ -789,13 +789,16 @@ async function quickEditOfferTitle(offerId, currentTitle) {
 
 // ----------------- ORDERS / CONFIRMATIONS / REVIEWS -----------------
 
+window._cachedOrders = [];
+let orders = window._cachedOrders;
 let currentManualLinkId = null;
 
 async function loadOrders() {
   try {
     const res = await fetch('/api/orders');
     if (!res.ok) return;
-    let orders = await res.json();
+    orders = await res.json();
+    window._cachedOrders = orders || [];
 
     // Auto-Recovery blindato: Se il server dovesse essere vuoto (es. riavvio senza storage persistente), ripristina istantaneamente dalla memoria locale protetta
     if (!orders || orders.length === 0) {
@@ -811,7 +814,10 @@ async function loadOrders() {
             });
             if (syncRes.ok) {
               const freshRes = await fetch('/api/orders');
-              if (freshRes.ok) orders = await freshRes.json();
+              if (freshRes.ok) {
+                orders = await freshRes.json();
+                window._cachedOrders = orders || [];
+              }
             }
           }
         } catch(e) {}
@@ -832,11 +838,12 @@ async function loadOrders() {
   }
 }
 
-function renderApprovedLinks(orders) {
+function renderApprovedLinks(ordersList = null) {
   const container = document.getElementById('approved-links-list');
   if (!container) return;
   
-  const linkOrders = (orders || []).filter(o => o.status === 'waiting_link' || o.status === 'link_approved');
+  const currentOrders = ordersList || window._cachedOrders || orders || [];
+  const linkOrders = currentOrders.filter(o => o.status === 'waiting_link' || o.status === 'link_approved');
 
   if (linkOrders.length === 0) {
     container.innerHTML = `
@@ -1230,9 +1237,10 @@ async function simulateReceivedLink(orderId) {
   }
 }
 
-function renderConfirmations(orders) {
+function renderConfirmations(ordersList = null) {
   const container = document.getElementById('confirmations-list');
-  const pendingOrders = (orders || []).filter(o => o.status === 'pending_confirmation');
+  const currentOrders = ordersList || window._cachedOrders || orders || [];
+  const pendingOrders = currentOrders.filter(o => o.status === 'pending_confirmation');
 
   if (pendingOrders.length === 0) {
     container.innerHTML = `
@@ -1343,9 +1351,10 @@ function renderConfirmations(orders) {
   initSwipeToDelete('confirmations-list');
 }
 
-function renderReviews(orders) {
+function renderReviews(ordersList = null) {
   const container = document.getElementById('reviews-list');
-  const reviewOrders = (orders || []).filter(o => ['waiting_review', 'review_ready', 'review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status));
+  const currentOrders = ordersList || window._cachedOrders || orders || [];
+  const reviewOrders = currentOrders.filter(o => ['waiting_review', 'review_ready', 'review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status));
 
   if (reviewOrders.length === 0) {
     updateAppBadging(0);
@@ -1588,7 +1597,7 @@ function updateReviewLiveTimers() {
     const isDelivered = card.dataset.isDelivered === 'true';
 
     let targetMs;
-    if (status === 'review_ready') {
+    if (status === 'review_ready' || deliveryInfo === 'Consegnato in anticipo') {
       targetMs = now - 1000;
     } else if (targetIso) {
       targetMs = new Date(targetIso).getTime();
@@ -1617,7 +1626,7 @@ function updateReviewLiveTimers() {
     const btnSend = card.querySelector('.review-btn-send');
 
     const isSubmitted = status === 'review_submitted' || status === 'waiting_refund' || status === 'reimbursed';
-    const isReady = diffMs <= 0 || status === 'review_ready' || isSubmitted;
+    const isReady = diffMs <= 0 || status === 'review_ready' || deliveryInfo === 'Consegnato in anticipo' || isSubmitted;
 
     if (isSubmitted) {
       if (badgeEl) {
@@ -1759,15 +1768,15 @@ async function fastForwardOrderTimer(orderId) {
 }
 
 async function markOrderDelivered(orderId) {
-  // Aggiornamento ottimistico istantaneo per feedback immediato all'utente
-  const ord = (orders || []).find(x => x.id === orderId);
+  const currentOrders = window._cachedOrders || orders || [];
+  const ord = currentOrders.find(x => x.id === orderId);
   if (ord) {
     ord.status = 'review_ready';
     ord.delivery_info = 'Consegnato in anticipo';
     ord.estimated_delivery_date = new Date().toISOString();
     ord.review_target_date = new Date(Date.now() - 60000).toISOString();
     ord.days_until_review = 0;
-    renderReviews();
+    renderReviews(currentOrders);
   }
   showToast('Pacco ricevuto in anticipo! Sblocco tasti in corso...', false);
 
@@ -1787,14 +1796,15 @@ async function markOrderDelivered(orderId) {
 }
 
 async function resetOrderTimer(orderId) {
-  const ord = (orders || []).find(x => x.id === orderId);
+  const currentOrders = window._cachedOrders || orders || [];
+  const ord = currentOrders.find(x => x.id === orderId);
   if (ord) {
     ord.status = 'waiting_review';
     ord.delivery_info = 'In consegna';
     ord.estimated_delivery_date = new Date().toISOString();
     ord.review_target_date = new Date(Date.now() + 10 * 86400000).toISOString();
     ord.days_until_review = 10;
-    renderReviews();
+    renderReviews(currentOrders);
   }
 
   try {
@@ -1810,9 +1820,10 @@ async function resetOrderTimer(orderId) {
   }
 }
 
-function renderRefunds(orders) {
+function renderRefunds(ordersList = null) {
   const container = document.getElementById('refunds-list');
-  const eligibleOrders = (orders || []).filter(o => ['waiting_review', 'review_ready', 'review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status));
+  const currentOrders = ordersList || window._cachedOrders || orders || [];
+  const eligibleOrders = currentOrders.filter(o => ['waiting_review', 'review_ready', 'review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status));
 
   if (eligibleOrders.length === 0) {
     container.innerHTML = `
@@ -2582,7 +2593,8 @@ async function confirmAndSendOrder(orderId) {
 }
 
 function copyReviewMessage(orderId) {
-  const ord = (orders || []).find(x => x.id === orderId);
+  const currentOrders = window._cachedOrders || orders || [];
+  const ord = currentOrders.find(x => x.id === orderId);
   if (!ord) return;
   const refundAmt = ((ord.refund_amount != null ? ord.refund_amount : ord.price_paid) || 0).toFixed(2);
   const cleanOrderNum = (ord.order_number || '').replace(/_old_\d+$/, '');
@@ -2591,14 +2603,15 @@ function copyReviewMessage(orderId) {
 }
 
 async function sendReviewToSeller(orderId) {
-  const ord = (orders || []).find(x => x.id === orderId);
+  const currentOrders = window._cachedOrders || orders || [];
+  const ord = currentOrders.find(x => x.id === orderId);
 
   // Aggiornamento ottimistico istantaneo per feedback visivo immediato all'utente
   if (ord) {
     ord.status = 'review_submitted';
     ord.review_submitted_at = new Date().toISOString();
     ord.review_sent_to_seller_at = ord.review_submitted_at;
-    renderReviews();
+    renderReviews(currentOrders);
   }
   showToast('Invio recensione ad Alex in corso...', false);
 

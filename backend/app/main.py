@@ -1185,16 +1185,21 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             o.status = "link_approved"
             updated_db = True
 
-        # Normalizzazione automatica: se la data di consegna è passata o odierna, è Consegnato
+        # Normalizzazione automatica: se la data di consegna è passata o odierna, è Consegnato (a meno che non sia Consegnato in anticipo)
         if o.estimated_delivery_date:
-            if o.estimated_delivery_date.date() <= now.date():
+            if o.estimated_delivery_date.date() <= now.date() and o.delivery_info != "Consegnato in anticipo":
                 o.delivery_info = "Consegnato"
                 if o.estimated_delivery_date > now:
                     o.estimated_delivery_date = now - timedelta(hours=2)
                 updated_db = True
 
-        # Per gli ordini già consegnati, assicurati che la data target sia esattamente 10 giorni dalla consegna
-        if o.delivery_info == "Consegnato":
+        # Per gli ordini in attesa normale già consegnati, assicurati che la data target sia esattamente 10 giorni dalla consegna
+        # MAI sovrascrivere se l'ordine è 'review_ready' o 'Consegnato in anticipo' o già inviato/rimborsato!
+        if o.status == "review_ready":
+            if not o.review_target_date or o.review_target_date > now:
+                o.review_target_date = now - timedelta(minutes=1)
+                updated_db = True
+        elif o.delivery_info == "Consegnato" and o.status not in ("review_submitted", "waiting_refund", "reimbursed"):
             if not o.estimated_delivery_date or o.estimated_delivery_date > now:
                 o.estimated_delivery_date = now - timedelta(hours=2)
                 updated_db = True
