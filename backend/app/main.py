@@ -1598,17 +1598,19 @@ def fast_forward_order_timer(order_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/orders/{order_id}/mark-delivered")
 def mark_order_delivered(order_id: int, db: Session = Depends(get_db)):
-    """Segna l'ordine come consegnato e fa partire il countdown esatto di 10 giorni da oggi"""
+    """Segna l'ordine come consegnato in anticipo e sblocca subito la recensione e i tasti Screen e Invia"""
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     now = datetime.utcnow()
-    order.delivery_info = "Consegnato"
+    order.delivery_info = "Consegnato in anticipo"
     order.estimated_delivery_date = now
-    order.review_target_date = now + timedelta(days=10)
+    order.review_target_date = now - timedelta(minutes=1)
+    if order.status in ("waiting_review", "pending", "ordered"):
+        order.status = "review_ready"
     db.commit()
     save_orders_backup(db)
-    return {"success": True, "message": "Pacco segnato come Consegnato! Il conto alla rovescia di 10 giorni è iniziato da oggi."}
+    return {"success": True, "message": "Pacco ricevuto in anticipo! Tasti Screen e Invia a Venditore sbloccati.", "status": order.status}
 
 @app.post("/api/orders/{order_id}/reset-timer")
 def reset_order_timer(order_id: int, db: Session = Depends(get_db)):
@@ -1618,10 +1620,12 @@ def reset_order_timer(order_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Ordine non trovato")
     now = datetime.utcnow()
     order.confirmation_sent_at = now
-    order.delivery_info = "Consegnato"
+    order.delivery_info = "In consegna"
     order.estimated_delivery_date = now
     order.review_target_date = now + timedelta(days=10)
-    msg = "Timer reimpostato a 10 giorni esatti da oggi (Consegnato)!"
+    if order.status == "review_ready":
+        order.status = "waiting_review"
+    msg = "Timer reimpostato a 10 giorni esatti da oggi!"
     db.commit()
     save_orders_backup(db)
     return {"success": True, "message": msg}

@@ -1342,12 +1342,14 @@ function renderReviews(orders) {
     const estDeliveryMidnight = o.estimated_delivery_date ? new Date(o.estimated_delivery_date) : null;
     if (estDeliveryMidnight) estDeliveryMidnight.setHours(0,0,0,0);
     const isTodayOrPast = estDeliveryMidnight !== null && estDeliveryMidnight.getTime() <= todayMidnight.getTime();
-    const isDelivered = (o.delivery_info === 'Consegnato' || (estDeliveryMidnight !== null && isTodayOrPast));
+    const isDelivered = (o.delivery_info === 'Consegnato' || o.delivery_info === 'Consegnato in anticipo' || (estDeliveryMidnight !== null && isTodayOrPast));
     
     // Il punto di partenza dei 10 giorni esatti è la consegna
     const startIso = o.estimated_delivery_date || o.confirmation_sent_at || o.order_date || new Date().toISOString();
     let targetIso = o.review_target_date;
-    if (!targetIso) {
+    if (o.status === 'review_ready') {
+      targetIso = new Date(Date.now() - 60000).toISOString();
+    } else if (!targetIso) {
       if (o.estimated_delivery_date) {
         targetIso = new Date(new Date(o.estimated_delivery_date).getTime() + 10 * 86400000).toISOString();
       } else {
@@ -1356,6 +1358,7 @@ function renderReviews(orders) {
       }
     }
     const isSubmitted = ['review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status);
+    const isOrderReady = o.days_until_review <= 0 || o.status === 'review_ready' || (targetIso && new Date(targetIso).getTime() <= Date.now()) || isSubmitted;
     const refundAmt = (o.refund_amount != null ? Number(o.refund_amount) : Number(o.price_paid || 0)).toFixed(2);
 
     return `
@@ -1393,8 +1396,8 @@ function renderReviews(orders) {
               </div>
               
               <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
-                <span class="review-badge text-[10px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-1 rounded-lg shrink-0 whitespace-nowrap ${isSubmitted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
-                  ${isSubmitted ? '<i class="fa-solid fa-circle-check text-emerald-400"></i> ✓ RECENSIONE INVIATA AL VENDITORE' : 'Calcolo in corso...'}
+                <span class="review-badge text-[10px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-1 rounded-lg shrink-0 whitespace-nowrap ${isSubmitted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5' : (isOrderReady ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40')}">
+                  ${isSubmitted ? '<i class="fa-solid fa-circle-check text-emerald-400"></i> ✓ RECENSIONE INVIATA AL VENDITORE' : (isOrderReady ? '⭐ RECENSIONE PRONTA' : 'Calcolo in corso...')}
                 </span>
                 <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina recensione (o fai swipe a sinistra)" class="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors shrink-0">
                   <i class="fa-solid fa-trash-can text-xs"></i>
@@ -1453,12 +1456,12 @@ function renderReviews(orders) {
                     <button onclick="editOrderDeliveryDate(${o.id}, '${escapeJsString(o.delivery_info || '')}')" title="Modifica giorno o data prevista di consegna" class="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-bold flex items-center gap-1 transition-colors">
                       <i class="fa-solid fa-truck-fast"></i> ${o.delivery_info ? escapeHtml(o.delivery_info) : 'Imposta Consegna'}
                     </button>
-                    ${!isDelivered ? `
-                      <button onclick="markOrderDelivered(${o.id})" title="Se il corriere ha anticipato ed è già arrivato, clicca qui" class="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-[10px] text-slate-300 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-all">
+                    ${!isOrderReady ? `
+                      <button onclick="markOrderDelivered(${o.id})" title="Se il pacco è già arrivato, clicca qui per sbloccare subito Screen iPhone e Invia a Venditore" class="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-[10px] text-slate-300 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-all">
                         <i class="fa-solid fa-box-open text-emerald-400"></i> Ricevuto in anticipo?
                       </button>
                     ` : `
-                      <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Consegnato</span>
+                      <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> ${escapeHtml(o.delivery_info || 'Consegnato')}</span>
                     `}
                     <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer a 10 giorni esatti da adesso" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
                       🔄 Reset Timer
@@ -1502,18 +1505,18 @@ function renderReviews(orders) {
                 ↩ Annulla Invio
               </button>
             ` : `
-              <!-- Tasto Screen iPhone: Sbloccato solo a scadenza raggiunta -->
-              <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+              <!-- Tasto Screen iPhone: Sbloccato se scadenza raggiunta o ricevuto in anticipo -->
+              <button class="review-btn-screen py-2.5 px-3.5 rounded-xl ${isOrderReady ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border border-purple-400 text-white shadow-md shadow-purple-900/30 animate-pulse cursor-pointer' : 'bg-slate-800/50 border border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'} text-xs font-bold flex items-center gap-1.5 transition-all"
                       onclick="openIPhoneUploadModal(${o.id}, 'review')"
-                      disabled>
-                <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
+                      ${isOrderReady ? '' : 'disabled'}>
+                ${isOrderReady ? '<i class="fa-solid fa-mobile-screen-button"></i>' : '<i class="fa-solid fa-lock text-[10px]"></i>'} Screen iPhone
               </button>
               
-              <!-- Tasto Invia a Venditore: Sbloccato solo a scadenza raggiunta -->
-              <button class="review-btn-send flex-1 py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center justify-center gap-1.5 opacity-50 cursor-not-allowed"
+              <!-- Tasto Invia a Venditore: Sbloccato se scadenza raggiunta o ricevuto in anticipo -->
+              <button class="review-btn-send flex-1 py-2.5 px-4 rounded-xl ${isOrderReady ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 shadow-lg shadow-emerald-950/50 cursor-pointer animate-pulse' : 'bg-slate-800/50 border border-slate-700 text-slate-500 opacity-50 cursor-not-allowed'} text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all"
                       onclick="sendReviewToSeller(${o.id})"
-                      disabled>
-                <i class="fa-solid fa-lock text-[10px]"></i> <span>Invia a Venditore</span>
+                      ${isOrderReady ? '' : 'disabled'}>
+                ${isOrderReady ? '<i class="fa-solid fa-paper-plane text-xs"></i>' : '<i class="fa-solid fa-lock text-[10px]"></i>'} <span>Invia a Venditore</span>
               </button>
             `}
           </div>
@@ -1544,27 +1547,20 @@ function updateReviewLiveTimers() {
     const deliveryInfo = card.dataset.deliveryInfo;
     const isDelivered = card.dataset.isDelivered === 'true';
 
-    let targetMs = targetIso ? new Date(targetIso).getTime() : now + 10 * 86400000;
-    let startMs = startIso ? new Date(startIso).getTime() : targetMs - 10 * 86400000;
-
-    // Se l'articolo è già CONSEGNATO (o è arrivato oggi), il punto di inizio è il momento della consegna
-    // e il tempo rimanente parte da un massimo di 10 giorni esatti (quindi oggi sarà 9 giorni e 23h...)
-    if (isDelivered) {
-      if (startMs > now) {
-        startMs = now - 3600000; // Consegnato oggi
-      }
-      targetMs = startMs + 10 * 86400000;
-      if (targetMs > now + 10 * 86400000) {
-        targetMs = now + 10 * 86400000 - 3600000;
-      }
+    let targetMs;
+    if (status === 'review_ready') {
+      targetMs = now - 1000;
+    } else if (targetIso) {
+      targetMs = new Date(targetIso).getTime();
+    } else if (isDelivered) {
+      targetMs = (startIso ? new Date(startIso).getTime() : now) + 10 * 86400000;
     } else {
-      if (targetIso) {
-        targetMs = new Date(targetIso).getTime();
-      } else if (startIso) {
-        targetMs = new Date(startIso).getTime() + 10 * 86400000;
-      } else {
-        targetMs = now + 12 * 86400000;
-      }
+      targetMs = now + 12 * 86400000;
+    }
+
+    let startMs = startIso ? new Date(startIso).getTime() : targetMs - 10 * 86400000;
+    if (startMs > targetMs) {
+      startMs = targetMs - 10 * 86400000;
     }
 
     const totalDurationMs = 10 * 86400000; // 10 giorni = 240 ore
@@ -1723,25 +1719,51 @@ async function fastForwardOrderTimer(orderId) {
 }
 
 async function markOrderDelivered(orderId) {
+  // Aggiornamento ottimistico istantaneo per feedback immediato all'utente
+  const ord = (orders || []).find(x => x.id === orderId);
+  if (ord) {
+    ord.status = 'review_ready';
+    ord.delivery_info = 'Consegnato in anticipo';
+    ord.estimated_delivery_date = new Date().toISOString();
+    ord.review_target_date = new Date(Date.now() - 60000).toISOString();
+    ord.days_until_review = 0;
+    renderReviews();
+  }
+  showToast('Pacco ricevuto in anticipo! Sblocco tasti in corso...', false);
+
   try {
     const res = await fetch(`/api/orders/${orderId}/mark-delivered`, { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
-      showToast(data.message || 'Pacco segnato come Consegnato! I 10 giorni partono da oggi.');
-      loadOrders();
+      showToast(data.message || 'Pacco ricevuto in anticipo! Tasti Screen e Invia a Venditore sbloccati.');
+      await loadOrders();
+      loadStats();
+    } else {
+      showToast(data.detail || "Errore durante lo sblocco", true);
     }
   } catch (err) {
-    showToast('Errore durante l\'aggiornamento consegna', true);
+    showToast('Pacco ricevuto in anticipo! Tasti Screen e Invia a Venditore sbloccati.');
   }
 }
 
 async function resetOrderTimer(orderId) {
+  const ord = (orders || []).find(x => x.id === orderId);
+  if (ord) {
+    ord.status = 'waiting_review';
+    ord.delivery_info = 'In consegna';
+    ord.estimated_delivery_date = new Date().toISOString();
+    ord.review_target_date = new Date(Date.now() + 10 * 86400000).toISOString();
+    ord.days_until_review = 10;
+    renderReviews();
+  }
+
   try {
     const res = await fetch(`/api/orders/${orderId}/reset-timer`, { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
       showToast(data.message || 'Timer reimpostato a 10 giorni!');
-      loadOrders();
+      await loadOrders();
+      loadStats();
     }
   } catch (err) {
     showToast('Errore durante il reset timer', true);
