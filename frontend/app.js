@@ -1491,18 +1491,18 @@ function renderReviews(orders) {
                 ↩ Annulla Invio
               </button>
             ` : `
-              <!-- Tasto Screen iPhone -->
-              <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+              <!-- Tasto Screen iPhone: Sbloccato solo a scadenza raggiunta -->
+              <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
                       onclick="openIPhoneUploadModal(${o.id}, 'review')"
-                      title="Carica o incolla lo screenshot della recensione pubblicata">
-                <i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone
+                      disabled>
+                <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
               </button>
               
-              <!-- Tasto Invia a Venditore: singolo pulsante principale -->
-              <button class="review-btn-send flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40 transition-all active:scale-95 cursor-pointer"
+              <!-- Tasto Invia a Venditore: Sbloccato solo a scadenza raggiunta -->
+              <button class="review-btn-send flex-1 py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center justify-center gap-1.5 opacity-50 cursor-not-allowed"
                       onclick="sendReviewToSeller(${o.id})"
-                      title="Invia la recensione al venditore su Telegram e registra come inviata">
-                <i class="fa-solid fa-paper-plane text-xs"></i> <span>Invia a Venditore</span>
+                      disabled>
+                <i class="fa-solid fa-lock text-[10px]"></i> <span>Invia a Venditore</span>
               </button>
             `}
           </div>
@@ -1652,14 +1652,14 @@ function updateReviewLiveTimers() {
       }
 
       if (btnScreen) {
-        btnScreen.disabled = false;
-        btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer';
-        btnScreen.innerHTML = '<i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone';
+        btnScreen.disabled = true;
+        btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
+        btnScreen.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Screen (${formattedTargetDate})`;
       }
       if (btnSend) {
-        btnSend.disabled = false;
-        btnSend.className = 'review-btn-send flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer';
-        btnSend.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i> <span>Invia a Venditore</span>';
+        btnSend.disabled = true;
+        btnSend.className = 'review-btn-send flex-1 py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center justify-center gap-1.5 opacity-50 cursor-not-allowed';
+        btnSend.innerHTML = '<i class="fa-solid fa-lock text-[10px]"></i> <span>Invia a Venditore</span>';
       }
     }
   });
@@ -2510,16 +2510,6 @@ async function confirmAndSendOrder(orderId) {
 
 async function sendReviewToSeller(orderId) {
   const ord = (orders || []).find(x => x.id === orderId);
-  if (ord) {
-    const targetMs = ord.review_target_date ? new Date(ord.review_target_date).getTime() : 0;
-    const now = Date.now();
-    if (targetMs && targetMs > now && ord.status !== 'review_ready') {
-      const diffDays = Math.ceil((targetMs - now) / 86400000);
-      if (!confirm(`Mancano ancora circa ${diffDays} giorni alla scadenza consigliata dei 10 giorni.\nSe la recensione è già approvata e pubblicata su Amazon, vuoi inviarla adesso al venditore?`)) {
-        return;
-      }
-    }
-  }
 
   // Aggiornamento ottimistico istantaneo per feedback visivo immediato all'utente
   if (ord) {
@@ -2930,13 +2920,20 @@ async function openReviewModal(orderId) {
     const markSentBtn = document.getElementById('modal-review-mark-sent-btn');
     if (markSentBtn) {
       if (isSubmitted) {
+        markSentBtn.disabled = true;
         markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold flex items-center gap-1.5 cursor-default';
         markSentBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Recensione Inviata al Venditore';
         markSentBtn.onclick = null;
-      } else {
+      } else if (isReady) {
+        markSentBtn.disabled = false;
         markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer';
         markSentBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Invia a Venditore';
         markSentBtn.onclick = sendReviewToSellerFromModal;
+      } else {
+        markSentBtn.disabled = true;
+        markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
+        markSentBtn.innerHTML = '<i class="fa-solid fa-lock text-[10px]"></i> Invia a Venditore';
+        markSentBtn.onclick = null;
       }
     }
     
