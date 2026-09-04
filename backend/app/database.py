@@ -117,7 +117,7 @@ def init_db():
             "telegram_phone": "",
             "telegram_channel": "Articoli Addicted",
             "active_telegram_channel": "Articoli Addicted",
-            "test_recipient": "@alex8700",
+            "test_recipient": "me",
             "email_host": "imap.gmail.com",
             "email_user": "",
             "email_password": "",
@@ -128,8 +128,8 @@ def init_db():
             s = db.query(Setting).filter_by(key=k).first()
             if not s:
                 db.add(Setting(key=k, value=v))
-            elif k == "test_mode":
-                s.value = "true"
+            elif k in ("test_mode", "test_recipient"):
+                s.value = v
         db.commit()
     except Exception as e:
         db.rollback()
