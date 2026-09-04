@@ -61,6 +61,7 @@ def save_orders_backup(db: Session):
                 "review_title": o.review_title,
                 "review_body": o.review_body,
                 "review_submitted_at": o.review_submitted_at.isoformat() if o.review_submitted_at else None,
+                "review_sent_to_seller_at": o.review_sent_to_seller_at.isoformat() if o.review_sent_to_seller_at else (o.review_submitted_at.isoformat() if o.review_submitted_at else None),
                 "review_screen_url": o.review_screen_url,
                 "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
                 "is_test": o.is_test
@@ -71,7 +72,7 @@ def save_orders_backup(db: Session):
         print(f"[Backup Error] {e}")
 
 def restore_orders_backup(db: Session) -> int:
-    """Ripristina tutti gli ordini dal backup JSON protetto se il DB è vuoto"""
+    """Ripristina tutti gli ordini dal backup JSON protetto se il DB è vuoto o sincronizza stati più avanzati"""
     if not os.path.exists(ORDERS_BACKUP_FILE):
         return 0
     try:
@@ -82,7 +83,8 @@ def restore_orders_backup(db: Session) -> int:
         
         restored = 0
         for item in data:
-            if not db.query(Order).filter_by(id=item["id"]).first():
+            existing = db.query(Order).filter_by(id=item["id"]).first()
+            if not existing:
                 o = Order(
                     id=item["id"],
                     order_number=item.get("order_number"),
@@ -102,12 +104,24 @@ def restore_orders_backup(db: Session) -> int:
                     review_title=item.get("review_title"),
                     review_body=item.get("review_body"),
                     review_submitted_at=datetime.fromisoformat(item["review_submitted_at"]) if item.get("review_submitted_at") else None,
+                    review_sent_to_seller_at=datetime.fromisoformat(item["review_sent_to_seller_at"]) if item.get("review_sent_to_seller_at") else (datetime.fromisoformat(item["review_submitted_at"]) if item.get("review_submitted_at") else None),
                     review_screen_url=item.get("review_screen_url"),
                     refunded_at=datetime.fromisoformat(item["refunded_at"]) if item.get("refunded_at") else None,
                     is_test=item.get("is_test", False)
                 )
                 db.add(o)
                 restored += 1
+            else:
+                # Sincronizza stato e date se il backup è più aggiornato
+                if item.get("status") in ["review_submitted", "waiting_refund", "reimbursed"] and existing.status not in ["review_submitted", "waiting_refund", "reimbursed"]:
+                    existing.status = item.get("status")
+                    if item.get("review_submitted_at"):
+                        existing.review_submitted_at = datetime.fromisoformat(item["review_submitted_at"])
+                    if item.get("review_sent_to_seller_at"):
+                        existing.review_sent_to_seller_at = datetime.fromisoformat(item["review_sent_to_seller_at"])
+                    if item.get("refunded_at"):
+                        existing.refunded_at = datetime.fromisoformat(item["refunded_at"])
+                    restored += 1
         db.commit()
         return restored
     except Exception as e:
@@ -161,6 +175,7 @@ def sync_client_orders_backup(payload: ClientSyncPayload, db: Session = Depends(
                 review_title=item.get("review_title"),
                 review_body=item.get("review_body"),
                 review_submitted_at=safe_parse_iso(item.get("review_submitted_at")),
+                review_sent_to_seller_at=safe_parse_iso(item.get("review_sent_to_seller_at")) or safe_parse_iso(item.get("review_submitted_at")),
                 review_screen_url=item.get("review_screen_url"),
                 refunded_at=safe_parse_iso(item.get("refunded_at")),
                 is_test=item.get("is_test", False)
@@ -1221,7 +1236,7 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             updated_db = True
             
         remaining_seconds = (o.review_target_date - now).total_seconds()
-        if o.status in ["review_ready", "review_submitted", "reimbursed"] or remaining_seconds <= 0:
+        if o.status in ["review_ready", "review_submitted", "waiting_refund", "reimbursed"] or remaining_seconds <= 0:
             days_until_review = 0
         else:
             days_until_review = max(1, int(remaining_seconds // 86400))
@@ -1246,6 +1261,7 @@ def get_orders(status: Optional[str] = None, db: Session = Depends(get_db)):
             "review_title": o.review_title,
             "review_body": o.review_body,
             "review_submitted_at": o.review_submitted_at.isoformat() if o.review_submitted_at else None,
+            "review_sent_to_seller_at": o.review_sent_to_seller_at.isoformat() if o.review_sent_to_seller_at else (o.review_submitted_at.isoformat() if o.review_submitted_at else None),
             "review_screen_url": o.review_screen_url,
             "refunded_at": o.refunded_at.isoformat() if o.refunded_at else None,
             "is_test": o.is_test
@@ -1397,6 +1413,57 @@ async def confirm_and_send_order(order_id: int, payload: ConfirmOrderPayload = C
     
     return {"success": True, "message": "Screenshot e Numero Ordine inviati ai tuoi Messaggi Salvati! Ordine spostato in Recensioni 5★."}
 
+@app.post("/api/orders/{order_id}/mark-review-submitted")
+def mark_review_submitted(order_id: int, db: Session = Depends(get_db)):
+    """Segna manualmente che la recensione 5★ è stata inviata al venditore"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    
+    now = datetime.utcnow()
+    order.status = "review_submitted"
+    order.review_submitted_at = now
+    order.review_sent_to_seller_at = now
+    
+    target_contact = (order.seller_contact or "@alex8700").strip()
+    log = ActivityLog(
+        action_type="REVIEW_SENT",
+        title=f"Recensione 5★ inviata ad Alex ({target_contact})",
+        details=f"Ordine {order.order_number} ({order.product_title}) registrato con successo!"
+    )
+    db.add(log)
+    db.commit()
+    save_orders_backup(db)
+    
+    return {
+        "success": True,
+        "order_id": order.id,
+        "status": order.status,
+        "review_submitted_at": order.review_submitted_at.isoformat(),
+        "review_sent_to_seller_at": order.review_sent_to_seller_at.isoformat(),
+        "message": f"Recensione registrata come inviata ad Alex ({target_contact})! Pratica spostata in Rimborsi PayPal."
+    }
+
+@app.post("/api/orders/{order_id}/unmark-review-submitted")
+def unmark_review_submitted(order_id: int, db: Session = Depends(get_db)):
+    """Annulla l'invio della recensione e la riporta in attesa di recensione"""
+    order = db.query(Order).filter_by(id=order_id).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordine non trovato")
+    
+    order.status = "waiting_review"
+    order.review_submitted_at = None
+    order.review_sent_to_seller_at = None
+    
+    db.commit()
+    save_orders_backup(db)
+    return {
+        "success": True,
+        "order_id": order.id,
+        "status": order.status,
+        "message": "Pratica riportata in attesa di recensione."
+    }
+
 @app.post("/api/orders/{order_id}/send-review")
 async def send_review_confirmation(order_id: int, db: Session = Depends(get_db)):
     """Invia la conferma della recensione pubblicata al venditore"""
@@ -1411,6 +1478,7 @@ async def send_review_confirmation(order_id: int, db: Session = Depends(get_db))
     )
     
     if res.get("success"):
+        save_orders_backup(db)
         return res
     else:
         raise HTTPException(status_code=500, detail=f"Errore durante l'invio recensione: {res.get('error', 'Invio fallito')}")
@@ -1775,13 +1843,13 @@ def create_order_with_original_screenshot(payload: CreateOrderWithScreenshotPayl
 @app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db)):
     total_spent = sum(o.price_paid for o in db.query(Order).filter(Order.status != "cancelled").all())
-    pending_refund = sum(o.refund_amount for o in db.query(Order).filter(Order.status.in_(["waiting_review", "review_ready", "review_submitted", "pending_confirmation"])).all())
+    pending_refund = sum(o.refund_amount for o in db.query(Order).filter(Order.status.in_(["waiting_review", "review_ready", "review_submitted", "waiting_refund", "pending_confirmation"])).all())
     reimbursed_total = sum(o.refund_amount for o in db.query(Order).filter_by(status="reimbursed").all())
     
     new_offers_count = db.query(Offer).filter_by(status="new").count()
     links_count = db.query(Order).filter(Order.status.in_(["waiting_link", "link_approved"])).count()
     pending_confirmation_count = db.query(Order).filter_by(status="pending_confirmation").count()
-    active_orders_count = db.query(Order).filter(Order.status.in_(["waiting_link", "link_approved", "pending_confirmation", "waiting_review", "review_ready", "review_submitted"])).count()
+    active_orders_count = db.query(Order).filter(Order.status.in_(["waiting_link", "link_approved", "pending_confirmation", "waiting_review", "review_ready", "review_submitted", "waiting_refund"])).count()
     
     return {
         "total_spent": total_spent,

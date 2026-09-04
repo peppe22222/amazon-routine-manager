@@ -1036,8 +1036,9 @@ class TelegramManager:
                 details=f'Ordine: {order.order_number} ({order.product_title})'
             )
             db.add(log)
-            order.status = 'waiting_refund'
+            order.status = 'review_submitted'
             order.review_submitted_at = datetime.utcnow()
+            order.review_sent_to_seller_at = order.review_submitted_at
             db.commit()
             return {'success': True, 'message': '🧪 [SANDBOX] Screenshot recensione 5★ inviato ai tuoi Messaggi Salvati!'}
 
@@ -1071,8 +1072,9 @@ class TelegramManager:
                 details=f'Ordine: {order.order_number} ({order.product_title})'
             )
             db.add(log)
-            order.status = 'waiting_refund'
+            order.status = 'review_submitted'
             order.review_submitted_at = datetime.utcnow()
+            order.review_sent_to_seller_at = order.review_submitted_at
             db.commit()
             return {'success': True, 'message': f'Screenshot recensione inviato con successo ad Alex ({target_contact})!'}
         except Exception as e:

@@ -1355,7 +1355,8 @@ function renderReviews(orders) {
         targetIso = new Date(baseStartMs + 10 * 86400000).toISOString();
       }
     }
-    const isSubmitted = o.status === 'review_submitted' || o.status === 'reimbursed';
+    const isSubmitted = ['review_submitted', 'waiting_refund', 'reimbursed'].includes(o.status);
+    const refundAmt = (o.refund_amount != null ? Number(o.refund_amount) : Number(o.price_paid || 0)).toFixed(2);
 
     return `
       <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
@@ -1368,7 +1369,7 @@ function renderReviews(orders) {
         </div>
 
         <!-- Contenuto Card Recensione -->
-        <div class="swipe-card-content review-timer-card glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-lg relative z-10 bg-brand-surface border border-brand-border"
+        <div class="swipe-card-content review-timer-card glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-lg relative z-10 bg-brand-surface border ${isSubmitted ? 'border-emerald-500/40 shadow-emerald-950/30' : 'border-brand-border'}"
              data-review-order-id="${o.id}"
              data-target-date="${targetIso}"
              data-start-date="${startIso}"
@@ -1392,8 +1393,8 @@ function renderReviews(orders) {
               </div>
               
               <div class="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0">
-                <span class="review-badge text-xs font-extrabold px-3 py-1 rounded-lg shrink-0 whitespace-nowrap ${isSubmitted ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
-                  ${isSubmitted ? '✓ RECENSIONE PUBBLICATA' : 'Calcolo in corso...'}
+                <span class="review-badge text-[10px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-1 rounded-lg shrink-0 whitespace-nowrap ${isSubmitted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'}">
+                  ${isSubmitted ? '<i class="fa-solid fa-circle-check text-emerald-400"></i> ✓ RECENSIONE INVIATA AL VENDITORE' : 'Calcolo in corso...'}
                 </span>
                 <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina recensione (o fai swipe a sinistra)" class="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors shrink-0">
                   <i class="fa-solid fa-trash-can text-xs"></i>
@@ -1401,38 +1402,63 @@ function renderReviews(orders) {
               </div>
             </div>
 
-            <!-- Barra di Progresso Timer con Data Consegna + 10 Giorni -->
-            <div class="mt-4 p-3 rounded-xl bg-brand-bg border border-brand-border">
-              <div class="flex items-center justify-between text-xs text-slate-300 mb-1.5 font-bold">
-                <span class="flex items-center gap-1.5">
-                  <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> ${isDelivered ? 'Conto alla Rovescia (10gg dalla Consegna)' : 'Conto alla Rovescia (' + (o.delivery_info ? (o.delivery_info.toLowerCase().startsWith('in arrivo') ? escapeHtml(o.delivery_info) : 'Arrivo: ' + escapeHtml(o.delivery_info)) : 'In attesa consegna') + ' + 10gg)'}
-                </span>
-                <span class="review-countdown-text font-extrabold text-purple-300 font-mono">
-                  Calcolo...
-                </span>
-              </div>
-              <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
-                <div class="review-progress-bar h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300" style="width: 10%"></div>
-              </div>
-              <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400 flex-wrap gap-2">
-                <span class="review-progress-pct font-bold">0% completato</span>
-                <div class="flex items-center gap-2">
-                  <button onclick="editOrderDeliveryDate(${o.id}, '${escapeJsString(o.delivery_info || '')}')" title="Modifica giorno o data prevista di consegna" class="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-bold flex items-center gap-1 transition-colors">
-                    <i class="fa-solid fa-truck-fast"></i> ${o.delivery_info ? escapeHtml(o.delivery_info) : 'Imposta Consegna'}
-                  </button>
-                  ${!isDelivered ? `
-                    <button onclick="markOrderDelivered(${o.id})" title="Se il corriere ha anticipato ed è già arrivato, clicca qui" class="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-[10px] text-slate-300 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-all">
-                      <i class="fa-solid fa-box-open text-emerald-400"></i> Ricevuto in anticipo?
-                    </button>
-                  ` : `
-                    <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Consegnato</span>
-                  `}
-                  <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer a 10 giorni esatti da adesso" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
-                    🔄 Reset Timer
+            ${isSubmitted ? `
+              <!-- Box Stato Invio Recensione & Rimborso PayPal Atteso -->
+              <div class="mt-4 p-3.5 rounded-xl bg-gradient-to-r from-emerald-950/50 via-teal-950/40 to-slate-900 border border-emerald-500/35 shadow-md">
+                <div class="flex items-center justify-between text-xs text-emerald-300 mb-1.5 font-extrabold">
+                  <span class="flex items-center gap-2">
+                    <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i> Recensione inviata ad Alex (${escapeHtml(o.seller_contact || '@alex8700')})
+                  </span>
+                  <span class="text-[10px] font-bold bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-300 border border-emerald-500/40">
+                    Trasmessa
+                  </span>
+                </div>
+                <div class="w-full h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                  <div class="review-progress-bar h-full bg-gradient-to-r from-emerald-500 to-teal-400" style="width: 100%"></div>
+                </div>
+                <div class="mt-2.5 flex items-center justify-between text-[11px] text-slate-300 flex-wrap gap-2">
+                  <span class="font-bold text-slate-300 flex items-center gap-1.5">
+                    <i class="fa-brands fa-paypal text-cyan-400 text-sm"></i> Rimborso atteso: <strong class="text-emerald-400 text-xs font-mono font-bold">€${refundAmt}</strong>
+                  </span>
+                  <button onclick="switchTab('refunds')" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 font-bold text-[10px] flex items-center gap-1 transition-all">
+                    <span>Vedi in Rimborsi</span> <i class="fa-solid fa-arrow-right text-[9px]"></i>
                   </button>
                 </div>
               </div>
-            </div>
+            ` : `
+              <!-- Barra di Progresso Timer con Data Consegna + 10 Giorni -->
+              <div class="mt-4 p-3 rounded-xl bg-brand-bg border border-brand-border">
+                <div class="flex items-center justify-between text-xs text-slate-300 mb-1.5 font-bold">
+                  <span class="flex items-center gap-1.5">
+                    <i class="fa-solid fa-stopwatch text-purple-400 animate-pulse"></i> ${isDelivered ? 'Conto alla Rovescia (10gg dalla Consegna)' : 'Conto alla Rovescia (' + (o.delivery_info ? (o.delivery_info.toLowerCase().startsWith('in arrivo') ? escapeHtml(o.delivery_info) : 'Arrivo: ' + escapeHtml(o.delivery_info)) : 'In attesa consegna') + ' + 10gg)'}
+                  </span>
+                  <span class="review-countdown-text font-extrabold text-purple-300 font-mono">
+                    Calcolo...
+                  </span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-slate-700">
+                  <div class="review-progress-bar h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-300" style="width: 10%"></div>
+                </div>
+                <div class="mt-1.5 flex items-center justify-between text-[11px] text-slate-400 flex-wrap gap-2">
+                  <span class="review-progress-pct font-bold">0% completato</span>
+                  <div class="flex items-center gap-2">
+                    <button onclick="editOrderDeliveryDate(${o.id}, '${escapeJsString(o.delivery_info || '')}')" title="Modifica giorno o data prevista di consegna" class="text-[10px] text-cyan-400 hover:text-cyan-300 underline font-bold flex items-center gap-1 transition-colors">
+                      <i class="fa-solid fa-truck-fast"></i> ${o.delivery_info ? escapeHtml(o.delivery_info) : 'Imposta Consegna'}
+                    </button>
+                    ${!isDelivered ? `
+                      <button onclick="markOrderDelivered(${o.id})" title="Se il corriere ha anticipato ed è già arrivato, clicca qui" class="px-2 py-0.5 rounded-md bg-slate-800 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-[10px] text-slate-300 hover:text-emerald-300 font-semibold flex items-center gap-1 transition-all">
+                        <i class="fa-solid fa-box-open text-emerald-400"></i> Ricevuto in anticipo?
+                      </button>
+                    ` : `
+                      <span class="text-[10px] text-emerald-400 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> Consegnato</span>
+                    `}
+                    <button onclick="resetOrderTimer(${o.id})" title="Reimposta il timer a 10 giorni esatti da adesso" class="text-[10px] text-slate-400 hover:text-slate-200 underline font-semibold transition-colors">
+                      🔄 Reset Timer
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `}
 
             <!-- Anteprima Recensione 5 Stelle Generata -->
             <div class="mt-4 p-3.5 rounded-xl bg-brand-bg border border-brand-border space-y-2">
@@ -1454,19 +1480,38 @@ function renderReviews(orders) {
               <i class="fa-solid fa-copy"></i> Testo Recensione
             </button>
             
-            <!-- Tasto Screen iPhone: Sbloccato solo a scadenza raggiunta -->
-            <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
-                    onclick="openIPhoneUploadModal(${o.id}, 'review')"
-                    disabled>
-              <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
-            </button>
-            
-            <!-- Tasto Invia a Venditore: Sbloccato solo a scadenza raggiunta -->
-            <button class="review-btn-send py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
-                    onclick="sendReviewToSeller(${o.id})"
-                    disabled>
-              <i class="fa-solid fa-lock text-[10px]"></i> Invia a Venditore
-            </button>
+            ${isSubmitted ? `
+              <button onclick="openIPhoneUploadModal(${o.id}, 'review')" class="py-2.5 px-3.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
+                <i class="fa-solid fa-image"></i> Screen Recensione
+              </button>
+              <button onclick="markRefunded(${o.id})" class="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-emerald-950/60 transition-all">
+                <i class="fa-brands fa-paypal"></i> Salda Rimborso (€${refundAmt})
+              </button>
+              <button onclick="unmarkReviewAsSent(${o.id})" title="Se inviato per errore, clicca per riportare in attesa" class="text-slate-400 hover:text-slate-200 text-[11px] underline px-2 py-1 transition-colors">
+                ↩ Annulla Invio
+              </button>
+            ` : `
+              <!-- Tasto Screen iPhone: Sbloccato solo a scadenza raggiunta -->
+              <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+                      onclick="openIPhoneUploadModal(${o.id}, 'review')"
+                      disabled>
+                <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
+              </button>
+              
+              <!-- Tasto Invia con Bot: Sbloccato solo a scadenza raggiunta -->
+              <button class="review-btn-send py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+                      onclick="sendReviewToSeller(${o.id})"
+                      disabled>
+                <i class="fa-solid fa-paper-plane text-[10px]"></i> Invia con Bot
+              </button>
+
+              <!-- Tasto Rapido Segna come Inviata al Venditore -->
+              <button class="review-btn-mark-sent py-2.5 px-3.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-sm"
+                      onclick="markReviewAsSent(${o.id})"
+                      title="Se hai già inviato lo screenshot su Telegram dal tuo iPhone ad Alex, tocca qui per registrare l'invio">
+                <i class="fa-solid fa-check"></i> Segna Inviata
+              </button>
+            `}
           </div>
         </div>
       </div>
@@ -1530,35 +1575,25 @@ function updateReviewLiveTimers() {
     const progressPctEl = card.querySelector('.review-progress-pct');
     const btnScreen = card.querySelector('.review-btn-screen');
     const btnSend = card.querySelector('.review-btn-send');
+    const btnMarkSent = card.querySelector('.review-btn-mark-sent');
 
-    const isSubmitted = status === 'review_submitted' || status === 'reimbursed';
+    const isSubmitted = status === 'review_submitted' || status === 'waiting_refund' || status === 'reimbursed';
     const isReady = diffMs <= 0 || status === 'review_ready' || isSubmitted;
 
     if (isSubmitted) {
       if (badgeEl) {
-        badgeEl.className = 'review-badge text-xs font-extrabold px-3 py-1 rounded-lg shrink-0 whitespace-nowrap bg-blue-500/20 text-blue-300 border border-blue-500/40';
-        badgeEl.innerText = '✓ RECENSIONE INVIATA';
+        badgeEl.className = 'review-badge text-[10px] sm:text-xs font-extrabold px-2.5 sm:px-3 py-1 rounded-lg shrink-0 whitespace-nowrap bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5';
+        badgeEl.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> ✓ RECENSIONE INVIATA AL VENDITORE';
       }
       if (countdownEl) {
-        countdownEl.className = 'review-countdown-text font-extrabold text-blue-400';
-        countdownEl.innerText = 'Inviata al venditore';
+        countdownEl.className = 'review-countdown-text font-extrabold text-emerald-400';
+        countdownEl.innerText = 'Trasmessa ad Alex';
       }
       if (progressBarEl) {
-        progressBarEl.className = 'review-progress-bar h-full bg-blue-500';
+        progressBarEl.className = 'review-progress-bar h-full bg-gradient-to-r from-emerald-500 to-teal-400';
         progressBarEl.style.width = '100%';
       }
       if (progressPctEl) progressPctEl.innerText = '100% completato';
-
-      if (btnScreen) {
-        btnScreen.disabled = false;
-        btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer';
-        btnScreen.innerHTML = '<i class="fa-solid fa-image"></i> Screen Recensione';
-      }
-      if (btnSend) {
-        btnSend.disabled = true;
-        btnSend.className = 'review-btn-send py-2.5 px-4 rounded-xl bg-blue-600/20 text-blue-300 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 cursor-default';
-        btnSend.innerHTML = '<i class="fa-solid fa-check"></i> Inviata';
-      }
       return;
     }
 
@@ -1568,12 +1603,12 @@ function updateReviewLiveTimers() {
       checkAndNotifySingleReview(card);
 
       if (badgeEl) {
-        badgeEl.className = 'review-badge text-xs font-extrabold px-3 py-1 rounded-lg shrink-0 whitespace-nowrap bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
+        badgeEl.className = 'review-badge text-[10px] sm:text-xs font-extrabold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg shrink-0 whitespace-nowrap bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 animate-pulse';
         badgeEl.innerText = '⭐ RECENSIONE PRONTA';
       }
       if (countdownEl) {
         countdownEl.className = 'review-countdown-text font-extrabold text-emerald-400';
-        countdownEl.innerText = 'Scadenza raggiunta: pubblica ora!';
+        countdownEl.innerText = 'Scadenza 10gg raggiunta: invia ad Alex!';
       }
       if (progressBarEl) {
         progressBarEl.className = 'review-progress-bar h-full bg-emerald-500 transition-all duration-300';
@@ -1584,12 +1619,15 @@ function updateReviewLiveTimers() {
       if (btnScreen) {
         btnScreen.disabled = false;
         btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 border border-purple-400 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-md shadow-purple-900/30 transition-all animate-pulse cursor-pointer';
-        btnScreen.innerHTML = '<i class="fa-solid fa-mobile-screen-button"></i> Screen iPhone / Incolla';
+        btnScreen.innerHTML = '<i class="fa-solid fa-mobile-screen-button"></i> Screen iPhone';
       }
       if (btnSend) {
         btnSend.disabled = false;
-        btnSend.className = 'review-btn-send py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-lg shadow-emerald-900/40 cursor-pointer';
-        btnSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Invia a Venditore';
+        btnSend.className = 'review-btn-send py-2.5 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white border border-blue-400 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md shadow-blue-900/40 cursor-pointer';
+        btnSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Invia con Bot';
+      }
+      if (btnMarkSent) {
+        btnMarkSent.className = 'review-btn-mark-sent py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/50 cursor-pointer animate-pulse';
       }
     } else {
       const totalSec = Math.floor(diffMs / 1000);
@@ -1727,10 +1765,24 @@ function renderRefunds(orders) {
     return;
   }
 
+  // Ordina: prima le pratiche con recensione inviata (in attesa di accredito!), poi quelle in attesa 10gg, poi quelle saldate
+  eligibleOrders.sort((a, b) => {
+    const getPrio = (s) => {
+      if (['review_submitted', 'waiting_refund'].includes(s)) return 1;
+      if (['review_ready', 'waiting_review'].includes(s)) return 2;
+      if (s === 'reimbursed') return 3;
+      return 4;
+    };
+    return getPrio(a.status) - getPrio(b.status);
+  });
+
   container.innerHTML = eligibleOrders.map(o => {
     const isReimbursed = o.status === 'reimbursed';
+    const isSentWaitingRefund = ['review_submitted', 'waiting_refund'].includes(o.status);
     const prodImg = o.product_image || 'https://images.unsplash.com/photo-1508685096489-7aacd43bd3b1?auto=format&fit=crop&w=800&q=80';
-    const refundAmt = (o.refund_amount != null ? Number(o.refund_amount) : 0).toFixed(2);
+    const refundAmt = (o.refund_amount != null ? Number(o.refund_amount) : Number(o.price_paid || 0)).toFixed(2);
+    const sentDateStr = o.review_sent_to_seller_at || o.review_submitted_at;
+    const formattedSentDate = sentDateStr ? new Date(sentDateStr).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '';
 
     return `
       <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
@@ -1743,8 +1795,8 @@ function renderRefunds(orders) {
         </div>
 
         <!-- Contenuto Card Rimborso -->
-        <div class="swipe-card-content glass-card rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border relative z-10 bg-brand-surface ${isReimbursed ? 'border-emerald-500/30' : 'border-blue-500/30'}">
-          <div class="flex items-center gap-4">
+        <div class="swipe-card-content glass-card rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border relative z-10 bg-brand-surface ${isReimbursed ? 'border-emerald-500/30' : (isSentWaitingRefund ? 'border-amber-500/50 shadow-amber-950/20 bg-gradient-to-r from-amber-950/20 via-brand-surface to-brand-surface' : 'border-slate-800')}">
+          <div class="flex items-center gap-4 min-w-0 flex-1">
             <!-- Thumbnail Prodotto Zoomabile -->
             <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Rimborso €${refundAmt}')" class="cursor-pointer relative w-14 h-14 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group">
               <img src="${prodImg}" alt="Foto" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
@@ -1753,17 +1805,30 @@ function renderRefunds(orders) {
               </div>
             </div>
 
-            <div>
-              <div class="flex items-center gap-2">
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center gap-2 flex-wrap">
                 <span class="text-xs font-mono text-slate-300 font-bold">${(o.order_number && !o.order_number.toLowerCase().includes('in attesa') && !o.order_number.toLowerCase().includes('pending')) ? o.order_number : ''}</span>
-                <span class="text-[11px] px-2.5 py-0.5 rounded-md ${isReimbursed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'} font-extrabold uppercase">
-                  ${isReimbursed ? '✓ Rimborso Saldato' : (o.status === 'review_submitted' ? '⏳ In Attesa PayPal' : '⏳ In Attesa di Recensione')}
+                <span class="text-[10px] sm:text-[11px] px-2.5 py-0.5 rounded-md ${isReimbursed ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : (isSentWaitingRefund ? 'bg-amber-500/25 text-amber-300 border border-amber-500/50 animate-pulse' : 'bg-purple-500/20 text-purple-300 border border-purple-500/40')} font-extrabold uppercase flex items-center gap-1">
+                  ${isReimbursed 
+                    ? '<i class="fa-solid fa-circle-check text-emerald-400"></i> ✓ Rimborso Saldato' 
+                    : (isSentWaitingRefund 
+                        ? '<i class="fa-solid fa-hourglass-half text-amber-400"></i> ⏳ IN ATTESA RIMBORSO PAYPAL' 
+                        : '<i class="fa-solid fa-clock text-purple-400"></i> ⏳ Recensione in corso (10gg)')}
                 </span>
-                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina rimborso (o fai swipe a sinistra)" class="ml-2 text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
+                <button onclick="event.stopPropagation(); confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" title="Elimina rimborso (o fai swipe a sinistra)" class="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors">
                   <i class="fa-solid fa-trash-can text-xs"></i>
                 </button>
               </div>
-              <p class="text-sm font-extrabold text-white mt-1">${escapeHtml(o.product_title || 'Prodotto')}</p>
+              <p class="text-sm font-extrabold text-white mt-1 truncate">${escapeHtml(o.product_title || 'Prodotto')}</p>
+              ${isSentWaitingRefund ? `
+                <p class="text-[11px] text-amber-300/90 font-medium mt-0.5 flex items-center gap-1">
+                  <i class="fa-solid fa-paper-plane text-[10px] text-amber-400"></i> Recensione inviata ad Alex (${escapeHtml(o.seller_contact || '@alex8700')})${formattedSentDate ? ` il ${formattedSentDate}` : ''} • Attendi accredito PayPal
+                </p>
+              ` : (!isReimbursed ? `
+                <p class="text-[11px] text-slate-400 font-medium mt-0.5 flex items-center gap-1">
+                  <i class="fa-solid fa-stopwatch text-[10px] text-purple-400"></i> In attesa dei 10 giorni per recensire • Rimborso non ancora maturato
+                </p>
+              ` : '')}
             </div>
           </div>
 
@@ -1779,9 +1844,14 @@ function renderRefunds(orders) {
               ? `<span class="px-4 py-2.5 rounded-xl bg-emerald-500/10 text-emerald-300 text-xs font-extrabold flex items-center gap-1.5 border border-emerald-500/30">
                   <i class="fa-solid fa-check"></i> Accreditato
                 </span>`
-              : `<button onclick="markRefunded(${o.id})" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/30 flex items-center gap-1.5 transition-all">
-                  <i class="fa-solid fa-check"></i> Segna Ricevuto
-                </button>`
+              : (isSentWaitingRefund
+                  ? `<button onclick="markRefunded(${o.id})" class="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-950/60 flex items-center gap-1.5 transition-all active:scale-95">
+                      <i class="fa-brands fa-paypal"></i> Segna Ricevuto
+                    </button>`
+                  : `<button onclick="switchTab('reviews')" class="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/40 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 transition-all">
+                      <i class="fa-solid fa-star text-[10px]"></i> Vai a Recensione
+                    </button>`
+                )
             }
           </div>
         </div>
@@ -2465,6 +2535,46 @@ async function sendReviewToSeller(orderId) {
   }
 }
 
+async function markReviewAsSent(orderId) {
+  try {
+    const res = await fetch(`/api/orders/${orderId}/mark-review-submitted`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Recensione registrata come inviata al venditore!');
+      closeModal('modal-review');
+      await loadOrders();
+      loadStats();
+    } else {
+      showToast(data.detail || 'Errore durante la registrazione', true);
+    }
+  } catch (err) {
+    showToast('Errore di connessione', true);
+  }
+}
+
+async function unmarkReviewAsSent(orderId) {
+  if (!confirm('Vuoi davvero riportare questa pratica in attesa di recensione?')) return;
+  try {
+    const res = await fetch(`/api/orders/${orderId}/unmark-review-submitted`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      showToast(data.message || 'Pratica riportata in attesa');
+      await loadOrders();
+      loadStats();
+    } else {
+      showToast(data.detail || "Errore durante l'operazione", true);
+    }
+  } catch (err) {
+    showToast('Errore di rete', true);
+  }
+}
+
+async function markReviewAsSentFromModal() {
+  if (currentActiveOrderId) {
+    await markReviewAsSent(currentActiveOrderId);
+  }
+}
+
 async function markRefunded(orderId) {
   try {
     const res = await fetch(`/api/orders/${orderId}/mark-refunded`, { method: 'POST' });
@@ -2801,6 +2911,20 @@ async function openReviewModal(orderId) {
         iphoneBtn.disabled = true;
         iphoneBtn.className = 'px-3.5 py-2 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
         iphoneBtn.title = `Disponibile allo scadere dei 10 giorni (Giorno ${10 - order.days_until_review}/10)`;
+      }
+    }
+    
+    const isSubmitted = ['review_submitted', 'waiting_refund', 'reimbursed'].includes(order.status);
+    const markSentBtn = document.getElementById('modal-review-mark-sent-btn');
+    if (markSentBtn) {
+      if (isSubmitted) {
+        markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold flex items-center gap-1.5 cursor-default';
+        markSentBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Recensione Inviata al Venditore';
+        markSentBtn.onclick = null;
+      } else {
+        markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer';
+        markSentBtn.innerHTML = '<i class="fa-solid fa-check"></i> Segna come Inviata al Venditore';
+        markSentBtn.onclick = markReviewAsSentFromModal;
       }
     }
     
