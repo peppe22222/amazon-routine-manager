@@ -1478,16 +1478,22 @@ async def send_review_confirmation(order_id: int, db: Session = Depends(get_db))
     if not order.review_sent_to_seller_at:
         order.review_sent_to_seller_at = now
         
-    target_contact = (order.seller_contact or "@alex8700").strip()
+    is_test = telegram_service.get_setting(db, "test_mode", "true").lower() == "true"
+    target_contact = "me" if is_test else (order.seller_contact or "@alex8700").strip()
     refund_amt = f"{order.refund_amount or order.price_paid or 0:.2f}"
     caption_text = (
         f"Ciao Alex! La recensione a 5 stelle per l'ordine {order.order_number} ({order.product_title}) "
         f"è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal (€{refund_amt}). Grazie!"
     )
+    if is_test:
+        caption_text = f"🧪 *[TEST SANDBOX - Recensione per te]*\n(Nessun messaggio inviato ad Alex)\n\n{caption_text}"
+        
+    log_title = "Screenshot recensione 5★ inviato a me (Messaggi Salvati) [SANDBOX]" if is_test else f"Recensione 5★ inviata ad Alex ({target_contact})"
+    log_details = f"Ordine {order.order_number} ({order.product_title}) inviato a Messaggi Salvati [SANDBOX]" if is_test else f"Ordine {order.order_number} ({order.product_title}) registrato come inviato al venditore!"
     log = ActivityLog(
         action_type="REVIEW_SENT",
-        title=f"Recensione 5★ inviata ad Alex ({target_contact})",
-        details=f"Ordine {order.order_number} ({order.product_title}) registrato come inviato al venditore!"
+        title=log_title,
+        details=log_details
     )
     db.add(log)
     db.commit()
@@ -1511,12 +1517,13 @@ async def send_review_confirmation(order_id: int, db: Session = Depends(get_db))
     return {
         "success": True,
         "telegram_sent": telegram_sent,
+        "is_test": is_test,
         "order_id": order.id,
         "status": order.status,
         "target_contact": target_contact,
         "caption": caption_text,
         "review_screen_url": order.review_screen_url,
-        "message": tele_res.get("message") if telegram_sent else f"Pratica registrata come inviata ad Alex ({target_contact})!"
+        "message": tele_res.get("message") or ("🧪 [SANDBOX] Screenshot recensione 5★ inviato ai tuoi Messaggi Salvati!" if is_test else f"Pratica registrata come inviata ad Alex ({target_contact})!")
     }
 
 @app.post("/api/orders/{order_id}/mark-refunded")

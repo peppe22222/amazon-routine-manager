@@ -998,16 +998,13 @@ class TelegramManager:
             return {'success': False, 'error': str(e)}
 
     async def send_review_confirmation(self, db: Session, order: Order, recipient: str = None) -> dict:
-        is_test = self.get_setting(db, 'test_mode', 'false').lower() == 'true'
-        target_contact = (recipient or order.seller_contact or '@alex8700').strip()
-        caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) e stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal. Grazie!"
+        is_test = self.get_setting(db, 'test_mode', 'true').lower() == 'true'
+        target_contact = 'me' if is_test else (recipient or order.seller_contact or '@alex8700').strip()
+        refund_amt = f"{order.refund_amount or order.price_paid or 0:.2f}"
+        caption_text = f"Ciao Alex! La recensione a 5 stelle per l'ordine `{order.order_number}` (*{order.product_title}*) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal (€{refund_amt}). Grazie!"
 
         if is_test:
             try:
-                client = await self._ensure_connected_client(db)
-                if not client or not await client.is_user_authorized():
-                    return {'success': False, 'auth_required': True, 'error': 'Account Telegram non autorizzato. Collega il tuo numero in Impostazioni.'}
-
                 from app.screenshot_service import generate_amazon_review_screenshot
                 review_url = order.review_screen_url
                 if not review_url:
@@ -1015,35 +1012,36 @@ class TelegramManager:
                         order_number=order.order_number,
                         product_title=order.product_title,
                         review_title=order.review_title or 'Ottimo prodotto, spedizione impeccabile',
-                        review_body=order.review_body or 'Arrivato puntuale, ben imballato. Qualita dei materiali ottima e facilissimo da utilizzare. Pienamente soddisfatto!'
+                        review_body=order.review_body or 'Arrivato puntuale, ben imballato. Qualità dei materiali ottima e facilissimo da utilizzare. Pienamente soddisfatto!'
                     )
                     order.review_screen_url = review_url
                     db.commit()
 
                 file_to_send = self._find_screenshot_file(review_url) or (review_url if review_url and review_url.startswith('http') else None)
                 test_notice = f"🧪 *[TEST SANDBOX - Recensione per te]*\n(Nessun messaggio inviato ad Alex)\n\n{caption_text}"
-                if file_to_send:
-                    try:
-                        await client.send_file('me', file_to_send, caption=test_notice)
-                    except Exception:
+                client = await self._ensure_connected_client(db)
+                if client and await client.is_user_authorized():
+                    if file_to_send:
+                        try:
+                            await client.send_file('me', file_to_send, caption=test_notice)
+                        except Exception:
+                            await client.send_message('me', test_notice)
+                    else:
                         await client.send_message('me', test_notice)
-                else:
-                    await client.send_message('me', test_notice)
-
-                log = ActivityLog(
-                    action_type='REVIEW_SENT',
-                    title='Screenshot recensione 5★ inviato a me (Messaggi Salvati) [SANDBOX]',
-                    details=f'Ordine: {order.order_number} ({order.product_title})'
-                )
-                db.add(log)
-                order.status = 'review_submitted'
-                order.review_submitted_at = datetime.utcnow()
-                order.review_sent_to_seller_at = order.review_submitted_at
-                db.commit()
-                return {'success': True, 'message': '🧪 [SANDBOX] Screenshot recensione 5★ inviato ai tuoi Messaggi Salvati!'}
             except Exception as e:
                 print(f"[Sandbox Send 'me' Error] {e}")
-                return {'success': False, 'error': str(e)}
+
+            log = ActivityLog(
+                action_type='REVIEW_SENT',
+                title='Screenshot recensione 5★ inviato a me (Messaggi Salvati) [SANDBOX]',
+                details=f'Ordine: {order.order_number} ({order.product_title})'
+            )
+            db.add(log)
+            order.status = 'review_submitted'
+            order.review_submitted_at = datetime.utcnow()
+            order.review_sent_to_seller_at = order.review_submitted_at
+            db.commit()
+            return {'success': True, 'is_test': True, 'message': '🧪 [SANDBOX] Screenshot recensione 5★ inviato ai tuoi Messaggi Salvati!'}
 
         try:
             client = await self._ensure_connected_client(db)

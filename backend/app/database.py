@@ -111,7 +111,7 @@ def init_db():
     db = SessionLocal()
     try:
         defaults = {
-            "test_mode": "false",
+            "test_mode": "true",
             "telegram_api_id": "",
             "telegram_api_hash": "",
             "telegram_phone": "",
@@ -128,6 +128,8 @@ def init_db():
             s = db.query(Setting).filter_by(key=k).first()
             if not s:
                 db.add(Setting(key=k, value=v))
+            elif k == "test_mode":
+                s.value = "true"
         db.commit()
     except Exception as e:
         db.rollback()

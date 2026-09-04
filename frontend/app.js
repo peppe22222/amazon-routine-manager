@@ -1410,7 +1410,7 @@ function renderReviews(orders) {
               <div class="mt-4 p-3.5 rounded-xl bg-gradient-to-r from-emerald-950/50 via-teal-950/40 to-slate-900 border border-emerald-500/35 shadow-md">
                 <div class="flex items-center justify-between text-xs text-emerald-300 mb-1.5 font-extrabold">
                   <span class="flex items-center gap-2">
-                    <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i> Recensione inviata ad Alex (${escapeHtml(o.seller_contact || '@alex8700')})
+                    <i class="fa-solid fa-circle-check text-emerald-400 text-sm"></i> ${(window._isTestMode || o.is_test) ? 'Recensione inviata a me (Messaggi Salvati) [TEST]' : 'Recensione inviata ad Alex (' + escapeHtml(o.seller_contact || '@alex8700') + ')'}
                   </span>
                   <span class="text-[10px] font-bold bg-emerald-500/20 px-2 py-0.5 rounded text-emerald-300 border border-emerald-500/40">
                     Trasmessa
@@ -1424,12 +1424,18 @@ function renderReviews(orders) {
                     <i class="fa-brands fa-paypal text-cyan-400 text-sm"></i> Rimborso atteso: <strong class="text-emerald-400 text-xs font-mono font-bold">€${refundAmt}</strong>
                   </span>
                   <div class="flex items-center gap-1.5">
-                    <button onclick="copyReviewMessage(${o.id})" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Copia messaggio pronto per Alex negli appunti">
-                      <i class="fa-regular fa-copy"></i> <span>Copia Testo</span>
-                    </button>
-                    <a href="https://t.me/${(o.seller_contact || 'alex8700').replace(/^@/, '')}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Apri direttamente la chat con Alex su Telegram">
-                      <i class="fa-brands fa-telegram text-sky-400"></i> <span>Chat Alex</span>
-                    </a>
+                    ${(window._isTestMode || o.is_test) ? `
+                      <a href="tg://resolve?domain=me" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Apri i tuoi Messaggi Salvati su Telegram">
+                        <i class="fa-brands fa-telegram text-sky-400"></i> <span>Messaggi Salvati</span>
+                      </a>
+                    ` : `
+                      <button onclick="copyReviewMessage(${o.id})" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Copia messaggio pronto per Alex negli appunti">
+                        <i class="fa-regular fa-copy"></i> <span>Copia Testo</span>
+                      </button>
+                      <a href="https://t.me/${(o.seller_contact || 'alex8700').replace(/^@/, '')}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Apri direttamente la chat con Alex su Telegram">
+                        <i class="fa-brands fa-telegram text-sky-400"></i> <span>Chat Alex</span>
+                      </a>
+                    `}
                     <button onclick="switchTab('refunds')" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 font-bold text-[10px] flex items-center gap-1 transition-all">
                       <span>Vedi in Rimborsi</span> <i class="fa-solid fa-arrow-right text-[9px]"></i>
                     </button>
@@ -1492,12 +1498,18 @@ function renderReviews(orders) {
             </button>
             
             ${isSubmitted ? `
-              <button disabled class="py-2.5 px-3.5 rounded-xl bg-slate-800/40 border border-slate-700/60 text-slate-500 text-xs font-semibold flex items-center gap-1.5 opacity-60 cursor-not-allowed select-none" title="Screenshot già caricato e inviato ad Alex">
+              <button disabled class="py-2.5 px-3.5 rounded-xl bg-slate-800/40 border border-slate-700/60 text-slate-500 text-xs font-semibold flex items-center gap-1.5 opacity-60 cursor-not-allowed select-none" title="Screenshot già caricato e inviato">
                 <i class="fa-solid fa-check text-emerald-400 text-xs"></i> Screen Inviato
               </button>
-              <a href="https://t.me/${(o.seller_contact || 'alex8700').replace(/^@/, '')}" target="_blank" rel="noopener noreferrer" class="py-2.5 px-3.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all" title="Apri chat con Alex su Telegram">
-                <i class="fa-brands fa-telegram text-sky-400"></i> <span>Chat Alex</span>
-              </a>
+              ${(window._isTestMode || o.is_test) ? `
+                <a href="tg://resolve?domain=me" target="_blank" class="py-2.5 px-3.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all" title="Apri i tuoi Messaggi Salvati su Telegram">
+                  <i class="fa-brands fa-telegram text-sky-400"></i> <span>Messaggi Salvati</span>
+                </a>
+              ` : `
+                <a href="https://t.me/${(o.seller_contact || 'alex8700').replace(/^@/, '')}" target="_blank" rel="noopener noreferrer" class="py-2.5 px-3.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all" title="Apri chat con Alex su Telegram">
+                  <i class="fa-brands fa-telegram text-sky-400"></i> <span>Chat Alex</span>
+                </a>
+              `}
               <span class="py-2.5 px-3 rounded-xl bg-slate-800/40 border border-slate-700/60 text-slate-400 text-xs font-semibold flex items-center gap-1.5 cursor-default select-none" title="Il rimborso va saldato nella sezione Rimborsi non appena ti viene accreditato su PayPal">
                 <i class="fa-brands fa-paypal text-cyan-400"></i> Attesa Rimborso (€${refundAmt})
               </span>
@@ -2574,11 +2586,12 @@ async function sendReviewToSeller(orderId) {
     const caption = data.caption || `Ciao Alex! La recensione a 5 stelle per l'ordine ${cleanOrderNum} (${ord ? ord.product_title : ''}) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal (€${refundAmt}). Grazie!`;
 
     if (res.ok) {
-      if (data.telegram_sent) {
+      if (data.is_test || window._isTestMode) {
+        showToast(data.message || '🧪 [SANDBOX] Screenshot recensione inviato ai tuoi Messaggi Salvati!');
+      } else if (data.telegram_sent) {
         showToast(data.message || '✓ Screenshot e recensione inviati ad Alex su Telegram!');
       } else {
-        // Telethon non è collegato/autorizzato sul server o è in sandbox:
-        // Copiamo il testo negli appunti e apriamo Telegram direttamente su Alex
+        // Telethon non è collegato/autorizzato sul server in produzione:
         copyToClipboard(caption, `✓ Pratica registrata! Testo copiato. Apertura chat con Alex (@${cleanContact})...`);
 
         setTimeout(() => {
@@ -2992,11 +3005,16 @@ async function openReviewModal(orderId) {
       if (isSubmitted) {
         markSentBtn.disabled = false;
         markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all';
-        markSentBtn.innerHTML = '<i class="fa-brands fa-telegram text-sky-400"></i> Apri Chat Alex';
-        markSentBtn.onclick = () => {
-          const seller = (order.seller_contact || 'alex8700').replace(/^@/, '');
-          window.open(`https://t.me/${seller}`, '_blank');
-        };
+        if (window._isTestMode || order.is_test) {
+          markSentBtn.innerHTML = '<i class="fa-brands fa-telegram text-sky-400"></i> Apri Messaggi Salvati';
+          markSentBtn.onclick = () => { window.location.href = 'tg://resolve?domain=me'; };
+        } else {
+          markSentBtn.innerHTML = '<i class="fa-brands fa-telegram text-sky-400"></i> Apri Chat Alex';
+          markSentBtn.onclick = () => {
+            const seller = (order.seller_contact || 'alex8700').replace(/^@/, '');
+            window.open(`https://t.me/${seller}`, '_blank');
+          };
+        }
       } else if (isReady) {
         markSentBtn.disabled = false;
         markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer';
