@@ -1479,6 +1479,11 @@ async def send_review_confirmation(order_id: int, db: Session = Depends(get_db))
         order.review_sent_to_seller_at = now
         
     target_contact = (order.seller_contact or "@alex8700").strip()
+    refund_amt = f"{order.refund_amount or order.price_paid or 0:.2f}"
+    caption_text = (
+        f"Ciao Alex! La recensione a 5 stelle per l'ordine {order.order_number} ({order.product_title}) "
+        f"è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal (€{refund_amt}). Grazie!"
+    )
     log = ActivityLog(
         action_type="REVIEW_SENT",
         title=f"Recensione 5★ inviata ad Alex ({target_contact})",
@@ -1493,7 +1498,7 @@ async def send_review_confirmation(order_id: int, db: Session = Depends(get_db))
         tele_res = await telegram_service.send_review_confirmation(
             db=db,
             order=order,
-            recipient=order.seller_contact
+            recipient=target_contact
         )
     except Exception as e:
         print(f"[Telegram Review Send Error] {e}")
@@ -1501,21 +1506,17 @@ async def send_review_confirmation(order_id: int, db: Session = Depends(get_db))
         
     save_orders_backup(db)
     
-    if not tele_res.get("success"):
-        err_msg = tele_res.get("error", "Verifica il collegamento Telegram in Impostazioni.")
-        return {
-            "success": True,
-            "warning": True,
-            "order_id": order.id,
-            "status": order.status,
-            "message": f"Recensione segnata come inviata al venditore! (Avviso Telegram: {err_msg})"
-        }
-        
+    telegram_sent = bool(tele_res.get("success"))
+    
     return {
         "success": True,
+        "telegram_sent": telegram_sent,
         "order_id": order.id,
         "status": order.status,
-        "message": tele_res.get("message", f"Screenshot recensione inviato con successo ad Alex ({target_contact})!")
+        "target_contact": target_contact,
+        "caption": caption_text,
+        "review_screen_url": order.review_screen_url,
+        "message": tele_res.get("message") if telegram_sent else f"Pratica registrata come inviata ad Alex ({target_contact})!"
     }
 
 @app.post("/api/orders/{order_id}/mark-refunded")

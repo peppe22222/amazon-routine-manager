@@ -1420,9 +1420,17 @@ function renderReviews(orders) {
                   <span class="font-bold text-slate-300 flex items-center gap-1.5">
                     <i class="fa-brands fa-paypal text-cyan-400 text-sm"></i> Rimborso atteso: <strong class="text-emerald-400 text-xs font-mono font-bold">€${refundAmt}</strong>
                   </span>
-                  <button onclick="switchTab('refunds')" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 font-bold text-[10px] flex items-center gap-1 transition-all">
-                    <span>Vedi in Rimborsi</span> <i class="fa-solid fa-arrow-right text-[9px]"></i>
-                  </button>
+                  <div class="flex items-center gap-1.5">
+                    <button onclick="copyReviewMessage(${o.id})" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Copia messaggio pronto per Alex negli appunti">
+                      <i class="fa-regular fa-copy"></i> <span>Copia Testo</span>
+                    </button>
+                    <a href="https://t.me/${(o.seller_contact || 'alex8700').replace(/^@/, '')}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Apri direttamente la chat con Alex su Telegram">
+                      <i class="fa-brands fa-telegram text-sky-400"></i> <span>Chat Alex</span>
+                    </a>
+                    <button onclick="switchTab('refunds')" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 font-bold text-[10px] flex items-center gap-1 transition-all">
+                      <span>Vedi in Rimborsi</span> <i class="fa-solid fa-arrow-right text-[9px]"></i>
+                    </button>
+                  </div>
                 </div>
               </div>
             ` : `
@@ -1484,6 +1492,9 @@ function renderReviews(orders) {
               <button onclick="openIPhoneUploadModal(${o.id}, 'review')" class="py-2.5 px-3.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
                 <i class="fa-solid fa-image"></i> Screen Recensione
               </button>
+              <a href="https://t.me/${(o.seller_contact || 'alex8700').replace(/^@/, '')}" target="_blank" rel="noopener noreferrer" class="py-2.5 px-3.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all" title="Apri chat con Alex su Telegram">
+                <i class="fa-brands fa-telegram text-sky-400"></i> <span>Chat Alex</span>
+              </a>
               <button onclick="markRefunded(${o.id})" class="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-emerald-950/60 transition-all">
                 <i class="fa-brands fa-paypal"></i> Salda Rimborso (€${refundAmt})
               </button>
@@ -2508,6 +2519,15 @@ async function confirmAndSendOrder(orderId) {
   }
 }
 
+function copyReviewMessage(orderId) {
+  const ord = (orders || []).find(x => x.id === orderId);
+  if (!ord) return;
+  const refundAmt = ((ord.refund_amount != null ? ord.refund_amount : ord.price_paid) || 0).toFixed(2);
+  const cleanOrderNum = (ord.order_number || '').replace(/_old_\d+$/, '');
+  const caption = `Ciao Alex! La recensione a 5 stelle per l'ordine ${cleanOrderNum} (${ord.product_title || ''}) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal (€${refundAmt}). Grazie!`;
+  copyToClipboard(caption, 'Messaggio per Alex copiato negli appunti!');
+}
+
 async function sendReviewToSeller(orderId) {
   const ord = (orders || []).find(x => x.id === orderId);
 
@@ -2525,11 +2545,32 @@ async function sendReviewToSeller(orderId) {
     let data = {};
     try { data = await res.json(); } catch(e) {}
 
+    const contact = (data.target_contact || (ord && ord.seller_contact) || '@alex8700').trim();
+    const cleanContact = contact.replace(/^@/, '');
+    const refundAmt = ord ? ((ord.refund_amount != null ? ord.refund_amount : ord.price_paid) || 0).toFixed(2) : '0.00';
+    const cleanOrderNum = ord ? (ord.order_number || '').replace(/_old_\d+$/, '') : '';
+    const caption = data.caption || `Ciao Alex! La recensione a 5 stelle per l'ordine ${cleanOrderNum} (${ord ? ord.product_title : ''}) è stata pubblicata su Amazon.\nIn allegato lo screenshot per procedere al rimborso PayPal (€${refundAmt}). Grazie!`;
+
     if (res.ok) {
-      if (data.warning) {
-        showToast(data.message || 'Recensione registrata come inviata al venditore! (Avviso Telegram)', false);
+      if (data.telegram_sent) {
+        showToast(data.message || '✓ Screenshot e recensione inviati ad Alex su Telegram!');
       } else {
-        showToast(data.message || 'Recensione inviata al venditore con successo!');
+        // Telethon non è collegato/autorizzato sul server o è in sandbox:
+        // Copiamo il testo negli appunti e apriamo Telegram direttamente su Alex
+        copyToClipboard(caption, `✓ Pratica registrata! Testo copiato. Apertura chat con Alex (@${cleanContact})...`);
+
+        setTimeout(() => {
+          try {
+            window.location.href = `tg://resolve?domain=${cleanContact}`;
+            setTimeout(() => {
+              if (document.hasFocus()) {
+                window.open(`https://t.me/${cleanContact}`, '_blank');
+              }
+            }, 1200);
+          } catch(e) {
+            window.open(`https://t.me/${cleanContact}`, '_blank');
+          }
+        }, 350);
       }
     } else {
       showToast(data.detail || "Errore durante l'invio al venditore", true);
@@ -2920,10 +2961,13 @@ async function openReviewModal(orderId) {
     const markSentBtn = document.getElementById('modal-review-mark-sent-btn');
     if (markSentBtn) {
       if (isSubmitted) {
-        markSentBtn.disabled = true;
-        markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold flex items-center gap-1.5 cursor-default';
-        markSentBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Recensione Inviata al Venditore';
-        markSentBtn.onclick = null;
+        markSentBtn.disabled = false;
+        markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all';
+        markSentBtn.innerHTML = '<i class="fa-brands fa-telegram text-sky-400"></i> Apri Chat Alex';
+        markSentBtn.onclick = () => {
+          const seller = (order.seller_contact || 'alex8700').replace(/^@/, '');
+          window.open(`https://t.me/${seller}`, '_blank');
+        };
       } else if (isReady) {
         markSentBtn.disabled = false;
         markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer';
