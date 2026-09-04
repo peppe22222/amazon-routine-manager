@@ -1492,15 +1492,15 @@ function renderReviews(orders) {
             </button>
             
             ${isSubmitted ? `
-              <button onclick="openIPhoneUploadModal(${o.id}, 'review')" class="py-2.5 px-3.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 text-purple-200 border border-purple-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all">
-                <i class="fa-solid fa-image"></i> Screen Recensione
+              <button disabled class="py-2.5 px-3.5 rounded-xl bg-slate-800/40 border border-slate-700/60 text-slate-500 text-xs font-semibold flex items-center gap-1.5 opacity-60 cursor-not-allowed select-none" title="Screenshot già caricato e inviato ad Alex">
+                <i class="fa-solid fa-check text-emerald-400 text-xs"></i> Screen Inviato
               </button>
               <a href="https://t.me/${(o.seller_contact || 'alex8700').replace(/^@/, '')}" target="_blank" rel="noopener noreferrer" class="py-2.5 px-3.5 rounded-xl bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all" title="Apri chat con Alex su Telegram">
                 <i class="fa-brands fa-telegram text-sky-400"></i> <span>Chat Alex</span>
               </a>
-              <button onclick="markRefunded(${o.id})" class="py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 shadow-lg shadow-emerald-950/60 transition-all">
-                <i class="fa-brands fa-paypal"></i> Salda Rimborso (€${refundAmt})
-              </button>
+              <span class="py-2.5 px-3 rounded-xl bg-slate-800/40 border border-slate-700/60 text-slate-400 text-xs font-semibold flex items-center gap-1.5 cursor-default select-none" title="Il rimborso va saldato nella sezione Rimborsi non appena ti viene accreditato su PayPal">
+                <i class="fa-brands fa-paypal text-cyan-400"></i> Attesa Rimborso (€${refundAmt})
+              </span>
               <button onclick="unmarkReviewAsSent(${o.id})" title="Se inviato per errore, clicca per riportare in attesa" class="text-slate-400 hover:text-slate-200 text-[11px] underline px-2 py-1 transition-colors">
                 ↩ Annulla Invio
               </button>
@@ -2965,21 +2965,28 @@ async function openReviewModal(orderId) {
     document.getElementById('modal-review-title').value = order.review_title || '';
     document.getElementById('modal-review-body').value = order.review_body || '';
 
-    const isReady = order.days_until_review <= 0;
+    const isSubmitted = ['review_submitted', 'waiting_refund', 'reimbursed'].includes(order.status);
+    const isReady = order.days_until_review <= 0 || order.status === 'review_ready';
     const iphoneBtn = document.getElementById('modal-review-iphone-btn');
     if (iphoneBtn) {
-      if (isReady) {
+      if (isSubmitted) {
+        iphoneBtn.disabled = true;
+        iphoneBtn.className = 'px-3.5 py-2 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
+        iphoneBtn.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> Screen già Inviato';
+        iphoneBtn.title = 'Screenshot già inviato al venditore';
+      } else if (isReady) {
         iphoneBtn.disabled = false;
-        iphoneBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-400 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all';
+        iphoneBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white border border-purple-400 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer';
+        iphoneBtn.innerHTML = '<i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone / Incolla';
         iphoneBtn.title = 'Incolla o carica screenshot della recensione pubblicata';
       } else {
         iphoneBtn.disabled = true;
         iphoneBtn.className = 'px-3.5 py-2 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
+        iphoneBtn.innerHTML = '<i class="fa-solid fa-mobile-screen-button text-slate-600"></i> Screen iPhone / Incolla';
         iphoneBtn.title = `Disponibile allo scadere dei 10 giorni (Giorno ${10 - order.days_until_review}/10)`;
       }
     }
     
-    const isSubmitted = ['review_submitted', 'waiting_refund', 'reimbursed'].includes(order.status);
     const markSentBtn = document.getElementById('modal-review-mark-sent-btn');
     if (markSentBtn) {
       if (isSubmitted) {
