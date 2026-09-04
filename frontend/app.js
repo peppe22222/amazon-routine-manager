@@ -923,6 +923,11 @@ function renderApprovedLinks(orders) {
             <button onclick="syncTelegramReplies()" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 text-xs font-bold flex items-center gap-1.5 transition-all" title="Verifica subito se Alex ha inviato il link">
               <i class="fa-brands fa-telegram"></i> Controlla Telegram
             </button>
+            ${(window._isTestMode || o.is_test) ? `
+              <button onclick="simulateReceivedLink(${o.id})" class="px-3 py-2.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/50 border border-purple-500/50 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95" title="Simula subito la ricezione del link da Alex in modalità test">
+                <i class="fa-solid fa-flask text-purple-300"></i> Simula Link Test
+              </button>
+            ` : ''}
             <button onclick="markOrderAsPurchased(${o.id})" class="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-all">
               <i class="fa-solid fa-forward-step text-amber-400"></i> Salta ad Acquisto
             </button>
@@ -938,7 +943,7 @@ function renderApprovedLinks(orders) {
 
 function extractAmazonUrlFromText(text) {
   if (!text) return '';
-  const match = text.match(/https?:\/\/[^\s<>"']+/i) || text.match(/(?:(?:www\.)?amazon\.[a-z.]+|amzn\.(?:to|eu))\/[^\s<>"']+/i);
+  const match = text.match(/https?:\/\/[^\s<>"']+/i) || text.match(/(?:(?:www\.)?amazon\.[a-z.]+|amzn\.(?:to|eu|it)|a\.co)\/[^\s<>"']+/i);
   if (match) {
     let url = match[0].trim().replace(/[.,);!?"'>]+$/, '');
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -1178,7 +1183,7 @@ async function syncTelegramReplies(silent = false) {
       const data = await res.json();
       if (res.ok && data.success) {
         if (data.updated_count > 0) {
-          showToast(` Alex ti ha inviato il link Amazon! Pronta per l'acquisto.`);
+          showToast('✓ Alex ti ha inviato il link Amazon! Pronta per l\'acquisto.');
           await Promise.all([
             loadOrders(),
             loadOffers(),
@@ -1200,6 +1205,29 @@ async function syncTelegramReplies(silent = false) {
   })();
 
   return activeRepliesSyncPromise;
+}
+
+async function simulateReceivedLink(orderId) {
+  try {
+    const testUrl = 'https://www.amazon.it/dp/B0H2M3ZWPG?tag=albero75-21';
+    const res = await fetch(`/api/orders/${orderId}/set-amazon-link`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amazon_url: testUrl })
+    });
+    if (res.ok) {
+      showToast('🧪 [SANDBOX] Ricezione link simulata con successo! Articolo pronto per l\'acquisto.');
+      await Promise.all([
+        loadOrders(),
+        loadOffers(),
+        loadStats()
+      ]);
+    } else {
+      showToast('Errore durante la simulazione link', true);
+    }
+  } catch(e) {
+    showToast('Errore di connessione', true);
+  }
 }
 
 function renderConfirmations(orders) {

@@ -1100,7 +1100,7 @@ class TelegramManager:
                         pass
         text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ''
         found_urls.extend(re.findall(r'https?://[^\s<>"]+', text))
-        short_matches = re.findall(r'(?:(?:www\.)?amazon\.[a-z.]+|amzn\.(?:to|eu))/[^\s<>"]+', text, re.IGNORECASE)
+        short_matches = re.findall(r'(?:(?:www\.)?amazon\.[a-z.]+|amzn\.(?:to|eu|it)|a\.co)/[^\s<>"]+', text, re.IGNORECASE)
         found_urls.extend(short_matches)
         clean_amz_urls = []
         for u in found_urls:
@@ -1110,7 +1110,7 @@ class TelegramManager:
             u_lower = u_clean.lower()
             if 'media-amazon.com' in u_lower:
                 continue
-            if any(dom in u_lower for dom in ['amazon.', 'amzn.to', 'amzn.eu', 'amzn.']):
+            if any(dom in u_lower for dom in ['amazon.', 'amzn.to', 'amzn.eu', 'amzn.it', 'amzn.', 'a.co/']):
                 if not u_clean.startswith('http://') and not u_clean.startswith('https://'):
                     u_clean = 'https://' + u_clean
                 if u_clean not in clean_amz_urls:
@@ -1239,18 +1239,22 @@ class TelegramManager:
                     break
 
                 messages = []
-                async for m in client.iter_messages(entity, limit=40):
-                    is_valid_sender = (target_name == 'me') or (not m.out)
-                    if not is_valid_sender:
-                        continue
+                try:
+                    async for m in client.iter_messages(entity, limit=50):
+                        is_valid_sender = (target_name == 'me') or test_mode or (not m.out)
+                        if not is_valid_sender:
+                            continue
 
-                    raw_text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ''
-                    has_entities = hasattr(m, 'entities') and bool(m.entities)
-                    if (raw_text or has_entities) and m.date:
-                        msg_date_utc = m.date.replace(tzinfo=None) if hasattr(m.date, 'tzinfo') and m.date.tzinfo else m.date
-                        messages.append((msg_date_utc, m))
+                        raw_text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ''
+                        has_entities = hasattr(m, 'entities') and bool(m.entities)
+                        if (raw_text or has_entities) and m.date:
+                            msg_date_utc = m.date.replace(tzinfo=None) if hasattr(m.date, 'tzinfo') and m.date.tzinfo else m.date
+                            messages.append((msg_date_utc, m))
+                except Exception as iter_err:
+                    print(f'[iter_messages error for {target_name}] {iter_err}')
 
-                messages.sort(key=lambda x: x[0])
+                # Ordina dal più recente al più vecchio: vogliamo catturare l'ULTIMO link inviato!
+                messages.sort(key=lambda x: x[0], reverse=True)
 
                 for msg_date_utc, m in messages:
                     if not pending_orders:
@@ -1269,8 +1273,10 @@ class TelegramManager:
                     target_order = None
                     for o in pending_orders:
                         if not o.order_date:
-                            continue
-                        min_allowed_time = o.order_date - timedelta(seconds=15)
+                            target_order = o
+                            break
+                        # Finestra temporale flessibile: ammette messaggi inviati nelle ultime 24 ore rispetto all'ordine
+                        min_allowed_time = o.order_date - timedelta(hours=24)
                         if msg_date_utc >= min_allowed_time and (not o.amazon_url):
                             target_order = o
                             break
@@ -1296,6 +1302,7 @@ class TelegramManager:
                         db.commit()
                         self._save_orders_backup(db)
                         updated += 1
+                        print(f'[Telegram Sync] Match trovato! Ordine {target_order.id} collegato al link {best_url}')
 
             return {
                 'success': True,

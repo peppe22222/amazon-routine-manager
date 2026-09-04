@@ -984,6 +984,25 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             existing_order.status = initial_status
             existing_order.amazon_url = None
             existing_order.order_date = order_date
+        else:
+            rev_data = generate_ai_review(offer.title, db)
+            temp_order_num = f"In attesa #{offer.id}_{int(order_date.timestamp())}"
+            new_order = Order(
+                order_number=temp_order_num,
+                product_title=offer.title,
+                product_image=offer.image_url,
+                seller_contact=offer.seller_contact or "@alex8700",
+                amazon_url=None,
+                price_paid=0.0,
+                refund_amount=0.0,
+                status=initial_status,
+                order_date=order_date,
+                review_target_date=order_date + timedelta(days=10),
+                review_title=rev_data.get("title", "Ottimo acquisto, qualità eccellente!"),
+                review_body=rev_data.get("body", "Prodotto eccellente e spedizione rapida. Consigliatissimo!"),
+                is_test=False
+            )
+            db.add(new_order)
     db.commit()
     save_orders_backup(db)
 
