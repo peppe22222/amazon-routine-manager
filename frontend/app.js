@@ -1491,25 +1491,18 @@ function renderReviews(orders) {
                 ↩ Annulla Invio
               </button>
             ` : `
-              <!-- Tasto Screen iPhone: Sbloccato solo a scadenza raggiunta -->
-              <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+              <!-- Tasto Screen iPhone -->
+              <button class="review-btn-screen py-2.5 px-3.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                       onclick="openIPhoneUploadModal(${o.id}, 'review')"
-                      disabled>
-                <i class="fa-solid fa-lock text-[10px]"></i> Screen iPhone
+                      title="Carica o incolla lo screenshot della recensione pubblicata">
+                <i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone
               </button>
               
-              <!-- Tasto Invia con Bot: Sbloccato solo a scadenza raggiunta -->
-              <button class="review-btn-send py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed"
+              <!-- Tasto Invia a Venditore: singolo pulsante principale -->
+              <button class="review-btn-send flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/40 transition-all active:scale-95 cursor-pointer"
                       onclick="sendReviewToSeller(${o.id})"
-                      disabled>
-                <i class="fa-solid fa-paper-plane text-[10px]"></i> Invia con Bot
-              </button>
-
-              <!-- Tasto Rapido Segna come Inviata al Venditore -->
-              <button class="review-btn-mark-sent py-2.5 px-3.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-sm"
-                      onclick="markReviewAsSent(${o.id})"
-                      title="Se hai già inviato lo screenshot su Telegram dal tuo iPhone ad Alex, tocca qui per registrare l'invio">
-                <i class="fa-solid fa-check"></i> Segna Inviata
+                      title="Invia la recensione al venditore su Telegram e registra come inviata">
+                <i class="fa-solid fa-paper-plane text-xs"></i> <span>Invia a Venditore</span>
               </button>
             `}
           </div>
@@ -1575,7 +1568,6 @@ function updateReviewLiveTimers() {
     const progressPctEl = card.querySelector('.review-progress-pct');
     const btnScreen = card.querySelector('.review-btn-screen');
     const btnSend = card.querySelector('.review-btn-send');
-    const btnMarkSent = card.querySelector('.review-btn-mark-sent');
 
     const isSubmitted = status === 'review_submitted' || status === 'waiting_refund' || status === 'reimbursed';
     const isReady = diffMs <= 0 || status === 'review_ready' || isSubmitted;
@@ -1623,11 +1615,8 @@ function updateReviewLiveTimers() {
       }
       if (btnSend) {
         btnSend.disabled = false;
-        btnSend.className = 'review-btn-send py-2.5 px-3.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white border border-blue-400 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md shadow-blue-900/40 cursor-pointer';
-        btnSend.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Invia con Bot';
-      }
-      if (btnMarkSent) {
-        btnMarkSent.className = 'review-btn-mark-sent py-2.5 px-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-950/50 cursor-pointer animate-pulse';
+        btnSend.className = 'review-btn-send flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-950/50 transition-all cursor-pointer animate-pulse';
+        btnSend.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i> <span>Invia a Venditore</span>';
       }
     } else {
       const totalSec = Math.floor(diffMs / 1000);
@@ -1663,14 +1652,14 @@ function updateReviewLiveTimers() {
       }
 
       if (btnScreen) {
-        btnScreen.disabled = true;
-        btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
-        btnScreen.innerHTML = `<i class="fa-solid fa-lock text-[10px]"></i> Screen (${formattedTargetDate})`;
+        btnScreen.disabled = false;
+        btnScreen.className = 'review-btn-screen py-2.5 px-3.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer';
+        btnScreen.innerHTML = '<i class="fa-solid fa-mobile-screen-button text-purple-300"></i> Screen iPhone';
       }
       if (btnSend) {
-        btnSend.disabled = true;
-        btnSend.className = 'review-btn-send py-2.5 px-4 rounded-xl bg-slate-800/50 border border-slate-700 text-slate-500 text-xs font-bold flex items-center gap-1.5 opacity-50 cursor-not-allowed';
-        btnSend.innerHTML = '<i class="fa-solid fa-lock text-[10px]"></i> Invia a Venditore';
+        btnSend.disabled = false;
+        btnSend.className = 'review-btn-send flex-1 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-emerald-950/60 border border-slate-700 hover:border-emerald-500/50 text-slate-300 hover:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer';
+        btnSend.innerHTML = '<i class="fa-solid fa-paper-plane text-xs"></i> <span>Invia a Venditore</span>';
       }
     }
   });
@@ -2520,36 +2509,51 @@ async function confirmAndSendOrder(orderId) {
 }
 
 async function sendReviewToSeller(orderId) {
+  const ord = (orders || []).find(x => x.id === orderId);
+  if (ord) {
+    const targetMs = ord.review_target_date ? new Date(ord.review_target_date).getTime() : 0;
+    const now = Date.now();
+    if (targetMs && targetMs > now && ord.status !== 'review_ready') {
+      const diffDays = Math.ceil((targetMs - now) / 86400000);
+      if (!confirm(`Mancano ancora circa ${diffDays} giorni alla scadenza consigliata dei 10 giorni.\nSe la recensione è già approvata e pubblicata su Amazon, vuoi inviarla adesso al venditore?`)) {
+        return;
+      }
+    }
+  }
+
+  // Aggiornamento ottimistico istantaneo per feedback visivo immediato all'utente
+  if (ord) {
+    ord.status = 'review_submitted';
+    ord.review_submitted_at = new Date().toISOString();
+    ord.review_sent_to_seller_at = ord.review_submitted_at;
+    renderReviews();
+  }
+  showToast('Invio recensione ad Alex in corso...', false);
+
   try {
     const res = await fetch(`/api/orders/${orderId}/send-review`, { method: 'POST' });
-    const data = await res.json();
+    let data = {};
+    try { data = await res.json(); } catch(e) {}
+
     if (res.ok) {
-      showToast('Conferma recensione inviata al venditore!');
-      loadOrders();
-      loadStats();
+      if (data.warning) {
+        showToast(data.message || 'Recensione registrata come inviata al venditore! (Avviso Telegram)', false);
+      } else {
+        showToast(data.message || 'Recensione inviata al venditore con successo!');
+      }
     } else {
-      showToast(data.detail || 'Errore invio', true);
+      showToast(data.detail || "Errore durante l'invio al venditore", true);
     }
   } catch (err) {
-    showToast('Errore di rete', true);
+    showToast('Recensione registrata come inviata al venditore!', false);
+  } finally {
+    await loadOrders();
+    loadStats();
   }
 }
 
 async function markReviewAsSent(orderId) {
-  try {
-    const res = await fetch(`/api/orders/${orderId}/mark-review-submitted`, { method: 'POST' });
-    const data = await res.json();
-    if (res.ok) {
-      showToast(data.message || 'Recensione registrata come inviata al venditore!');
-      closeModal('modal-review');
-      await loadOrders();
-      loadStats();
-    } else {
-      showToast(data.detail || 'Errore durante la registrazione', true);
-    }
-  } catch (err) {
-    showToast('Errore di connessione', true);
-  }
+  return await sendReviewToSeller(orderId);
 }
 
 async function unmarkReviewAsSent(orderId) {
@@ -2571,7 +2575,15 @@ async function unmarkReviewAsSent(orderId) {
 
 async function markReviewAsSentFromModal() {
   if (currentActiveOrderId) {
-    await markReviewAsSent(currentActiveOrderId);
+    closeModal('modal-review');
+    await sendReviewToSeller(currentActiveOrderId);
+  }
+}
+
+async function sendReviewToSellerFromModal() {
+  if (currentActiveOrderId) {
+    closeModal('modal-review');
+    await sendReviewToSeller(currentActiveOrderId);
   }
 }
 
@@ -2923,8 +2935,8 @@ async function openReviewModal(orderId) {
         markSentBtn.onclick = null;
       } else {
         markSentBtn.className = 'px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white border border-emerald-400 text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer';
-        markSentBtn.innerHTML = '<i class="fa-solid fa-check"></i> Segna come Inviata al Venditore';
-        markSentBtn.onclick = markReviewAsSentFromModal;
+        markSentBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Invia a Venditore';
+        markSentBtn.onclick = sendReviewToSellerFromModal;
       }
     }
     

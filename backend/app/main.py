@@ -1466,22 +1466,57 @@ def unmark_review_submitted(order_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/orders/{order_id}/send-review")
 async def send_review_confirmation(order_id: int, db: Session = Depends(get_db)):
-    """Invia la conferma della recensione pubblicata al venditore"""
+    """Invia la conferma della recensione pubblicata al venditore e aggiorna lo stato a review_submitted"""
     order = db.query(Order).filter_by(id=order_id).first()
     if not order:
         raise HTTPException(status_code=404, detail="Ordine non trovato")
         
-    res = await telegram_service.send_review_confirmation(
-        db=db,
-        order=order,
-        recipient=order.seller_contact
+    now = datetime.utcnow()
+    order.status = "review_submitted"
+    if not order.review_submitted_at:
+        order.review_submitted_at = now
+    if not order.review_sent_to_seller_at:
+        order.review_sent_to_seller_at = now
+        
+    target_contact = (order.seller_contact or "@alex8700").strip()
+    log = ActivityLog(
+        action_type="REVIEW_SENT",
+        title=f"Recensione 5★ inviata ad Alex ({target_contact})",
+        details=f"Ordine {order.order_number} ({order.product_title}) registrato come inviato al venditore!"
     )
+    db.add(log)
+    db.commit()
+    save_orders_backup(db)
     
-    if res.get("success"):
-        save_orders_backup(db)
-        return res
-    else:
-        raise HTTPException(status_code=500, detail=f"Errore durante l'invio recensione: {res.get('error', 'Invio fallito')}")
+    tele_res = {}
+    try:
+        tele_res = await telegram_service.send_review_confirmation(
+            db=db,
+            order=order,
+            recipient=order.seller_contact
+        )
+    except Exception as e:
+        print(f"[Telegram Review Send Error] {e}")
+        tele_res = {"success": False, "error": str(e)}
+        
+    save_orders_backup(db)
+    
+    if not tele_res.get("success"):
+        err_msg = tele_res.get("error", "Verifica il collegamento Telegram in Impostazioni.")
+        return {
+            "success": True,
+            "warning": True,
+            "order_id": order.id,
+            "status": order.status,
+            "message": f"Recensione segnata come inviata al venditore! (Avviso Telegram: {err_msg})"
+        }
+        
+    return {
+        "success": True,
+        "order_id": order.id,
+        "status": order.status,
+        "message": tele_res.get("message", f"Screenshot recensione inviato con successo ad Alex ({target_contact})!")
+    }
 
 @app.post("/api/orders/{order_id}/mark-refunded")
 def mark_order_refunded(order_id: int, db: Session = Depends(get_db)):
