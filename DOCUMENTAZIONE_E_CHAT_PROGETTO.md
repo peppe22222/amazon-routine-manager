@@ -99,3 +99,26 @@ sequenceDiagram
 - `backend/app/telegram_service.py`: Client Telegram con supporto a Sandbox Mode.
 - `backend/app/email_service.py`: Parser email di conferma acquisto e recensione.
 - `frontend/index.html` & `frontend/app.js`: Dashboard PWA per iPhone e PC.
+- `backend/tests/test_link_sync_safeguards.py`: Test automatici di regressione e schermatura anti-approvazione indebita.
+
+---
+
+## 🛡️ Schermatura di Sicurezza (Invarianti Critiche per "Da Comprare")
+
+Per impedire categoricamente che in futuro una scheda in "Da Comprare" venga contrassegnata come "Approvato da Alex • Link Disponibile" senza una reale nuova risposta del venditore, sono attive le seguenti **6 Schermature Inviolabili**:
+
+1. **Divieto Assoluto di Messaggi nel Passato**:
+   - Nessun messaggio con data anteriore all'invio della richiesta (`msg_date_utc < o.order_date - 10s`) può essere accettato.
+   - È vietato introdurre finestre temporali a ritroso (`hours=24` o simili).
+2. **Anti-Riciclo e Unicità del Link**:
+   - Qualsiasi link Amazon già presente nel database su un altro ordine viene scartato a priori. Nessun ordine può condividere lo stesso URL di un altro.
+3. **Isolamento Totale Live vs Sandbox**:
+   - In **Live Mode**: la cartella `'me'` (Messaggi Salvati) è tassativamente esclusa dai target. Vengono controllate unicamente le chat con i venditori reali.
+   - In **Sandbox Mode**: le chat reali dei venditori sono tassativamente escluse. Viene controllato unicamente il destinatario di test (`'me'`).
+4. **Filtro Messaggi in Uscita (Anti-Echo)**:
+   - In modalità Live, i messaggi inviati dall'utente (`m.out = True`) non vengono mai considerati come risposte del venditore.
+5. **Abbinamento Deterministico Reply**:
+   - Le richieste salvano il `tg_req_id` nelle note dell'ordine; se Alex risponde con "Rispondi" di Telegram (`reply_to_msg_id`), il matching è chirurgico e immediato.
+6. **Suite di Test di Regressione Permanente**:
+   - Il file `backend/tests/test_link_sync_safeguards.py` protegge queste 6 invarianti e può essere eseguito in qualsiasi momento con `python -m unittest backend/tests/test_link_sync_safeguards.py`.
+

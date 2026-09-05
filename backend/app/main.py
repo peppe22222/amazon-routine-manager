@@ -984,6 +984,7 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             existing_order.status = initial_status
             existing_order.amazon_url = None
             existing_order.order_date = order_date
+            existing_order.notes = None
         else:
             rev_data = generate_ai_review(offer.title, db)
             temp_order_num = f"In attesa #{offer.id}_{int(order_date.timestamp())}"
@@ -1018,6 +1019,8 @@ async def request_offer(offer_id: int, payload: RequestOfferPayload = RequestOff
             target_ord = existing_order or new_order
             if target_ord:
                 target_ord.order_date = sent_dt
+                if req_res.get("msg_id"):
+                    target_ord.notes = f"tg_req_id:{req_res['msg_id']}"
                 db.commit()
                 save_orders_backup(db)
     except Exception as e:

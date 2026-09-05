@@ -883,6 +883,7 @@ class TelegramManager:
         message_text = f"Ciao Alex! Volevo chiederti se e ancora disponibile questo articolo:\n\n📦 *{offer.title}*\n💶 Condizioni: {offer.price_info or '100% rimborso'}\n\nGrazie!"
 
         sent_at = datetime.utcnow()
+        sent_msg_id = None
         if is_test:
             try:
                 client = await self._ensure_connected_client(db)
@@ -898,6 +899,7 @@ class TelegramManager:
                         sent_msg = await client.send_message('me', test_notice)
                     if sent_msg and hasattr(sent_msg, 'date') and sent_msg.date:
                         sent_at = sent_msg.date.replace(tzinfo=None) if hasattr(sent_msg.date, 'tzinfo') and sent_msg.date.tzinfo else sent_msg.date
+                    sent_msg_id = getattr(sent_msg, 'id', None)
             except Exception as e:
                 print(f"[Sandbox Send 'me' Error] {e}")
 
@@ -909,7 +911,7 @@ class TelegramManager:
             db.add(log)
             offer.status = 'requested'
             db.commit()
-            return {'success': True, 'sent_at': sent_at.isoformat(), 'message': '🧪 [SANDBOX] Messaggio di test inviato ai tuoi Messaggi Salvati!'}
+            return {'success': True, 'sent_at': sent_at.isoformat(), 'msg_id': sent_msg_id, 'message': '🧪 [SANDBOX] Messaggio di test inviato ai tuoi Messaggi Salvati!'}
 
         try:
             client = await self._ensure_connected_client(db)
@@ -925,6 +927,7 @@ class TelegramManager:
             
             if sent_msg and hasattr(sent_msg, 'date') and sent_msg.date:
                 sent_at = sent_msg.date.replace(tzinfo=None) if hasattr(sent_msg.date, 'tzinfo') and sent_msg.date.tzinfo else sent_msg.date
+            sent_msg_id = getattr(sent_msg, 'id', None)
 
             log = ActivityLog(
                 action_type='MESSAGE_SENT',
@@ -934,7 +937,7 @@ class TelegramManager:
             db.add(log)
             offer.status = 'requested'
             db.commit()
-            return {'success': True, 'sent_at': sent_at.isoformat(), 'message': f'Richiesta inviata con successo ad Alex ({target_contact}) su Telegram!'}
+            return {'success': True, 'sent_at': sent_at.isoformat(), 'msg_id': sent_msg_id, 'message': f'Richiesta inviata con successo ad Alex ({target_contact}) su Telegram!'}
         except Exception as e:
             print(f'[Telegram Send Error] {e}')
             return {'success': False, 'error': str(e)}
@@ -1157,9 +1160,10 @@ class TelegramManager:
         """
         Controlla i messaggi Telegram per intercettare il link Amazon inviato da Alex DOPO la richiesta.
         RIGOROSO:
-        - In TEST (Sandbox): controlla solo 'me' per messaggi inviati DOPO l'orario della richiesta.
+        - In TEST (Sandbox): controlla solo test_recipient ('me') per messaggi inviati DOPO l'orario della richiesta.
         - In LIVE: controlla solo la chat di Alex (@alex8700 / seller_contact) per messaggi RICEVUTI DA ALEX (not m.out) inviati DOPO l'orario della richiesta.
         - MAI pescare link vecchi o messaggi inviati prima della richiesta.
+        - MAI riutilizzare un link Amazon già assegnato a un altro ordine.
         """
         try:
             client = await self._ensure_connected_client(db)
@@ -1176,25 +1180,27 @@ class TelegramManager:
             if not pending_orders:
                 return {'success': True, 'updated_count': 0, 'message': 'Nessun ordine in attesa di link.'}
 
-            # Costruisce la lista completa dei target da controllare (Alex, seller_contact, e 'me' per massima compatibilità)
-            targets_to_check = []
+            # Costruisce la lista corretta dei target da verificare:
+            # In test mode controlla SOLO il destinatario di test ('me'), MAI la chat reale di Alex.
+            # In live mode controlla SOLO i venditori reali, MAI la chat 'me' (Saved Messages).
             if test_mode:
-                targets_to_check.append('me')
-            
-            # Aggiunge i contatti dei venditori degli ordini in sospeso
-            if seller_handle and seller_handle.strip():
-                targets_to_check.append(seller_handle.strip())
-            for o in pending_orders:
-                if o.seller_contact and o.seller_contact.strip():
-                    clean_c = o.seller_contact.strip().replace('https://t.me/', '@').replace('http://t.me/', '@')
-                    if not clean_c.startswith('@') and not clean_c.startswith('+') and not clean_c.isdigit():
-                        clean_c = '@' + clean_c
-                    if clean_c not in targets_to_check:
-                        targets_to_check.append(clean_c)
-            if '@alex8700' not in targets_to_check:
-                targets_to_check.append('@alex8700')
-            if 'me' not in targets_to_check:
-                targets_to_check.append('me')
+                test_rec = self.get_setting(db, 'test_recipient', 'me').strip() or 'me'
+                targets_to_check = [test_rec]
+            else:
+                targets_to_check = []
+                if seller_handle and seller_handle.strip():
+                    targets_to_check.append(seller_handle.strip())
+                for o in pending_orders:
+                    if o.seller_contact and o.seller_contact.strip():
+                        clean_c = o.seller_contact.strip().replace('https://t.me/', '@').replace('http://t.me/', '@')
+                        if not clean_c.startswith('@') and not clean_c.startswith('+') and not clean_c.isdigit():
+                            clean_c = '@' + clean_c
+                        if clean_c not in targets_to_check:
+                            targets_to_check.append(clean_c)
+                if '@alex8700' not in targets_to_check:
+                    targets_to_check.append('@alex8700')
+                # SCHERMATURA TASSATIVA: Mai includere 'me' in modalità Live!
+                targets_to_check = [t for t in targets_to_check if t != 'me']
 
             # Cerca anche l'entità di Alex direttamente tra le conversazioni aperte (dialogs) dell'account
             dialog_entities_map = {}
@@ -1210,6 +1216,14 @@ class TelegramManager:
                 print(f'[iter_dialogs sync warning] {de}')
 
             updated = 0
+
+            # Raccoglie tutti i link Amazon già assegnati nel database ad altri ordini per evitare doppioni
+            existing_assigned_urls = {
+                row[0].strip() for row in db.query(Order.amazon_url).filter(
+                    Order.amazon_url != None,
+                    Order.amazon_url != ''
+                ).all() if row[0]
+            }
 
             # Risolve le entità concrete
             resolved_targets = []
@@ -1241,8 +1255,8 @@ class TelegramManager:
                 messages = []
                 try:
                     async for m in client.iter_messages(entity, limit=50):
-                        is_valid_sender = (target_name == 'me') or test_mode or (not m.out)
-                        if not is_valid_sender:
+                        # In LIVE mode: il messaggio DEVE provenire dal venditore (not m.out, MAI inviato da me)
+                        if not test_mode and m.out:
                             continue
 
                         raw_text = getattr(m, 'text', None) or getattr(m, 'message', None) or getattr(m, 'raw_text', None) or ''
@@ -1253,8 +1267,8 @@ class TelegramManager:
                 except Exception as iter_err:
                     print(f'[iter_messages error for {target_name}] {iter_err}')
 
-                # Ordina dal più recente al più vecchio: vogliamo catturare l'ULTIMO link inviato!
-                messages.sort(key=lambda x: x[0], reverse=True)
+                # Ordina cronologicamente dal più vecchio al più recente per associare in ordine di arrivo
+                messages.sort(key=lambda x: x[0])
 
                 for msg_date_utc, m in messages:
                     if not pending_orders:
@@ -1268,23 +1282,56 @@ class TelegramManager:
                     if not amz_urls:
                         continue
 
-                    best_url = amz_urls[0]
+                    # Trova il primo URL che non sia già stato assegnato a un altro ordine
+                    best_url = None
+                    for u in amz_urls:
+                        if u not in existing_assigned_urls:
+                            best_url = u
+                            break
+
+                    if not best_url:
+                        continue
+
+                    # Controlla se il messaggio è una risposta diretta (reply_to)
+                    reply_to_id = getattr(m, 'reply_to_msg_id', None)
+                    if not reply_to_id and hasattr(m, 'reply_to') and m.reply_to:
+                        reply_to_id = getattr(m.reply_to, 'reply_to_msg_id', None)
 
                     target_order = None
-                    for o in pending_orders:
-                        if not o.order_date:
-                            target_order = o
-                            break
-                        # Finestra temporale flessibile: ammette messaggi inviati nelle ultime 24 ore rispetto all'ordine
-                        min_allowed_time = o.order_date - timedelta(hours=24)
-                        if msg_date_utc >= min_allowed_time and (not o.amazon_url):
-                            target_order = o
-                            break
+
+                    # 1. Matching esatto se Alex ha usato "Rispondi" al messaggio della richiesta
+                    if reply_to_id:
+                        for o in pending_orders:
+                            if o.notes and f'tg_req_id:{reply_to_id}' in o.notes:
+                                target_order = o
+                                break
+
+                    # 2. Matching cronologico rigoroso:
+                    # Il messaggio DEVE essere inviato DOPO l'invio della richiesta (tolleranza 10s per lag di rete/clock)
+                    if not target_order:
+                        for o in pending_orders:
+                            order_dt = o.order_date or datetime.utcnow()
+                            min_allowed_time = order_dt - timedelta(seconds=10)
+                            if msg_date_utc >= min_allowed_time and (not o.amazon_url):
+                                target_order = o
+                                break
 
                     if target_order:
+                        # SCHERMATURA DI SICUREZZA: Verifica finale che l'URL non sia vuoto né già presente nel DB
+                        if not best_url or best_url in existing_assigned_urls:
+                            continue
+                        url_already_in_db = db.query(Order.id).filter(
+                            Order.amazon_url == best_url,
+                            Order.id != target_order.id
+                        ).first()
+                        if url_already_in_db:
+                            print(f"[Link Sync Shield] Bloccata tentata assegnazione di link duplicato: {best_url}")
+                            continue
+
                         pending_orders.remove(target_order)
                         target_order.amazon_url = best_url
                         target_order.status = 'link_approved'
+                        existing_assigned_urls.add(best_url)
 
                         match_offer = db.query(Offer).filter(
                             or_(Offer.title == target_order.product_title, Offer.title.ilike(f'%{target_order.product_title[:25]}%'))
