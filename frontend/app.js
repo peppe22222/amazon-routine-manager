@@ -1184,6 +1184,10 @@ async function syncTelegramReplies(silent = false) {
     return activeRepliesSyncPromise;
   }
 
+  const syncBtn = document.getElementById('btn-sync-alex-replies');
+  const icon = syncBtn ? syncBtn.querySelector('i') : null;
+  if (!silent && icon) icon.classList.add('fa-spin');
+
   activeRepliesSyncPromise = (async () => {
     try {
       const res = await fetch('/api/telegram/sync-replies', { method: 'POST' });
@@ -1207,6 +1211,7 @@ async function syncTelegramReplies(silent = false) {
     } catch (err) {
       if (!silent) console.error('Sync replies error:', err);
     } finally {
+      if (icon) icon.classList.remove('fa-spin');
       activeRepliesSyncPromise = null;
     }
   })();
