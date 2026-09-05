@@ -194,29 +194,39 @@
       transform-origin: center center;
     }
 
-    /* Ancoraggio hardware blindato barra mobile inferiore iPhone */
+    /* Floating Apple Glass Dock / Capsule Nav Bar per iPhone e Mobile */
     .mobile-bottom-nav {
       position: fixed !important;
-      bottom: 0 !important;
-      left: 0 !important;
-      right: 0 !important;
-      width: 100% !important;
-      max-width: 100vw !important;
+      bottom: max(calc(env(safe-area-inset-bottom, 0px) + 12px), 16px) !important;
+      left: 12px !important;
+      right: 12px !important;
+      width: auto !important;
+      max-width: 480px !important;
+      margin: 0 auto !important;
       z-index: 9999 !important;
-      -webkit-transform: translate3d(0, 0, 0) !important;
-      transform: translate3d(0, 0, 0) !important;
-      -webkit-backface-visibility: hidden !important;
-      backface-visibility: hidden !important;
-      padding-top: 6px !important;
-      padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px) !important;
-      background: rgba(8, 13, 26, 0.94) !important;
-      backdrop-filter: blur(20px) !important;
-      -webkit-backdrop-filter: blur(20px) !important;
-      border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+      padding: 6px 8px !important;
+      border-radius: 28px !important;
+      background: rgba(13, 20, 36, 0.78) !important;
+      -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+      backdrop-filter: blur(28px) saturate(190%) !important;
+      border: 1px solid rgba(255, 255, 255, 0.14) !important;
+      box-shadow: 0 16px 36px -6px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06) inset !important;
+      touch-action: manipulation;
     }
 
     .mob-tab-icon-wrap {
       transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* Padding inferiore sul body per garantire che l'ultimo elemento scrolli sopra la dock fluttuante */
+    @media (max-width: 767px) {
+      body {
+        background-attachment: scroll !important;
+        padding-bottom: max(calc(env(safe-area-inset-bottom, 0px) + 96px), 116px) !important;
+      }
+      #btn-scroll-top {
+        bottom: max(calc(env(safe-area-inset-bottom, 0px) + 84px), 98px) !important;
+      }
     }
 
     /* Supporto Safe Area Top per iPhone Notch / Dynamic Island / Status Bar */
@@ -1375,6 +1385,6 @@ Contattare @venditore_arredo per disponibilità" class="w-full bg-brand-bg borde
     <i class="fa-solid fa-arrow-up"></i>
   </button>
 
-  <script src="/app.js?v=6.1.4"></script>
+  <script src="/app.js?v=6.1.5"></script>
 </body>
 </html>
