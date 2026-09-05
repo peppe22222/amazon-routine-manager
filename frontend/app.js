@@ -1263,9 +1263,9 @@ function renderConfirmations(ordersList = null) {
     const isRealOrderNumber = cleanOrderNum && !cleanOrderNum.toLowerCase().includes('in attesa') && !cleanOrderNum.toLowerCase().includes('pending');
     
     return `
-      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
+      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group h-full flex flex-col" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
         <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
-        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
+        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer opacity-0 pointer-events-none transition-opacity duration-150">
           <button onclick="confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
             <i class="fa-solid fa-trash-can text-sm"></i>
             <span>Elimina</span>
@@ -1273,7 +1273,7 @@ function renderConfirmations(ordersList = null) {
         </div>
 
         <!-- Contenuto Card -->
-        <div class="swipe-card-content glass-card rounded-2xl p-5 border-amber-500/40 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg relative z-10 bg-brand-surface border border-brand-border">
+        <div class="swipe-card-content glass-card rounded-2xl p-5 border-amber-500/40 flex flex-col lg:flex-row lg:items-center justify-between gap-5 shadow-lg relative z-10 bg-brand-surface border border-brand-border h-full w-full flex-1">
           <!-- Sinistra: Foto Prodotto + Dati Ordine -->
           <div class="flex items-start gap-4 flex-1">
             <!-- Thumbnail Prodotto Zoomabile -->
@@ -1399,9 +1399,9 @@ function renderReviews(ordersList = null) {
     const refundAmt = (o.refund_amount != null ? Number(o.refund_amount) : Number(o.price_paid || 0)).toFixed(2);
 
     return `
-      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
+      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group h-full flex flex-col" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
         <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
-        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
+        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer opacity-0 pointer-events-none transition-opacity duration-150">
           <button onclick="confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
             <i class="fa-solid fa-trash-can text-sm"></i>
             <span>Elimina</span>
@@ -1409,7 +1409,7 @@ function renderReviews(ordersList = null) {
         </div>
 
         <!-- Contenuto Card Recensione -->
-        <div class="swipe-card-content review-timer-card glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-lg relative z-10 bg-brand-surface border ${isSubmitted ? 'border-emerald-500/40 shadow-emerald-950/30' : 'border-brand-border'}"
+        <div class="swipe-card-content review-timer-card glass-card rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-lg relative z-10 bg-brand-surface border h-full w-full flex-1 ${isSubmitted ? 'border-emerald-500/40 shadow-emerald-950/30' : 'border-brand-border'}"
              data-review-order-id="${o.id}"
              data-target-date="${targetIso}"
              data-start-date="${startIso}"
@@ -1461,18 +1461,9 @@ function renderReviews(ordersList = null) {
                     <i class="fa-brands fa-paypal text-cyan-400 text-sm"></i> Rimborso atteso: <strong class="text-emerald-400 text-xs font-mono font-bold">€${refundAmt}</strong>
                   </span>
                   <div class="flex items-center gap-1.5">
-                    ${(window._isTestMode || o.is_test) ? `
-                      <a href="tg://resolve?domain=me" target="_blank" class="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Apri i tuoi Messaggi Salvati su Telegram">
-                        <i class="fa-brands fa-telegram text-sky-400"></i> <span>Messaggi Salvati</span>
-                      </a>
-                    ` : `
-                      <button onclick="copyReviewMessage(${o.id})" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Copia messaggio pronto per Alex negli appunti">
-                        <i class="fa-regular fa-copy"></i> <span>Copia Testo</span>
-                      </button>
-                      <a href="https://t.me/${(o.seller_contact || 'alex8700').replace(/^@/, '')}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600/50 text-blue-200 border border-blue-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Apri direttamente la chat con Alex su Telegram">
-                        <i class="fa-brands fa-telegram text-sky-400"></i> <span>Chat Alex</span>
-                      </a>
-                    `}
+                    <button onclick="copyReviewMessage(${o.id})" class="px-2.5 py-1 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 font-bold text-[10px] flex items-center gap-1 transition-all" title="Copia messaggio pronto per la recensione negli appunti">
+                      <i class="fa-regular fa-copy"></i> <span>Copia Testo</span>
+                    </button>
                     <button onclick="switchTab('refunds')" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 border border-emerald-500/40 font-bold text-[10px] flex items-center gap-1 transition-all">
                       <span>Vedi in Rimborsi</span> <i class="fa-solid fa-arrow-right text-[9px]"></i>
                     </button>
@@ -1858,9 +1849,9 @@ function renderRefunds(ordersList = null) {
     const formattedSentDate = sentDateStr ? new Date(sentDateStr).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }) : '';
 
     return `
-      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
+      <div class="swipe-item-wrapper relative overflow-hidden rounded-2xl mb-4 select-none group h-full flex flex-col" data-order-id="${o.id}" data-item-title="${escapeHtml(o.product_title || 'Articolo')}">
         <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
-        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
+        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-5 rounded-2xl text-white font-extrabold text-xs shadow-inner cursor-pointer opacity-0 pointer-events-none transition-opacity duration-150">
           <button onclick="confirmAndDeleteOrder(${o.id}, this.closest('.swipe-item-wrapper'))" class="flex items-center gap-2 bg-red-800/90 hover:bg-red-900 px-4 py-2.5 rounded-xl border border-red-400/50 shadow-lg text-white">
             <i class="fa-solid fa-trash-can text-sm"></i>
             <span>Elimina</span>
@@ -1868,7 +1859,7 @@ function renderRefunds(ordersList = null) {
         </div>
 
         <!-- Contenuto Card Rimborso -->
-        <div class="swipe-card-content glass-card rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border relative z-10 bg-brand-surface ${isReimbursed ? 'border-emerald-500/30' : (isSentWaitingRefund ? 'border-amber-500/50 shadow-amber-950/20 bg-gradient-to-r from-amber-950/20 via-brand-surface to-brand-surface' : 'border-slate-800')}">
+        <div class="swipe-card-content glass-card rounded-2xl p-4 md:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg border relative z-10 bg-brand-surface h-full w-full flex-1 ${isReimbursed ? 'border-emerald-500/30' : (isSentWaitingRefund ? 'border-amber-500/50 shadow-amber-950/20 bg-gradient-to-r from-amber-950/20 via-brand-surface to-brand-surface' : 'border-slate-800')}">
           <div class="flex items-center gap-4 min-w-0 flex-1">
             <!-- Thumbnail Prodotto Zoomabile -->
             <div onclick="openLightboxFromSrc('${prodImg}', '${escapeJsString(o.product_title || 'Prodotto')}', 'Rimborso €${refundAmt}')" class="cursor-pointer relative w-14 h-14 rounded-xl overflow-hidden border border-slate-700 bg-slate-900 shrink-0 group">
@@ -1948,6 +1939,7 @@ function initSwipeToDelete(containerId) {
 
     const content = wrapper.querySelector('.swipe-card-content');
     if (!content) return;
+    const delBg = wrapper.querySelector('.swipe-delete-bg');
 
     let startX = 0;
     let startY = 0;
@@ -1987,6 +1979,10 @@ function initSwipeToDelete(containerId) {
         if (e.cancelable && e.preventDefault) e.preventDefault();
         
         if (diffX < 0) {
+          if (delBg) {
+            delBg.style.opacity = '1';
+            delBg.style.pointerEvents = 'auto';
+          }
           if (diffX < -120) {
             currentX = -120 + (diffX + 120) * 0.2;
           } else {
@@ -1996,6 +1992,10 @@ function initSwipeToDelete(containerId) {
         } else {
           currentX = Math.min(diffX * 0.2, 20);
           content.style.transform = `translateX(${currentX}px)`;
+          if (delBg) {
+            delBg.style.opacity = '0';
+            delBg.style.pointerEvents = 'none';
+          }
         }
       }
     }
@@ -2007,8 +2007,16 @@ function initSwipeToDelete(containerId) {
       
       if (currentX < -65) {
         content.style.transform = 'translateX(-100px)';
+        if (delBg) {
+          delBg.style.opacity = '1';
+          delBg.style.pointerEvents = 'auto';
+        }
       } else {
         content.style.transform = 'translateX(0px)';
+        if (delBg) {
+          delBg.style.opacity = '0';
+          delBg.style.pointerEvents = 'none';
+        }
       }
     }
 
@@ -2029,6 +2037,11 @@ async function confirmAndDeleteOrder(orderId, wrapperElement) {
     if (wrapperElement) {
       const content = wrapperElement.querySelector('.swipe-card-content');
       if (content) content.style.transform = 'translateX(0px)';
+      const delBg = wrapperElement.querySelector('.swipe-delete-bg');
+      if (delBg) {
+        delBg.style.opacity = '0';
+        delBg.style.pointerEvents = 'none';
+      }
     }
     return;
   }
@@ -2129,7 +2142,7 @@ async function loadLogs() {
     container.innerHTML = logs.map(l => `
       <div class="swipe-item-wrapper relative overflow-hidden rounded-xl select-none group" data-log-id="${l.id}">
         <!-- Sfondo Rosso di Eliminazione visibile allo Swipe -->
-        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-4 rounded-xl text-white font-extrabold text-xs shadow-inner cursor-pointer">
+        <div class="swipe-delete-bg absolute inset-0 bg-gradient-to-r from-red-700 to-rose-600 flex items-center justify-end px-4 rounded-xl text-white font-extrabold text-xs shadow-inner cursor-pointer opacity-0 pointer-events-none transition-opacity duration-150">
           <button onclick="confirmAndDeleteLog(${l.id}, this.closest('.swipe-item-wrapper'))" class="flex items-center gap-1.5 bg-red-800/90 hover:bg-red-900 px-3 py-2 rounded-lg border border-red-400/50 shadow-md text-white text-xs font-bold">
             <i class="fa-solid fa-trash-can"></i>
             <span>Elimina</span>
